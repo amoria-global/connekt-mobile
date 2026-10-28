@@ -5,6 +5,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Controller, useForm } from 'react-hook-form';
+import { WishInvitesField } from '@/features/wishes/WishInvitesField';
+import { useScrollToField } from '@/features/wishes/useScrollToField';
+import { invitesOn, wishInvitesError } from '@/features/wishes/wishInvites';
 import {
   ActivityIndicator,
   FlatList,
@@ -123,6 +126,10 @@ export default function NewEventScreen() {
   const [coverError, setCoverError] = useState<string | null>(null);
   const [existingCover, setExistingCover] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
+  // Wish invites: no default on a new event, so the choice is required before it can be saved.
+  const [wishInvites, setWishInvites] = useState<boolean | null>(null);
+  const [wishInvitesErr, setWishInvitesErr] = useState<string | null>(null);
+  const { scrollRef, fieldRef, onScroll, scrollToField } = useScrollToField();
 
   // Optional, non-text controls
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
@@ -241,6 +248,8 @@ export default function NewEventScreen() {
           description: ev.description ?? '',
         });
         setInPerson(ev.attendanceMode !== 'STREAM_ONLY');
+        // The saved value; an event from before the setting reads as on.
+        setWishInvites(invitesOn(ev.allowWishInvites));
         if (ev.currency) {
           setSelectedCurrency(ev.currency);
         }
@@ -465,8 +474,16 @@ export default function NewEventScreen() {
     );
   };
 
+  const submit = () => {
+    const missing = wishInvitesError(wishInvites);
+    setWishInvitesErr(missing ?? null);
+    if (missing) scrollToField();
+    void handleSubmit(onSubmit)();
+  };
+
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
+    if (wishInvitesError(wishInvites)) return;
     // A cover photo is required to create; on edit the existing one is kept.
     if (!cover && !(isEditing && existingCover)) {
       setCoverError('A cover photo is required');
@@ -519,6 +536,7 @@ export default function NewEventScreen() {
       currency: isCoordinator ? selectedCurrency : params.currency,
       maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
       eventVisibility: visibility,
+      allowWishInvites: wishInvites === true,
       tags: tags.length ? tags : undefined,
       photographerId,
       packageId,
@@ -620,6 +638,9 @@ export default function NewEventScreen() {
     <Screen padded={false}>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
+        ref={scrollRef}
+        onScroll={onScroll}
+        scrollEventThrottle={32}
         style={styles.flex}
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
@@ -814,6 +835,18 @@ export default function NewEventScreen() {
                   </View>
                 </View>
               </View>
+            ) : null}
+
+            {isCoordinator ? (
+              <WishInvitesField
+                value={wishInvites}
+                containerRef={fieldRef}
+                error={wishInvitesErr}
+                onChange={(v) => {
+                  setWishInvites(v);
+                  setWishInvitesErr(null);
+                }}
+              />
             ) : null}
 
             {/* Coordinator: Geo-pricing Rules */}
@@ -1188,6 +1221,18 @@ export default function NewEventScreen() {
               />
             ) : null}
 
+            {!isCoordinator ? (
+              <WishInvitesField
+                value={wishInvites}
+                containerRef={fieldRef}
+                error={wishInvitesErr}
+                onChange={(v) => {
+                  setWishInvites(v);
+                  setWishInvitesErr(null);
+                }}
+              />
+            ) : null}
+
             {/* More options */}
             <Pressable style={styles.moreToggle} onPress={() => setShowMore((v) => !v)}>
               <Text style={styles.moreToggleText}>{tr('b3_evnew_more_options')}</Text>
@@ -1348,7 +1393,7 @@ export default function NewEventScreen() {
                   ? `Book & pay ${formatPrice(amount, params.currency)}`
                   : 'Create event'
             }
-            onPress={handleSubmit(onSubmit)}
+            onPress={submit}
             loading={busy}
           />
         </View>

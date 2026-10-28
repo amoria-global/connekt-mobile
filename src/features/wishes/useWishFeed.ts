@@ -15,6 +15,7 @@ export function useWishFeed(eventId: string) {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
+  const [allowInvites, setAllowInvites] = useState<boolean | undefined>(undefined);
   const live = useRef(true);
   useEffect(() => {
     live.current = true; // set again on mount: a re-mounted effect (React strict mode) must not stay "gone"
@@ -31,6 +32,7 @@ export function useWishFeed(eventId: string) {
       setTotal(p.total);
       setPage(p.page);
       setTotalPages(p.totalPages);
+      setAllowInvites(p.allowWishInvites);
       setState('ready');
     } catch {
       if (live.current) setState((s) => (s === 'ready' ? s : 'error'));
@@ -72,7 +74,7 @@ export function useWishFeed(eventId: string) {
     [eventId, wishes],
   );
 
-  return { wishes, state, total, hasMore: page + 1 < totalPages, reload: load, loadMore, hideOwn };
+  return { wishes, state, total, allowInvites, hasMore: page + 1 < totalPages, reload: load, loadMore, hideOwn };
 }
 
 export function useHostWishes(eventId: string) {

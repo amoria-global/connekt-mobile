@@ -37,6 +37,8 @@ export type HostedEventInput = {
   /** Positive makes the event paid. */
   streamFee?: number;
   streamFeeCurrencyId?: string;
+  /** Required by the server: whether viewers may invite others to send wishes. */
+  allowWishInvites: boolean;
 };
 
 export type EarningsPreview = {

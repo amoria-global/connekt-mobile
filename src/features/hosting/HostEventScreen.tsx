@@ -9,6 +9,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import type { LayoutChangeEvent } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
@@ -26,6 +27,7 @@ import { listCurrencies } from '@/features/reference/api';
 import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { WishInvitesField } from '@/features/wishes/WishInvitesField';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import {
   createHostedEvent,
@@ -72,6 +74,9 @@ export default function HostEventScreen() {
   const [currencyCode, setCurrencyCode] = useState('RWF');
   const [cover, setCover] = useState<PickedImage | null>(null);
   const [more, setMore] = useState(false);
+  const [wishInvites, setWishInvites] = useState<boolean | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+  const wishInvitesY = useRef(0);
 
   const [errors, setErrors] = useState<HostFormErrors>({});
   const [busy, setBusy] = useState(false);
@@ -123,9 +128,15 @@ export default function HostEventScreen() {
 
   const submit = async (goLive: boolean) => {
     if (inFlight.current) return;
-    const found = validateHostForm({ title, date, startTime, paid, price }, !!cover, todayYmd());
+    const found = validateHostForm({ title, date, startTime, paid, price, allowWishInvites: wishInvites }, !!cover, todayYmd());
     setErrors(found);
-    if (Object.keys(found).length > 0 || !cover) return;
+    if (Object.keys(found).length > 0 || !cover) {
+      // The choice has no default, so a missing one is the likeliest reason to stop: bring the field into view.
+      if (found.wishInvites && !found.cover && !found.title && !found.price) {
+        scrollRef.current?.scrollTo({ y: Math.max(wishInvitesY.current - 12, 0), animated: true });
+      }
+      return;
+    }
 
     inFlight.current = true;
     setBusy(true);
@@ -141,6 +152,7 @@ export default function HostEventScreen() {
         location: location.trim() || undefined,
         streamFee: paid ? Number(price) : undefined,
         streamFeeCurrencyId: paid ? currencyId : undefined,
+        allowWishInvites: wishInvites === true,
       };
       const result = await runHostFlow(
         {
@@ -201,7 +213,7 @@ export default function HostEventScreen() {
 
   return (
     <Screen edges={[]}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.lead}>{tr('Create your event, then go live. Viewers can find it on the Events page.')}</Text>
 
         <Pressable
@@ -299,6 +311,19 @@ export default function HostEventScreen() {
             ) : null}
           </View>
         ) : null}
+
+        <WishInvitesField
+          value={wishInvites}
+          disabled={busy}
+          error={errors.wishInvites}
+          onLayout={(e: LayoutChangeEvent) => {
+            wishInvitesY.current = e.nativeEvent.layout.y;
+          }}
+          onChange={(v) => {
+            setWishInvites(v);
+            setErrors((x) => ({ ...x, wishInvites: undefined }));
+          }}
+        />
 
         <DateField label="Date" value={date} onChange={setDate} error={errors.date} minimumDate={new Date()} />
         <TimeField label="Start time (optional)" value={startTime} onChange={setStartTime} error={errors.startTime} />

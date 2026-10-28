@@ -17,6 +17,7 @@ const mockSendVideoWish = jest.fn();
 const mockPick = jest.fn();
 let mockParams: Record<string, string> = { id: 'e1' };
 let mockUser: Record<string, string> | null = null;
+let mockEventExtra: Record<string, unknown> = {};
 
 jest.mock('expo-router', () => ({ useLocalSearchParams: () => mockParams, useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn() }) }));
 jest.mock('expo-image', () => ({ Image: () => null }));
@@ -58,6 +59,7 @@ jest.mock('@/features/events/api', () => ({
     eventOrganizer: 'The Mugisha family',
     photographerName: 'Eric Mugisha',
     isPaid: false,
+    ...mockEventExtra,
   })),
 }));
 jest.mock('@/store/auth', () => {
@@ -106,6 +108,7 @@ beforeEach(() => {
   mockPick.mockReset();
   mockParams = { id: 'e1' };
   mockUser = null;
+  mockEventExtra = {};
 });
 
 describe('opened from a scanned QR code', () => {
@@ -216,6 +219,40 @@ describe('a signed-in user', () => {
   });
 });
 
+
+describe('Wish invites on the event page', () => {
+  it('shows the switch, the Invite loved ones tab and the heartfelt line when enabled, and also for an older server with no value', async () => {
+    mockEventExtra = { allowWishInvites: true };
+    const on = flat((await mount()).root);
+    expect(on).toContain('Invite loved ones');
+    expect(on).toContain("Some of the people you love can't be here.");
+    mockEventExtra = {};
+    expect(flat((await mount()).root)).toContain('Invite loved ones');
+  });
+
+  it('hides all of it when disabled: only the send form, no switch, no heartfelt line, no gap', async () => {
+    mockEventExtra = { allowWishInvites: false };
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Wishes & memories');
+    expect(text).toContain('Video · 1 min');
+    expect(text).not.toContain('Invite loved ones');
+    expect(text).not.toContain('Send my wish');
+    expect(text).not.toContain("Some of the people you love can't be here.");
+    expect(text).not.toContain('Save QR');
+  });
+
+  it("a viewer's own wish still sends when invites are disabled, with no invite marker", async () => {
+    mockEventExtra = { allowWishInvites: false };
+    const r = await mount();
+    await type(r, /name/i, 'Aline');
+    await type(r, /email/i, 'aline@example.test');
+    await type(r, /message|wish/i, 'Best wishes');
+    await press(r, 'Send wish');
+    expect(mockSendWish).toHaveBeenCalledTimes(1);
+    expect(mockSendWish.mock.calls[0][1]).not.toHaveProperty('via');
+  });
+});
 
 describe('the event page cards', () => {
   it('runs in the new order: date and time, wishes and memories, the heartfelt line, hosted by, stream entry, donation', async () => {

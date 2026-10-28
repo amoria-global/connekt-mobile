@@ -51,6 +51,7 @@ export async function listWishes(eventId: string, page = 0, size = 20): Promise<
     page: Number(d.page) || 0,
     totalPages: Number(d.totalPages) || 0,
     total: Number(d.total) || 0,
+    allowWishInvites: typeof d.allowWishInvites === 'boolean' ? d.allowWishInvites : undefined,
   };
 }
 

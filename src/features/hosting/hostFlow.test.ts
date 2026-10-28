@@ -2,7 +2,7 @@ import type { PickedImage } from '@/services/imagePicker';
 import { bucketOf, runHostFlow, validateHostForm, type HostDeps } from './hostFlow';
 import type { HostedEventInput } from './api';
 
-const input: HostedEventInput = { title: 'Rooftop set', eventDate: '2026-11-10' };
+const input: HostedEventInput = { title: 'Rooftop set', eventDate: '2026-11-10', allowWishInvites: true };
 const cover = { uri: 'file:///c.jpg' } as PickedImage;
 
 function deps(over: Partial<HostDeps> = {}): jest.Mocked<HostDeps> {
@@ -63,7 +63,14 @@ describe('runHostFlow', () => {
 });
 
 describe('validateHostForm', () => {
-  const ok = { title: 'Rooftop set', date: '2026-11-10', startTime: '', paid: false, price: '' };
+  const ok = { title: 'Rooftop set', date: '2026-11-10', startTime: '', paid: false, price: '', allowWishInvites: true as boolean | null };
+
+  it('requires a Wish invites choice, and accepts either one', () => {
+    expect(validateHostForm({ ...ok, allowWishInvites: null }, true, '2026-11-01')).toEqual({ wishInvites: 'Choose whether viewers can invite others' });
+    expect(validateHostForm({ ...ok, allowWishInvites: undefined }, true, '2026-11-01')).toEqual({ wishInvites: 'Choose whether viewers can invite others' });
+    expect(validateHostForm({ ...ok, allowWishInvites: false }, true, '2026-11-01')).toEqual({});
+    expect(validateHostForm({ ...ok, allowWishInvites: true }, true, '2026-11-01')).toEqual({});
+  });
 
   it('accepts a free event with a cover', () => {
     expect(validateHostForm(ok, true, '2026-11-01')).toEqual({});

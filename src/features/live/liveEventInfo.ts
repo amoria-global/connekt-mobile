@@ -8,7 +8,7 @@ import { getPublicEventDetailed } from '@/features/events/api';
 import type { PublicEvent } from '@/features/events/types';
 import type { EventAccess } from './sections/LivePlayer';
 
-export type LiveEventInfo = { tagline?: string; location?: string; access: EventAccess; wishesClosed: boolean };
+export type LiveEventInfo = { tagline?: string; location?: string; access: EventAccess; wishesClosed: boolean; allowWishInvites?: boolean };
 
 const CLOSED = new Set(['COMPLETED', 'AWAITING_REVIEW', 'CANCELLED', 'ENDED']);
 
@@ -20,12 +20,13 @@ export function taglineOf(description?: string): string | undefined {
   return first.length > 140 ? `${first.slice(0, 137).trimEnd()}...` : first;
 }
 
-export function mapLiveEventInfo(e: Pick<PublicEvent, 'description' | 'location' | 'streamFee' | 'eventStatus'>): LiveEventInfo {
+export function mapLiveEventInfo(e: Pick<PublicEvent, 'description' | 'location' | 'streamFee' | 'eventStatus' | 'allowWishInvites'>): LiveEventInfo {
   return {
     tagline: taglineOf(e.description),
     location: e.location?.trim() || undefined,
     access: typeof e.streamFee === 'number' && e.streamFee > 0 ? 'ticket' : 'free',
     wishesClosed: CLOSED.has(String(e.eventStatus ?? '').toUpperCase()),
+    allowWishInvites: e.allowWishInvites,
   };
 }
 

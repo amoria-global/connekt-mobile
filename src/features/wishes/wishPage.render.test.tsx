@@ -18,7 +18,8 @@ jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({
 jest.mock('@/components/ui/Screen', () => ({ Screen: ({ children }: { children: React.ReactNode }) => children }));
 jest.mock('@/services/storage', () => ({ storage: { get: jest.fn(async () => null), set: jest.fn(async () => {}), remove: jest.fn(async () => {}) } }));
 jest.mock('@/features/streams/pickShortVideo', () => ({ pickShortVideo: jest.fn() }));
-jest.mock('@/features/streams/api', () => ({ sendEventWish: jest.fn(), sendEventVideoWish: jest.fn() }));
+const mockSend = jest.fn();
+jest.mock('@/features/streams/api', () => ({ sendEventWish: (...a: unknown[]) => mockSend(...a), sendEventVideoWish: jest.fn() }));
 jest.mock('@/features/events/api', () => ({
   getPublicEventDetailed: jest.fn(async () => {
     if (mockEvent instanceof Error) throw mockEvent;
@@ -44,6 +45,34 @@ const upcoming = { id: 'e1', title: 'Bible Revival Conference', eventDate: '2999
 beforeEach(() => {
   mockParams = { id: 'e1' };
   mockEvent = { ...upcoming };
+});
+
+describe('the wish page and Wish invites', () => {
+  it('shows the host-turned-off notice, with the cover, title and a View event link, and no form', async () => {
+    mockEvent = { ...upcoming, allowWishInvites: false };
+    const text = flat((await mount()).root);
+    expect(text).toContain('Bible Revival Conference');
+    expect(text).toContain('The host has turned off wish invites for this event');
+    expect(text).toContain('View event →');
+    expect(text).not.toContain('Send wish');
+    expect(text).not.toContain('Invite someone else');
+  });
+
+  it('sends the wish with via=invite, the marker the server uses to refuse invite wishes when they are off', async () => {
+    mockEvent = { ...upcoming, allowWishInvites: true };
+    mockSend.mockResolvedValue(undefined);
+    const r = await mount();
+    const set = async (re: RegExp, v: string) => {
+      const input = r.root.findAll((n) => typeof n.props?.onChangeText === 'function' && re.test(String(n.props.placeholder ?? '')))[0];
+      await act(async () => input.props.onChangeText(v));
+    };
+    await set(/name/i, 'Grace');
+    await set(/email/i, 'g@example.test');
+    await set(/message/i, 'Congratulations');
+    const send = r.root.findAll((n) => n.props?.title === 'Send wish' && typeof n.props?.onPress === 'function')[0];
+    await act(async () => send.props.onPress());
+    expect(mockSend).toHaveBeenCalledWith('e1', expect.objectContaining({ via: 'invite', message: 'Congratulations' }));
+  });
 });
 
 describe('the wish page', () => {

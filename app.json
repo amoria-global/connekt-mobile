@@ -156,6 +156,11 @@
                 "icon": "people-outline",
                 "title": "One Hosted by card",
                 "body": "When the organizer is also the photographer you see one row with both roles. The photographer opens their profile."
+              },
+              {
+                "icon": "people-outline",
+                "title": "Choose who can invite others to send wishes",
+                "body": "Every event now has a Wish invites setting. Enable it and viewers can share a link or QR so loved ones send their wishes too, or disable it to keep wishes to your own viewers. You can change it at any time, even while live."
               }
             ]
           },

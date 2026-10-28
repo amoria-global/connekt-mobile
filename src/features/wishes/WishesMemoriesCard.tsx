@@ -20,7 +20,7 @@ import { HEARTFELT_LINE, sanitizeFrom, wishLink } from './wishPage';
 const QUIET = 2;
 type Tab = 'send' | 'invite';
 
-export function WishesMemoriesCard({ eventId, title }: { eventId: string; title: string }) {
+export function WishesMemoriesCard({ eventId, title, invites = true }: { eventId: string; title: string; invites?: boolean }) {
   const { colors } = useTheme();
   const styles = useStyles();
   const [tab, setTab] = useState<Tab>('send');
@@ -38,20 +38,24 @@ export function WishesMemoriesCard({ eventId, title }: { eventId: string; title:
             <Text style={styles.sub}>Shown on screen during the event</Text>
           </View>
         </View>
-        <Segmented<Tab>
-          value={tab}
-          onChange={setTab}
-          options={[
-            { label: 'Send my wish', value: 'send' },
-            { label: 'Invite loved ones', value: 'invite' },
-          ]}
-        />
-        {tab === 'send' ? <WishForm eventId={eventId} variant="card" /> : <InviteTab eventId={eventId} title={title} />}
+        {invites ? (
+          <Segmented<Tab>
+            value={tab}
+            onChange={setTab}
+            options={[
+              { label: 'Send my wish', value: 'send' },
+              { label: 'Invite loved ones', value: 'invite' },
+            ]}
+          />
+        ) : null}
+        {tab === 'send' || !invites ? <WishForm eventId={eventId} variant="card" /> : <InviteTab eventId={eventId} title={title} />}
       </View>
-      <View style={styles.heartfelt}>
-        <Ionicons name="heart-outline" size={16} color={colors.accent} style={styles.heartIcon} />
-        <Text style={styles.heartfeltText}>{HEARTFELT_LINE}</Text>
-      </View>
+      {invites ? (
+        <View style={styles.heartfelt}>
+          <Ionicons name="heart-outline" size={16} color={colors.accent} style={styles.heartIcon} />
+          <Text style={styles.heartfeltText}>{HEARTFELT_LINE}</Text>
+        </View>
+      ) : null}
     </>
   );
 }

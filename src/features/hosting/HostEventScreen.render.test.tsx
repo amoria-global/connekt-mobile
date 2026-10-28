@@ -121,6 +121,39 @@ describe('HostEventScreen', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
+  it('blocks both publish buttons until Wish invites is chosen, shows the error, then sends the choice', async () => {
+    serve(eligibility({}));
+    const r = await mount();
+    expect(text(r)).toContain('Wish invites');
+    expect(text(r)).toContain('Allow viewers to invite friends and family to send message and video wishes?');
+    expect(r.root.findAll((n) => n.props?.accessibilityRole === 'radio' && n.props?.accessibilityState?.checked === true)).toHaveLength(0);
+    await act(async () => {
+      await byLabel(r, 'Add a cover photo').props.onPress();
+    });
+    await act(async () => {
+      field(r, 'Title').props.onChangeText('Rooftop set');
+    });
+    await act(async () => {
+      await titled(r, 'Publish and go live').props.onPress();
+    });
+    await act(async () => {
+      await titled(r, 'Publish and schedule for later').props.onPress();
+    });
+    expect(text(r)).toContain('Choose whether viewers can invite others');
+    expect(mockPost).not.toHaveBeenCalled();
+
+    await act(async () => {
+      byLabel(r, 'Disable').props.onPress();
+    });
+    expect(text(r)).not.toContain('Choose whether viewers can invite others');
+    expect([...new Set(r.root.findAll((n) => n.props?.accessibilityRole === 'radio' && n.props?.accessibilityState?.checked === true).map((n) => n.props.accessibilityLabel))]).toEqual(['Disable']);
+    await act(async () => {
+      await titled(r, 'Publish and schedule for later').props.onPress();
+    });
+    await settle();
+    expect(mockPost.mock.calls[0][1]).toMatchObject({ allowWishInvites: false });
+  });
+
   it('creates, uploads, publishes, then opens the stream controls, and a double tap makes one event', async () => {
     serve(eligibility({}));
     const r = await mount();
@@ -131,6 +164,9 @@ describe('HostEventScreen', () => {
       field(r, 'Title').props.onChangeText('Rooftop set');
     });
     await act(async () => {
+      byLabel(r, 'Enable').props.onPress();
+    });
+    await act(async () => {
       const press = titled(r, 'Publish and go live').props.onPress;
       void press();
       void press();
@@ -138,6 +174,7 @@ describe('HostEventScreen', () => {
     await settle();
     expect(mockPost).toHaveBeenCalledTimes(1);
     expect(mockPost.mock.calls[0][0]).toBe('/photographer/hosted-events');
+    expect(mockPost.mock.calls[0][1]).toMatchObject({ allowWishInvites: true });
     expect(mockUpload).toHaveBeenCalledWith('ev1', expect.objectContaining({ uri: 'file:///cover.jpg' }), false);
     expect(mockPublish).toHaveBeenCalledWith('ev1', false);
     expect(mockReplace).toHaveBeenCalledWith('/stream/control/ev1');
@@ -152,6 +189,9 @@ describe('HostEventScreen', () => {
     });
     await act(async () => {
       field(r, 'Title').props.onChangeText('Rooftop set');
+    });
+    await act(async () => {
+      byLabel(r, 'Enable').props.onPress();
     });
     await act(async () => {
       await titled(r, 'Publish and go live').props.onPress();
