@@ -2,7 +2,7 @@
  * Asks for the price per photo and its currency before an event album goes live on Find My Photos, as the dashboard does:
  * an event album has no price of its own until it is published, and buyers cannot pay for a photo with none.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -33,12 +33,10 @@ export function PublishPriceSheet({
   const insets = useSafeAreaInsets();
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
   const [price, setPrice] = useState('');
-  const [currencyId, setCurrencyId] = useState('');
-
+  const [picked, setPicked] = useState('');
   // Default to RWF, or the first currency, like the create screen.
-  useEffect(() => {
-    if (!currencyId && currencies.data?.length) setCurrencyId((currencies.data.find((c) => c.code === 'RWF') ?? currencies.data[0]).id);
-  }, [currencies.data, currencyId]);
+  const list = currencies.data ?? [];
+  const currencyId = picked || (list.find((c) => c.code === 'RWF') ?? list[0])?.id || '';
 
   const ok = validPublishPrice(price, currencyId);
 
@@ -78,7 +76,7 @@ export function PublishPriceSheet({
                 return (
                   <Pressable
                     key={c.id}
-                    onPress={() => setCurrencyId(c.id)}
+                    onPress={() => setPicked(c.id)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}
                     style={[styles.chip, { borderColor: active ? lightPalette.primary : colors.stroke, backgroundColor: active ? lightPalette.primary : 'transparent' }]}
