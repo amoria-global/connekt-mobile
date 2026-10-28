@@ -60,10 +60,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Screen } from '@/components/ui/Screen';
 import { LiveButton, LiveDot, LivePill, LiveRing, LiveTwinkle } from '@/components/ui/live';
 import { listPublicEventsDetailed } from '@/features/events/api';
+import { getEventStatus } from '@/features/events/eventStatus';
 import {
   isEventEnded,
   isEventLive,
-  TAB_TO_STATUS,
   type PublicEvent,
   type PublicEventsTab,
 } from '@/features/events/types';
@@ -362,32 +362,38 @@ export default function ExploreEventsScreen() {
     setLoading(true);
     setError(null);
     try {
-      let res = await listPublicEventsDetailed({
-        page: page - 1,
-        // Live state is not always reflected in the event's publication
-        // status. Load the live pool broadly, then use streamStatus and the
-        // stream URLs to decide which cards are actually live.
-        size: tab === 'live' ? 50 : PAGE_SIZE,
+      // A tab is a state (live, upcoming, ended), and the state is decided once, by getEventStatus, from the stream
+      // and the event's date-times. The backend's status column and the stream disagree (an event can still be
+      // PUBLISHED after its stream ended), so asking it to filter by status put ended events under Soon. For a state tab
+      // the whole matching pool is loaded and sorted into tabs here, so tabs, counts and badges always agree.
+      const poolParams = {
         sortColumn: sortConfig.column,
-        sortDirection: tab === 'completed' ? 'desc' : sortConfig.direction,
+        sortDirection: tab === 'completed' ? ('desc' as const) : sortConfig.direction,
         category: category !== 'all' ? category : undefined,
         location: location !== 'all' ? location : undefined,
-        status: tab === 'live' ? undefined : TAB_TO_STATUS[tab],
         dateRange: dateRange !== 'all' ? dateRange : undefined,
         search: searchTerm || undefined,
-      });
+      };
+      let res = await listPublicEventsDetailed({ ...poolParams, page: tab === 'all' ? page - 1 : 0, size: tab === 'all' ? PAGE_SIZE : 100 });
+      if (tab !== 'all') {
+        const pooled = [...res.content];
+        for (let p = 1; p < Math.min(res.totalPages || 1, 6); p++) {
+          pooled.push(...(await listPublicEventsDetailed({ ...poolParams, page: p, size: 100 })).content);
+        }
+        res = { ...res, content: pooled, totalElements: pooled.length };
+      }
 
       // Resilient fallback:
       // In live database, events often have `eventStatus: "AWAITING_REVIEW"` with `isPublished: true`.
       // Calling backend with strict status (e.g. status=PUBLISHED or status=ONGOING) returns 0 results.
       // If 0 items are returned for a specific tab or dateRange, fallback to querying
       // without strict status and filter client-side so user sees matching events.
-      if (res.content.length === 0 && (tab !== 'all' || (dateRange !== 'all' && res.totalElements === 0))) {
+      if (tab === 'all' && res.content.length === 0 && dateRange !== 'all' && res.totalElements === 0) {
         const fallbackRes = await listPublicEventsDetailed({
           page: 0,
           size: 50,
           sortColumn: sortConfig.column,
-          sortDirection: tab === 'completed' ? 'desc' : sortConfig.direction,
+          sortDirection: sortConfig.direction,
           category: category !== 'all' ? category : undefined,
           location: location !== 'all' ? location : undefined,
           search: searchTerm || undefined,
@@ -395,17 +401,7 @@ export default function ExploreEventsScreen() {
 
         if (fallbackRes.content.length > 0) {
           let filtered = fallbackRes.content;
-          if (tab === 'live') {
-            filtered = filtered.filter((e) => isEventLive(e, liveStreamIds));
-          } else if (tab === 'upcoming') {
-            filtered = filtered.filter((e) => !isEventLive(e, liveStreamIds) && !isEventEnded(e));
-          } else if (tab === 'completed') {
-            filtered = filtered.filter((e) => isEventEnded(e));
-          }
-
-          if (dateRange !== 'all') {
-            filtered = filterByDateRange(filtered, dateRange);
-          }
+          filtered = filterByDateRange(filtered, dateRange);
 
           switch (sortBy) {
             case 'newest':
@@ -446,15 +442,16 @@ export default function ExploreEventsScreen() {
         }
       }
 
-      if (tab === 'live') {
-        const liveContent = res.content.filter((event) => isEventLive(event, liveStreamIds));
+      if (tab !== 'all') {
+        const want = tab === 'live' ? 'LIVE' : tab === 'upcoming' ? 'UPCOMING' : 'ENDED';
+        const now = Date.now();
+        const inTab = res.content.filter((event) => getEventStatus(event, now, liveStreamIds) === want);
         const start = (page - 1) * PAGE_SIZE;
-        const pagedLive = liveContent.slice(start, start + PAGE_SIZE);
         res = {
           ...res,
-          content: pagedLive,
-          totalElements: liveContent.length,
-          totalPages: Math.max(1, Math.ceil(liveContent.length / PAGE_SIZE)),
+          content: inTab.slice(start, start + PAGE_SIZE),
+          totalElements: inTab.length,
+          totalPages: Math.max(1, Math.ceil(inTab.length / PAGE_SIZE)),
         };
       }
 

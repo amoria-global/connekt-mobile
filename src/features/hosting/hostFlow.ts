@@ -8,6 +8,7 @@
  */
 import type { PickedImage } from '@/services/imagePicker';
 import type { HostedEventInput } from './api';
+import { getEventStatus, type StatusInput } from '@/features/events/eventStatus';
 
 export type HostProgress = { eventId?: string; coverDone?: boolean };
 
@@ -89,10 +90,26 @@ export function validateHostForm(form: HostForm, hasCover: boolean, today: strin
 
 export type HostedBucket = 'upcoming' | 'live' | 'ended';
 
-/** Which tab a hosted event belongs under, from the server's event status. */
-export function bucketOf(status?: string): HostedBucket {
-  const s = (status ?? '').toUpperCase();
+/**
+ * Which tab a hosted event belongs under. Given an event it uses the one shared rule (getEventStatus: the stream and the
+ * date-times decide), so the tab, the badge and the count agree. A bare status string still works for callers that only
+ * have the server's event status.
+ */
+export function bucketOf(event?: string | StatusInput, now: number = Date.now()): HostedBucket {
+  if (event && typeof event === 'object') {
+    const s = getEventStatus(event, now);
+    return s === 'LIVE' ? 'live' : s === 'ENDED' ? 'ended' : 'upcoming';
+  }
+  const s = (event ?? '').toUpperCase();
   if (s === 'ONGOING' || s === 'LIVE') return 'live';
   if (s === 'COMPLETED' || s === 'ENDED') return 'ended';
   return 'upcoming';
+}
+
+/** "1 upcoming · 0 live", from the same rule the hosted events tabs use (Home tile). */
+export function hostedCaption(events: readonly (string | StatusInput | undefined)[] | undefined): string {
+  if (!events) return "Upcoming, live and ended";
+  const now = Date.now();
+  const buckets = events.map((e) => bucketOf(e, now));
+  return `${buckets.filter((b) => b === "upcoming").length} upcoming · ${buckets.filter((b) => b === "live").length} live`;
 }

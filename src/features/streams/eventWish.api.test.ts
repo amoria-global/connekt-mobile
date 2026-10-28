@@ -22,12 +22,17 @@ beforeEach(() => {
 describe('text wish', () => {
   it('sends the device fingerprint the backend requires (without it every wish was refused)', async () => {
     await sendEventWish('e1', { name: 'Aline', email: 'a@b.co', message: 'Hi' });
-    expect(mockPost).toHaveBeenCalledWith('/public/events/e1/wishes', { name: 'Aline', email: 'a@b.co', message: 'Hi', deviceFingerprint: 'device-1' }, { skipAuth: true });
+    expect(mockPost).toHaveBeenCalledWith('/public/events/e1/wishes', { name: 'Aline', email: 'a@b.co', message: 'Hi', visibility: 'private', deviceFingerprint: 'device-1' }, { skipAuth: true });
+  });
+
+  it('sends the chosen visibility', async () => {
+    await sendEventWish('e1', { name: 'Aline', email: 'a@b.co', message: 'Hi', visibility: 'public' });
+    expect(mockPost.mock.calls[0][1]).toMatchObject({ visibility: 'public' });
   });
 
   it('turns a refusal into the web wording', async () => {
-    mockPost.mockResolvedValue({ action: 0, message: 'Wishes are only allowed before the event goes live' });
-    await expect(sendEventWish('e1', { name: 'A', email: 'a@b.co', message: 'Hi' })).rejects.toMatchObject({ message: 'The event is now live. Please join the stream to send messages.' });
+    mockPost.mockResolvedValue({ action: 0, message: 'Wishes are closed for this event' });
+    await expect(sendEventWish('e1', { name: 'A', email: 'a@b.co', message: 'Hi' })).rejects.toMatchObject({ message: 'Wishes are closed for this event.' });
   });
 });
 
@@ -39,8 +44,13 @@ describe('video wish', () => {
     const [path, form, opts] = mockPost.mock.calls[0];
     expect(path).toBe('/public/events/e1/wishes/video');
     expect(opts).toEqual({ skipAuth: true });
-    expect(Object.fromEntries((form as FakeForm).parts)).toEqual({ name: 'Aline', email: 'a@b.co', deviceFingerprint: 'device-1', message: 'Best wishes' });
+    expect(Object.fromEntries((form as FakeForm).parts)).toEqual({ name: 'Aline', email: 'a@b.co', deviceFingerprint: 'device-1', visibility: 'private', message: 'Best wishes' });
     expect(mockAppend).toHaveBeenCalledWith(expect.anything(), 'video', { uri: 'file:///w.mp4', name: 'w.mp4', type: 'video/mp4' });
+  });
+
+  it('sends visibility and the clip length rounded up to whole seconds', async () => {
+    await sendEventVideoWish('e1', { name: 'Aline', email: 'a@b.co', visibility: 'public', durationSeconds: 41.2, video });
+    expect(Object.fromEntries((mockPost.mock.calls[0][1] as FakeForm).parts)).toMatchObject({ visibility: 'public', duration: '42' });
   });
 
   it('leaves the caption out when there is none', async () => {
