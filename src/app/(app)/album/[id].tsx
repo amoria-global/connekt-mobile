@@ -15,7 +15,7 @@
  *     swipe, loading is a skeleton, and every fact on the header (count, date, place, photographer) is the API's own.
  */
 import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { FallbackImage } from '@/features/gallery/FallbackImage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -46,6 +46,7 @@ import {
   getAlbum,
   getAlbumFaceStatus,
   publishAlbumToFaceSearch,
+  ensureAlbumInviteCode,
   sendAlbumToClient,
   submitContentAlbum,
   type AlbumFaceStatus,
@@ -67,6 +68,9 @@ import { useCurrency } from '@/store/currency';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { AlbumShareSheet } from '@/features/gallery/AlbumShareSheet';
+import { PublishPriceSheet } from '@/features/gallery/PublishPriceSheet';
+import { albumShareUrl } from '@/features/gallery/albumShare';
 
 const APPROVAL_META: Record<string, { label: string; tone: SwatchTone; }> = {
   DRAFT: { label: 'Draft', tone: 'neutral' as const },
@@ -84,7 +88,7 @@ export default function AlbumDetailScreen() {
   const styles = useStyles();
   const { tr } = useSharedT();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, share } = useLocalSearchParams<{ id: string; share?: string }>();
   const router = useRouter();
   const { role, isPhotographer } = useRole();
   const { width } = useWindowDimensions();
@@ -101,6 +105,11 @@ export default function AlbumDetailScreen() {
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [gridCols, setGridCols] = useState<2 | 3>(3);
   const [moreSheetOpen, setMoreSheetOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [priceOpen, setPriceOpen] = useState(false);
+  const [justPublished, setJustPublished] = useState(false);
+  // A code made on demand when the album came back without one (the web asks for one before opening Face AI).
+  const [madeCode, setMadeCode] = useState<string | undefined>();
 
   // Fetch face-index status for photographers
   useEffect(() => {
@@ -117,6 +126,23 @@ export default function AlbumDetailScreen() {
   }, [id, isPhotographer]);
 
   const images = useMemo(() => data?.images ?? [], [data?.images]);
+
+  // The Find My Photos link and QR: only for the photographer, once the album is live there or is a free album with an access code.
+  const shareLink = useMemo(() => {
+    if (!isPhotographer || !data || data.isContent) return null;
+    if (!data.isFreeAlbum && !data.faceRecognitionEnabled) return null;
+    return albumShareUrl({ isFreeAlbum: data.isFreeAlbum, accessCode: data.accessCode, inviteCode: data.inviteCode ?? madeCode });
+  }, [isPhotographer, data, madeCode]);
+  const shareCode = data?.isFreeAlbum && data.accessCode ? data.accessCode : data?.inviteCode ?? madeCode;
+
+  // Arriving from "create album" with ?share=1 opens the sheet once, as soon as the link exists.
+  const shareHandled = useRef(false);
+  useEffect(() => {
+    if (share !== '1' || shareHandled.current || !shareLink) return;
+    shareHandled.current = true;
+    setJustPublished(true);
+    setShareOpen(true);
+  }, [share, shareLink]);
 
   const openPhoto = useCallback((photoId: string) => setViewerIndex(images.findIndex((img) => img.id === photoId)), [images]);
 
@@ -136,6 +162,11 @@ export default function AlbumDetailScreen() {
   };
 
   const onShareAlbum = () => {
+    if (shareLink) {
+      setJustPublished(false);
+      setShareOpen(true);
+      return;
+    }
     const title = data?.name || 'Album';
     const url = `https://connekyt.com/user/gallery/album?id=${id}`;
     Share.share({
@@ -193,13 +224,36 @@ export default function AlbumDetailScreen() {
       'The client has been emailed the link to view this album.',
     );
 
-  const onPublishToFaceSearch = () =>
-    runLifecycle(
-      'publish',
-      () => publishAlbumToFaceSearch(id),
-      'Album Published to Face-AI',
-      'Your photos are now indexed and searchable via Find My Photos facial scan.',
-    );
+  // An event album has no price until it is published, so the first publish asks for one, as the dashboard does.
+  // Re-syncing an album that is already live keeps the price it has.
+  const onPublishToFaceSearch = () => {
+    setMoreSheetOpen(false);
+    if (data?.eventId && !faceStatus?.isPublished) setPriceOpen(true);
+    else void publishNow();
+  };
+
+  const publishNow = async (opts?: { pricePerImage: string; currencyId: string }) => {
+    setMoreSheetOpen(false);
+    setBusy('publish');
+    try {
+      const pub = await publishAlbumToFaceSearch(id, opts);
+      let code = pub.inviteCode;
+      if (!code && !data?.inviteCode) code = await ensureAlbumInviteCode(id).catch(() => undefined);
+      if (code) setMadeCode(code);
+      await refresh();
+      // Offer the link and QR straight away; fall back to the plain confirmation if no code came back.
+      if (code || data?.inviteCode) {
+        setJustPublished(true);
+        setShareOpen(true);
+      } else {
+        Alert.alert('Album Published to Face-AI', 'Your photos are now indexed and searchable via Find My Photos facial scan.');
+      }
+    } catch (err) {
+      Alert.alert('Action failed', isApiError(err) ? err.message : 'Please try again.');
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const onSubmitForReview = () =>
     runLifecycle(
@@ -784,6 +838,27 @@ export default function AlbumDetailScreen() {
                 <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
               </Pressable>
 
+              {/* Link and QR for Find My Photos */}
+              {shareLink ? (
+                <Pressable
+                  style={styles.sheetItem}
+                  onPress={() => {
+                    setMoreSheetOpen(false);
+                    setJustPublished(false);
+                    setShareOpen(true);
+                  }}
+                >
+                  <View style={styles.sheetIconBox}>
+                    <Ionicons name="qr-code-outline" size={18} color={colors.primary} />
+                  </View>
+                  <View style={styles.sheetItemText}>
+                    <Text style={styles.sheetItemLabel}>Link & QR code</Text>
+                    <Text style={styles.sheetItemDesc}>Let attendees find their photos</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              ) : null}
+
               {/* Send to Client (Photographer) */}
               {isPhotographer && !isContent ? (
                 <Pressable
@@ -881,6 +956,29 @@ export default function AlbumDetailScreen() {
         title={data?.name ?? 'Restore album'}
         subtitle="Archive unlock"
       />
+      <PublishPriceSheet
+        visible={priceOpen}
+        onClose={() => setPriceOpen(false)}
+        title={data?.name ?? 'Album'}
+        busy={busy === 'publish'}
+        onPublish={async (price, currencyId) => {
+          await publishNow({ pricePerImage: price, currencyId });
+          setPriceOpen(false);
+          // The face-status chip and the live check read this; refresh it so a second publish is a re-sync.
+          getAlbumFaceStatus(id).then(setFaceStatus).catch(() => {});
+        }}
+      />
+      {shareLink ? (
+        <AlbumShareSheet
+          visible={shareOpen}
+          onClose={() => setShareOpen(false)}
+          albumId={id}
+          title={data?.name ?? 'Album'}
+          link={shareLink}
+          code={shareCode}
+          justPublished={justPublished}
+        />
+      ) : null}
     </Screen>
   );
 }

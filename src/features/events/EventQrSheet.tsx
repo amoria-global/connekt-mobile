@@ -7,17 +7,15 @@
  * here (expo-print is a native module and would need a new store build), so
  * "Share" hands the link to the system sheet, which includes print targets.
  */
-import { useMemo } from 'react';
-import { Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import { Modal, Pressable, Share, Text, View } from 'react-native';
+import { BrandedQr } from '@/features/qr/BrandedQrView';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { eventQrLink, qrMatrix } from '@/features/events/scanIntent';
+import { eventQrLink } from '@/features/events/scanIntent';
 import { compactSheet, fontSize, fontWeight, lightPalette, radii, spacing, useTheme, onFill } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 
-const QUIET = 2; // modules of white margin around the code
 // The code is always navy on white, so it scans in either scheme.
 const NAVY = lightPalette.primary;
 
@@ -40,18 +38,6 @@ export function EventQrSheet({
   const insets = useSafeAreaInsets();
   const { tr } = useSharedT();
   const link = eventQrLink(eventId);
-
-  const path = useMemo(() => {
-    if (!visible || !published) return null;
-    const { size, dark } = qrMatrix(link);
-    let d = '';
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        if (dark[y * size + x]) d += `M${x + QUIET} ${y + QUIET}h1v1h-1z`;
-      }
-    }
-    return { size: size + QUIET * 2, d };
-  }, [visible, published, link]);
 
   if (!published) return null;
 
@@ -78,12 +64,7 @@ export function EventQrSheet({
         </View>
 
         <View style={styles.codeBox}>
-          {path ? (
-            <Svg width="100%" height="100%" viewBox={`0 0 ${path.size} ${path.size}`}>
-              <Rect width={path.size} height={path.size} fill={onFill} />
-              <Path d={path.d} fill={NAVY} />
-            </Svg>
-          ) : null}
+          {visible && published ? <BrandedQr value={link} size="100%" accessibilityLabel="QR code for the event page" /> : null}
         </View>
 
         <Text style={[styles.hint, { color: colors.textMuted }]}>
