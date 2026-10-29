@@ -100,7 +100,7 @@ describe('Events screen: tabs and default state', () => {
   it('puts creation in the title row and opens an event with one tap', async () => {
     const r = await mount();
     await press(byLabel(r, 'Create new event')[0]);
-    expect(mockPush).toHaveBeenCalledWith('/event/new');
+    expect(mockPush).toHaveBeenCalledWith('/host/new');
     await press(r.root.findAll((n) => String(n.props?.accessibilityLabel).startsWith('Booking Testing.') && typeof n.props.onPress === 'function')[0]);
     expect(mockPush).toHaveBeenCalledWith('/event/soon');
   });

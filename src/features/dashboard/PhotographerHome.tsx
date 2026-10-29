@@ -435,7 +435,7 @@ export function PhotographerHome() {
         <View style={[styles.gutter, styles.cta]}>
           <PrimaryButton
             title="Create event"
-            onPress={() => open('/event/new')}
+            onPress={() => open('/host/new')}
             icon={<Ionicons name="add" size={20} color={colors.textOnPrimary} />}
           />
         </View>
