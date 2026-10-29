@@ -7,7 +7,7 @@ import { PrimaryButton, GhostButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { isApiError, useAuth } from '@/store/auth';
-import { accountIdentity, loadGuestIdentity, saveGuestIdentity } from '@/features/events/guestIdentity';
+import { accountIdentity, loadGuestIdentity, saveGuestName } from '@/features/events/guestIdentity';
 import { sendEventVideoWish, sendEventWish } from '@/features/streams/api';
 import { pickShortVideo, type PickedVideo } from '@/features/streams/pickShortVideo';
 import { canSend, formatClock, remainingChars, sentNotice, validateDraft, type ComposerDraft } from '@/features/wishes/composer';
@@ -65,7 +65,6 @@ export function WishComposerSheet({ eventId, kind, onClose, onSent }: { eventId:
   const user = useAuth((s) => s.user);
   const account = accountIdentity(user);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [visibility, setVisibility] = useState<WishVisibility | null>(null);
   const [clip, setClip] = useState<PickedVideo | null>(null);
@@ -78,11 +77,10 @@ export function WishComposerSheet({ eventId, kind, onClose, onSent }: { eventId:
     if (account) return;
     loadGuestIdentity().then((g) => {
       if (g.name) setName((n) => n || g.name!);
-      if (g.email) setEmail((e) => e || g.email!);
     });
   }, [account]);
 
-  const draft: ComposerDraft = { kind, name, email, message, visibility, durationSeconds: clip?.durationSeconds ?? null, hasVideo: !!clip };
+  const draft: ComposerDraft = { kind, name, message, visibility, durationSeconds: clip?.durationSeconds ?? null, hasVideo: !!clip };
   const errors = validateDraft(draft, account);
   const ready = canSend(errors);
 
@@ -105,13 +103,13 @@ export function WishComposerSheet({ eventId, kind, onClose, onSent }: { eventId:
   const send = async () => {
     setTried(true);
     if (!ready || !visibility) return;
-    const who = account ?? { name: name.trim(), email: email.trim() };
+    const who = { name: (account?.name ?? name).trim() };
     setBusy(true);
     setError(null);
     try {
       if (kind === 'text') await sendEventWish(eventId, { ...who, message: message.trim(), visibility });
       else await sendEventVideoWish(eventId, { ...who, message, visibility, durationSeconds: clip?.durationSeconds, video: clip! });
-      if (!account) void saveGuestIdentity(who);
+      if (!account) void saveGuestName(who.name);
       setSent(sentNotice(visibility));
       onSent?.();
     } catch (e) {
@@ -161,7 +159,6 @@ export function WishComposerSheet({ eventId, kind, onClose, onSent }: { eventId:
       {!account ? (
         <>
           <Input label="Your name" value={name} onChangeText={setName} autoCapitalize="words" error={shown('name')} />
-          <Input label="Your email" value={email} onChangeText={setEmail} autoCapitalize="none" keyboardType="email-address" error={shown('email')} />
         </>
       ) : null}
 

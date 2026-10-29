@@ -1047,16 +1047,23 @@ export function wishErrorMessage(raw: string | undefined, kind: 'text' | 'video'
 
 /**
  * Send a pre-event text wish to the organizer.
- * Web: POST /api/remote/public/events/{id}/wishes. The backend requires `deviceFingerprint` (validateWishCommonFields);
- * the first mobile version left it out, so every text wish was refused with "deviceFingerprint is required".
+ * Web: POST /api/remote/public/events/{id}/wishes. The backend requires a name and `deviceFingerprint` (wishFieldsError);
+ * the first mobile version left the fingerprint out, so every text wish was refused with "deviceFingerprint is required".
+ * No email is sent: nothing ever read it back, and the owner only needs the name.
  */
 export async function sendEventWish(
   eventId: string,
-  data: { name: string; email: string; message: string; visibility?: 'public' | 'private'; via?: 'invite' },
+  data: { name: string; message: string; visibility?: 'public' | 'private'; via?: 'invite' },
 ): Promise<void> {
   const res = await api.post<ApiEnvelope<Raw>>(
     `/public/events/${encodeURIComponent(eventId)}/wishes`,
-    { ...data, visibility: data.visibility ?? 'private', deviceFingerprint: await getDeviceId() },
+    {
+      name: data.name,
+      message: data.message,
+      visibility: data.visibility ?? 'private',
+      ...(data.via ? { via: data.via } : {}),
+      deviceFingerprint: await getDeviceId(),
+    },
     { skipAuth: true },
   );
   if (res?.action !== 1) {
@@ -1066,14 +1073,13 @@ export async function sendEventWish(
 
 /**
  * Send a pre-event video wish (at most one minute, see pickShortVideo).
- * Web: POST /api/remote/public/events/{id}/wishes/video, multipart with name, email, video, deviceFingerprint and an
+ * Web: POST /api/remote/public/events/{id}/wishes/video, multipart with name, video, deviceFingerprint and an
  * optional message, visibility and duration. Accepted until the event ends (PUBLISHED, UPCOMING or ONGOING).
  */
 export async function sendEventVideoWish(
   eventId: string,
   data: {
     name: string;
-    email: string;
     message?: string;
     visibility?: 'public' | 'private';
     /** "invite" when the wish came from a shared invite link or QR. */
@@ -1090,7 +1096,6 @@ export async function sendEventVideoWish(
     type: data.video.mimeType ?? 'video/mp4',
   });
   form.append('name', data.name);
-  form.append('email', data.email);
   form.append('deviceFingerprint', await getDeviceId());
   form.append('visibility', data.visibility ?? 'private');
   if (data.via) form.append('via', data.via);

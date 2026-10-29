@@ -67,7 +67,6 @@ describe('the wish page and Wish invites', () => {
       await act(async () => input.props.onChangeText(v));
     };
     await set(/name/i, 'Grace');
-    await set(/email/i, 'g@example.test');
     await set(/message/i, 'Congratulations');
     const send = r.root.findAll((n) => n.props?.title === 'Send wish' && typeof n.props?.onPress === 'function')[0];
     await act(async () => send.props.onPress());
