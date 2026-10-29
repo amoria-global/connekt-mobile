@@ -256,7 +256,7 @@ export function PhotographerEventsDashboard({ topInset = 0 }: { topInset?: numbe
           </Pressable>
         ) : null}
         <HeaderHelpButton />
-        <Pressable onPress={() => router.push('/event/new' as Href)} accessibilityRole="button" accessibilityLabel="Create new event" style={({ pressed }) => [styles.createBtn, pressed && styles.pressed]}>
+        <Pressable onPress={() => router.push('/host/new' as Href)} accessibilityRole="button" accessibilityLabel="Create new event" style={({ pressed }) => [styles.createBtn, pressed && styles.pressed]}>
           <Ionicons name="add" size={24} color={colors.textOnPrimary} />
         </Pressable>
       </View>

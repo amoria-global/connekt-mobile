@@ -213,6 +213,11 @@ export default function NewEventScreen() {
     }
   }, [isCoordinator, params.editId, entertainmentCategory, setValue]);
 
+  // A photographer creates an event through Host an event, the one screen for it, so any other way in lands there.
+  useEffect(() => {
+    if (isPhotographer && !params.editId) router.replace('/host/new' as never);
+  }, [isPhotographer, params.editId, router]);
+
   // Prefill when editing an existing event.
   const hhmm = (t?: string) => {
     if (!t) return '';
@@ -494,11 +499,12 @@ export default function NewEventScreen() {
     // A private event is self-streamed and paid — it must charge at least the
     // minimum. Public events may be free, but a non-zero fee still can't be
     // below the minimum. Non-coordinators ("the rest") have digital purchases disabled.
+    // Coordinators self-stream a private event under the same rule as clients.
+    if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
+      setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} RWF.`);
+      return;
+    }
     if (!isCoordinator) {
-      if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
-        setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} RWF.`);
-        return;
-      }
       if (priceNum > 0 && priceNum < MIN_RWF) {
         setServerError(`Live stream access fee must be at least ${MIN_RWF} RWF.`);
         return;
