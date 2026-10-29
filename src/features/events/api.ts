@@ -64,6 +64,9 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
   if (input.eventCategoryId && UUID_RE.test(input.eventCategoryId)) {
     payload.eventCategoryId = input.eventCategoryId;
   }
+  if (input.streamFeeCurrencyId && UUID_RE.test(input.streamFeeCurrencyId)) {
+    payload.streamFeeCurrencyId = input.streamFeeCurrencyId;
+  }
   if (input.photographerId && UUID_RE.test(input.photographerId)) {
     payload.photographerId = input.photographerId;
   }

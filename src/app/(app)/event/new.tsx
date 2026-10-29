@@ -501,12 +501,12 @@ export default function NewEventScreen() {
     // below the minimum. Non-coordinators ("the rest") have digital purchases disabled.
     // Coordinators self-stream a private event under the same rule as clients.
     if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
-      setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} RWF.`);
+      setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} ${selectedCurrency}.`);
       return;
     }
     if (!isCoordinator) {
       if (priceNum > 0 && priceNum < MIN_RWF) {
-        setServerError(`Live stream access fee must be at least ${MIN_RWF} RWF.`);
+        setServerError(`Live stream access fee must be at least ${MIN_RWF} ${selectedCurrency}.`);
         return;
       }
     }
@@ -539,7 +539,9 @@ export default function NewEventScreen() {
       // The "Live stream fee" field IS the stream fee (viewer paywall). Booking
       // events (amount param) carry no stream fee of their own.
       streamFee: feeNum || undefined,
-      currency: isCoordinator ? selectedCurrency : params.currency,
+      // The fee is charged in the picked currency (coordinators always, clients on a self-streamed event).
+      currency: isCoordinator || visibility === 'PRIVATE' ? selectedCurrency : params.currency,
+      streamFeeCurrencyId: feeNum ? currenciesList.find((c) => c.code === selectedCurrency)?.id : undefined,
       maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
       eventVisibility: visibility,
       allowWishInvites: wishInvites === true,
@@ -1214,20 +1216,44 @@ export default function NewEventScreen() {
             ) : null}
 
             {!isCoordinator && visibility === 'PRIVATE' ? (
-              <Controller
-                control={control}
-                name="price"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    label={tr('b3_evnew_stream_fee_label')}
-                    placeholder={tr('b3_evnew_stream_fee_ph')}
-                    keyboardType="number-pad"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                  />
-                )}
-              />
+              <>
+                <Controller
+                  control={control}
+                  name="price"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label={tr('b3_evnew_stream_fee_label')}
+                      placeholder={tr('b3_evnew_stream_fee_ph')}
+                      keyboardType="number-pad"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                    />
+                  )}
+                />
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
+                  <View style={styles.currencyWrap}>
+                    {currenciesList.map((c) => {
+                      const active = selectedCurrency === c.code;
+                      return (
+                        <Pressable
+                          key={c.code}
+                          onPress={() => {
+                            setSelectedCurrency(c.code);
+                            setCurrencyId(c.id);
+                          }}
+                          style={[styles.currencyChip, active && styles.chipActive]}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                        >
+                          <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.code}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </>
             ) : null}
 
             {!isCoordinator ? (
