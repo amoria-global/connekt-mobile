@@ -12,7 +12,7 @@ import type { EventItem } from '@/features/events/types';
 import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
 import { eventDay } from '@/features/photographer/schedule';
 
-export type EventFilter = 'all' | 'upcoming' | 'published' | 'past';
+export type EventFilter = 'all' | 'upcoming' | 'published' | 'drafts' | 'past';
 export type EventSort = 'newest' | 'oldest' | 'date_asc' | 'title_asc';
 export type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live';
 
@@ -20,8 +20,31 @@ export const FILTERS: readonly { key: EventFilter; label: string }[] = [
   { key: 'all', label: 'All' },
   { key: 'upcoming', label: 'Upcoming' },
   { key: 'published', label: 'Published' },
+  { key: 'drafts', label: 'Drafts' },
   { key: 'past', label: 'Past' },
 ];
+
+/** True when an event offer is saved as an unpublished draft. */
+export function isDraftEvent(
+  e: Pick<
+    EventItem,
+    'status' | 'bookingStatus' | 'published' | 'description' | 'photographerName' | 'bookingMode'
+  >,
+): boolean {
+  const s = (e.status ?? '').toUpperCase();
+  const bs = (e.bookingStatus ?? '').toUpperCase();
+  if (s === 'DRAFT' || bs === 'DRAFT' || (e.description ?? '').includes('[DRAFT_STATE]')) {
+    return true;
+  }
+  if (e.published || e.photographerName) return false;
+  if (isOpenHybrid(e.bookingMode, s, !!e.photographerName)) return false;
+  if (
+    ['COMPLETED', 'DONE', 'CANCELLED', 'CANCELED', 'ONGOING', 'IN_PROGRESS', 'PAUSED'].includes(s)
+  ) {
+    return false;
+  }
+  return true;
+}
 
 /** An event with a known day before `today`. An event with no day is never "past". */
 export function isPastEvent(e: Pick<EventItem, 'eventDate'>, today: string): boolean {
@@ -40,6 +63,7 @@ export function filterEvents(
     if (filter === 'upcoming' && isPastEvent(e, today)) return false;
     if (filter === 'past' && !isPastEvent(e, today)) return false;
     if (filter === 'published' && !e.published) return false;
+    if (filter === 'drafts' && !isDraftEvent(e)) return false;
     if (!q) return true;
     return (
       (e.title ?? '').toLowerCase().includes(q) ||
@@ -51,9 +75,10 @@ export function filterEvents(
 }
 
 export function countByFilter(events: readonly EventItem[], today: string): Record<EventFilter, number> {
-  const c = { all: events.length, upcoming: 0, published: 0, past: 0 };
+  const c = { all: events.length, upcoming: 0, published: 0, drafts: 0, past: 0 };
   for (const e of events) {
     if (e.published) c.published += 1;
+    if (isDraftEvent(e)) c.drafts += 1;
     if (isPastEvent(e, today)) c.past += 1;
     else c.upcoming += 1;
   }
@@ -94,6 +119,9 @@ export function eventStatus(e: EventItem): { label: string; tone: Tone } {
   if (s === 'MATCHES_AWAITING_SELECTION') return { label: 'Candidates ready', tone: 'info' };
   if (s === 'HYBRID_MATCHING') return { label: 'Matching active', tone: 'info' };
   if (s === 'HYBRID_TIMEOUT') return { label: 'Match timeout', tone: 'warning' };
+  if (s === 'DRAFT' || (e.bookingStatus ?? '').toUpperCase() === 'DRAFT' || (e.description ?? '').includes('[DRAFT_STATE]')) {
+    return { label: 'Draft', tone: 'warning' };
+  }
   if (e.published) return { label: 'Published', tone: 'success' };
   // An unpublished event is invisible on connekyt.com; "Upcoming" would read as though nothing is left to do.
   return { label: 'Not published', tone: 'warning' };
