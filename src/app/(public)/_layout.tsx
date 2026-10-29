@@ -107,12 +107,7 @@ export default function PublicLayout() {
         />
         <Stack.Screen name="gallery" options={{ title: t('navGallery') }} />
         <Stack.Screen name="help-center/index" options={{ title: t('navHelpCenter') }} />
-        <Stack.Screen name="help-center/booking" options={{ title: t('navBookingHelp') }} />
-        <Stack.Screen name="help-center/my-account" options={{ title: t('navMyAccountHelp') }} />
-        <Stack.Screen name="help-center/payment-methods" options={{ title: t('navPaymentMethods') }} />
-        <Stack.Screen name="help-center/payment" options={{ title: t('navPaymentHelp') }} />
-        <Stack.Screen name="help-center/security" options={{ title: t('navSecurityHelp') }} />
-        <Stack.Screen name="help-center/technical-support" options={{ title: t('navTechnicalSupport') }} />
+        <Stack.Screen name="help-center/[category]" options={{ title: t('navHelpCenter') }} />
         <Stack.Screen name="contact_us" options={{ title: t('navContactUs') }} />
         <Stack.Screen name="feedback" options={{ title: t('navSendFeedback') }} />
         <Stack.Screen name="privacy-policy" options={{ title: t('navPrivacyPolicy') }} />
