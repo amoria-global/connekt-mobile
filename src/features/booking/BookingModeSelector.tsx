@@ -250,6 +250,11 @@ export function BookingModeSelector({
   const [customSheetText, setCustomSheetText] = useState('');
 
   const [preview, setPreview] = useState<MatchPreviewResult | null>(null);
+  const [previewBaseline, setPreviewBaseline] = useState<{
+    low: number;
+    recommended: number;
+    priority: number;
+  } | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
@@ -327,12 +332,13 @@ export function BookingModeSelector({
   const slots = useMemo(() => timeSlots(options?.timeStepMinutes || 30), [options]);
 
   const localPriceEstimate = useMemo(
-    () => estimateOfferPriceRwf(draft, minutes),
-    [draft, minutes],
+    () => estimateOfferPriceRwf(draft, minutes, options?.packageBenchmarks),
+    [draft, minutes, options?.packageBenchmarks],
   );
 
-  // Merge backend package comparison prices (computed from available photographers' uploaded packages)
-  // with local baseline formula while enforcing the 7M express major event floor.
+  // Combine live local scope estimate with server package comparison calibration
+  // so every change in coverage, live stream, wishes, print products, digital deadline,
+  // or print delivery updates the recommended pricing immediately on screen.
   const priceEstimate = useMemo(() => {
     const serverLow = preview?.packagePriceLow;
     const serverRec = preview?.packagePriceRecommended;
@@ -343,12 +349,26 @@ export function BookingModeSelector({
       typeof serverRec === 'number' &&
       serverRec > 0 &&
       typeof serverPri === 'number' &&
-      serverPri > 0
+      serverPri > 0 &&
+      previewBaseline &&
+      previewBaseline.low > 0 &&
+      previewBaseline.recommended > 0 &&
+      previewBaseline.priority > 0
     ) {
       const floor = localPriceEstimate.minimumAllowedBudget;
-      const low = Math.max(floor, Math.round(serverLow / 10000) * 10000);
-      const recommended = Math.max(low + 50000, Math.round(serverRec / 10000) * 10000);
-      const priority = Math.max(recommended + 50000, Math.round(serverPri / 10000) * 10000);
+      const ratioLow = Math.max(0.65, Math.min(1.6, serverLow / previewBaseline.low));
+      const ratioRec = Math.max(0.65, Math.min(1.6, serverRec / previewBaseline.recommended));
+      const ratioPri = Math.max(0.65, Math.min(1.6, serverPri / previewBaseline.priority));
+
+      const low = Math.max(floor, Math.round((localPriceEstimate.low * ratioLow) / 10000) * 10000);
+      const recommended = Math.max(
+        low + 40000,
+        Math.round((localPriceEstimate.recommended * ratioRec) / 10000) * 10000,
+      );
+      const priority = Math.max(
+        recommended + 60000,
+        Math.round((localPriceEstimate.priority * ratioPri) / 10000) * 10000,
+      );
       return {
         ...localPriceEstimate,
         low,
@@ -358,7 +378,13 @@ export function BookingModeSelector({
       };
     }
     return localPriceEstimate;
-  }, [localPriceEstimate, preview?.packagePriceLow, preview?.packagePriceRecommended, preview?.packagePricePriority]);
+  }, [
+    localPriceEstimate,
+    preview?.packagePriceLow,
+    preview?.packagePriceRecommended,
+    preview?.packagePricePriority,
+    previewBaseline,
+  ]);
 
   // Enforce the 7,000,000 RWF minimum budget floor automatically when Wedding/Corporate/Commercial/Large event + < 4 days digital delivery is selected
   useEffect(() => {
@@ -449,6 +475,11 @@ export function BookingModeSelector({
 
   const fetchPreview = useCallback(async () => {
     if (!draft.date) return;
+    const snapshotBaseline = {
+      low: localPriceEstimate.low,
+      recommended: localPriceEstimate.recommended,
+      priority: localPriceEstimate.priority,
+    };
     setPreviewLoading(true);
     try {
       const res = await getMatchPreview({
@@ -466,16 +497,33 @@ export function BookingModeSelector({
         photographerSpecialty: 'ANY',
         locationCoverage: 'ANY',
         eventId: existingEvent?.id,
+        coverageMode: draft.coverageMode,
+        clientType: draft.clientType,
         editedPhotos: draft.coverageMode === 'VIDEO' ? 0 : draft.editedPhotos,
         shortVideosQty: draft.coverageMode === 'PHOTOGRAPHY' ? 0 : draft.shortVideosQty,
+        shortVideosDuration: draft.shortVideosDuration,
         longVideosQty: draft.coverageMode === 'PHOTOGRAPHY' ? 0 : draft.longVideosQty,
+        longVideosDuration: draft.longVideosDuration,
+        instantUpdates: draft.instantUpdates,
         digitalDeliveryDays: getDeadlineCalendarDays(draft.digitalDeadline),
         hasLiveStream: draft.liveStream,
         allowWishInvites: draft.instantWishesAndMemories,
         photoBooksQty: draft.photoBooksQty,
+        photoBookSize: draft.photoBookSize,
+        photoBookPages: draft.photoBookPages,
         photoAlbumsQty: draft.photoAlbumsQty,
+        photoAlbumSize: draft.photoAlbumSize,
+        photoAlbumPrints: draft.photoAlbumPrints,
         wallPortraitsQty: draft.wallPortraitsQty,
+        wallPortraitSize: draft.wallPortraitSize,
+        wallPortraitFrame: draft.wallPortraitFrame,
+        printProductionTime: draft.printProductionTime,
+        printProposedDate: draft.printProposedDate || undefined,
+        printCollectionMethod: draft.printCollectionMethod,
+        editingStyle: draft.editingStyle,
+        usageRights: draft.usageRights,
       });
+      setPreviewBaseline(snapshotBaseline);
       setPreview(res);
     } catch {
       setPreview(null);
@@ -489,15 +537,33 @@ export function BookingModeSelector({
     draft.city,
     draft.eventTypeKey,
     draft.coverageMode,
+    draft.clientType,
     draft.editedPhotos,
     draft.shortVideosQty,
+    draft.shortVideosDuration,
     draft.longVideosQty,
+    draft.longVideosDuration,
+    draft.instantUpdates,
     draft.digitalDeadline,
     draft.liveStream,
     draft.instantWishesAndMemories,
     draft.photoBooksQty,
+    draft.photoBookSize,
+    draft.photoBookPages,
     draft.photoAlbumsQty,
+    draft.photoAlbumSize,
+    draft.photoAlbumPrints,
     draft.wallPortraitsQty,
+    draft.wallPortraitSize,
+    draft.wallPortraitFrame,
+    draft.printProductionTime,
+    draft.printProposedDate,
+    draft.printCollectionMethod,
+    draft.editingStyle,
+    draft.usageRights,
+    localPriceEstimate.low,
+    localPriceEstimate.recommended,
+    localPriceEstimate.priority,
     cityInfo,
     effectiveMinBudget,
     effectiveMaxBudget,
@@ -2018,12 +2084,27 @@ export function BookingModeSelector({
                   </Text>
                   <View style={styles.pkgMetaLine}>
                     <Ionicons name="images-outline" size={12} color={colors.textSoft} />
-                    <Text style={styles.pkgMetaText}>{tr('Digital delivery: 7 days')}</Text>
+                    <Text style={styles.pkgMetaText}>
+                      {`${tr('Digital delivery')}: ${draft.digitalDeadline}`}
+                    </Text>
                   </View>
                   <View style={styles.pkgMetaLine}>
                     <Ionicons name="book-outline" size={12} color={colors.textSoft} />
                     <Text style={styles.pkgMetaText}>
-                      {tr('Print delivery confirmed separately')}
+                      {`${
+                        draft.printProductionTime === 'Express production (7–10 days)'
+                          ? tr('Express print (7–10d)')
+                          : draft.printProductionTime === 'Propose production & handover date' &&
+                              draft.printProposedDate
+                            ? `${tr('Print handover')}: ${draft.printProposedDate}`
+                            : tr('Standard print (2–3w)')
+                      } · ${
+                        draft.printCollectionMethod === 'Deliver to my home address'
+                          ? tr('Home delivery')
+                          : draft.printCollectionMethod === 'Ship by courier'
+                            ? tr('Courier shipping')
+                            : tr('Studio pickup')
+                      }`}
                     </Text>
                   </View>
                   {completeDelta > 0 ? (
@@ -2078,12 +2159,24 @@ export function BookingModeSelector({
                   </Text>
                   <View style={styles.pkgMetaLine}>
                     <Ionicons name="images-outline" size={12} color={colors.textSoft} />
-                    <Text style={styles.pkgMetaText}>{tr('Digital delivery: 4 days')}</Text>
+                    <Text style={styles.pkgMetaText}>
+                      {`${tr('Digital delivery')}: ${
+                        getDeadlineCalendarDays(draft.digitalDeadline) < 4
+                          ? draft.digitalDeadline
+                          : tr('4 days (priority)')
+                      }`}
+                    </Text>
                   </View>
                   <View style={styles.pkgMetaLine}>
                     <Ionicons name="book-outline" size={12} color={colors.textSoft} />
                     <Text style={styles.pkgMetaText}>
-                      {tr('Print delivery confirmed separately')}
+                      {`${tr('Express print (7–10d)')} · ${
+                        draft.printCollectionMethod === 'Deliver to my home address'
+                          ? tr('Home delivery')
+                          : draft.printCollectionMethod === 'Ship by courier'
+                            ? tr('Courier shipping')
+                            : tr('Priority pickup')
+                      }`}
                     </Text>
                   </View>
                   <View style={styles.pkgMetaLine}>

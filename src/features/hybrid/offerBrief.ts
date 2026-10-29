@@ -9,6 +9,7 @@
 import type { Ionicons } from '@expo/vector-icons';
 import type { PhotographerOpportunity } from './types';
 import { durationText } from './hybridUi';
+import type { PackageBenchmarkStats } from './types';
 
 export type ClientEntityType = 'INDIVIDUAL' | 'ORGANIZATION';
 export type DigitalCoverageMode = 'PHOTOGRAPHY' | 'VIDEO' | 'BOTH';
@@ -261,15 +262,55 @@ export function isExpressMajorEvent(draft: HybridOfferDraft, durationMinutes: nu
   return isMajorOrLargeEvent(draft, durationMinutes) && getDeadlineCalendarDays(draft.digitalDeadline) < 4;
 }
 
+function parseDurationSeconds(raw: string): number {
+  const s = (raw || '').trim().toLowerCase();
+  const numMatch = s.match(/(\d+(?:\.\d+)?)/);
+  const val = numMatch ? parseFloat(numMatch[1]) : 30;
+  if (s.includes('min')) return val * 60;
+  if (s.includes('hour') || s.includes('hr')) return val * 3600;
+  return val;
+}
+
+function parseDurationMinutes(raw: string): number {
+  const s = (raw || '').trim().toLowerCase();
+  const numMatch = s.match(/(\d+(?:\.\d+)?)/);
+  const val = numMatch ? parseFloat(numMatch[1]) : 5;
+  if (s.includes('hour') || s.includes('hr')) return val * 60;
+  if (s.includes('sec') || /^\d+\s*s$/.test(s)) return Math.max(1, val / 60);
+  return val;
+}
+
+function parseLeadingInt(raw: string, fallback: number): number {
+  const m = (raw || '').match(/(\d+)/);
+  if (!m) return fallback;
+  const n = parseInt(m[1], 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function getPrintProposedLeadDays(eventDateIso: string, proposedDateIso: string): number {
+  if (!proposedDateIso) return 14;
+  const baseMs = eventDateIso ? Date.parse(`${eventDateIso}T00:00:00`) : Date.now();
+  const propMs = Date.parse(`${proposedDateIso}T00:00:00`);
+  if (!Number.isFinite(baseMs) || !Number.isFinite(propMs)) return 14;
+  return Math.max(1, Math.round((propMs - baseMs) / (1000 * 60 * 60 * 24)));
+}
+
 /**
  * Advisory price estimate in RWF based on requested coverage hours, digital
- * deliverables, live stream / instant wishes & memories sharing, print products,
- * and delivery turnaround.
+ * deliverables (photos, short/long videos & durations, instant updates, editing/usage),
+ * live stream, instant wishes & memories sharing, print products (books, albums,
+ * wall portraits with sizes/pages/prints/frames), digital delivery deadline, and
+ * print production & collection/delivery method, compared against existing
+ * photographer package benchmarks.
  *
  * If the event is Wedding, Corporate, Commercial, or Large (>= 7h) AND digital
  * delivery is < 4 days, minimum pricing starts from RWF 7,000,000.
  */
-export function estimateOfferPriceRwf(draft: HybridOfferDraft, durationMinutes: number): {
+export function estimateOfferPriceRwf(
+  draft: HybridOfferDraft,
+  durationMinutes: number,
+  benchmarks?: PackageBenchmarkStats | null
+): {
   low: number;
   recommended: number;
   priority: number;
@@ -277,69 +318,222 @@ export function estimateOfferPriceRwf(draft: HybridOfferDraft, durationMinutes: 
   isExpressMajorFloor: boolean;
   minimumAllowedBudget: number;
 } {
-  const hours = Math.max(1, Math.round((durationMinutes || 360) / 60));
-  const isSmallEventTariff = hours < 7;
+  const exactHours = Math.max(0.5, (durationMinutes || 360) / 60);
+  const isSmallEventTariff = exactHours < 7;
   const isExpressMajorFloor = isExpressMajorEvent(draft, durationMinutes);
 
-  // Digital-only base ("Essential" tier)
-  const hourlyRate =
-    draft.coverageMode === 'BOTH' ? 48000 : draft.coverageMode === 'VIDEO' ? 38000 : 32000;
-  let digitalTotal = hours * hourlyRate;
+  // Baseline from uploaded photographer packages (or calibrated RWF market averages)
+  const basePkgPrice =
+    benchmarks?.avgPrice && benchmarks.avgPrice > 50000 ? benchmarks.avgPrice : 260000;
+  const basePkgHours =
+    benchmarks?.avgDurationHours && benchmarks.avgDurationHours > 0
+      ? benchmarks.avgDurationHours
+      : 6;
+  const basePkgPhotos =
+    benchmarks?.avgIncludedPhotos && benchmarks.avgIncludedPhotos > 0
+      ? benchmarks.avgIncludedPhotos
+      : 100;
+  const basePkgVideos =
+    typeof benchmarks?.avgIncludedVideos === 'number' && benchmarks.avgIncludedVideos >= 0
+      ? benchmarks.avgIncludedVideos
+      : 1;
+  const extraPhotoRate =
+    benchmarks?.avgExtraPhotoPrice && benchmarks.avgExtraPhotoPrice > 0
+      ? benchmarks.avgExtraPhotoPrice
+      : 900;
+  const extraVideoRate =
+    benchmarks?.avgExtraVideoPrice && benchmarks.avgExtraVideoPrice > 0
+      ? benchmarks.avgExtraVideoPrice
+      : 28000;
+  const liveStreamBase =
+    benchmarks?.avgLiveStreamSupplement && benchmarks.avgLiveStreamSupplement > 0
+      ? benchmarks.avgLiveStreamSupplement
+      : 85000;
 
+  // 1. Duration & Coverage Mode vs Package Baseline
+  const hourDiffRatio = (exactHours - basePkgHours) / basePkgHours;
+  const timeMult =
+    hourDiffRatio >= 0
+      ? 1.0 + 0.72 * hourDiffRatio
+      : Math.max(0.45, 1.0 + 0.48 * hourDiffRatio);
+
+  const modeMult =
+    draft.coverageMode === 'BOTH' ? 1.15 : draft.coverageMode === 'VIDEO' ? 0.92 : 0.85;
+
+  const evKey = (draft.eventTypeKey || '').toLowerCase();
+  const eventTypeMult =
+    evKey === 'wedding' || evKey === 'commercial'
+      ? 1.12
+      : evKey === 'corporate' || evKey === 'concert'
+        ? 1.08
+        : evKey === 'portrait'
+          ? 0.85
+          : 0.98;
+  const clientTypeMult = draft.clientType === 'ORGANIZATION' ? 1.07 : 1.0;
+
+  let digitalScope = basePkgPrice * timeMult * modeMult * eventTypeMult * clientTypeMult;
+
+  // 2. Digital Deliverables (Edited Photos, Short Videos, Long Videos, Instant Updates, Style/Usage)
   if (draft.coverageMode !== 'VIDEO') {
-    digitalTotal += draft.editedPhotos * 800;
+    const photoDelta = draft.editedPhotos - basePkgPhotos;
+    if (photoDelta > 0) {
+      digitalScope += photoDelta * extraPhotoRate;
+    } else if (photoDelta < 0) {
+      digitalScope += Math.max(-45000, photoDelta * (extraPhotoRate * 0.45));
+    }
+  } else {
+    digitalScope -= 25000;
   }
-  if (draft.coverageMode !== 'PHOTOGRAPHY') {
-    const shortDurMult = draft.shortVideosDuration === '60s' ? 1.3 : draft.shortVideosDuration === '30s' ? 1.0 : 0.85;
-    digitalTotal += Math.round(draft.shortVideosQty * 26000 * shortDurMult);
 
-    const longDurMult = draft.longVideosDuration === '30 min' ? 1.6 : draft.longVideosDuration === '15 min' ? 1.25 : 1;
-    digitalTotal += Math.round(draft.longVideosQty * 55000 * longDurMult);
+  if (draft.coverageMode !== 'PHOTOGRAPHY') {
+    const shortSec = parseDurationSeconds(draft.shortVideosDuration);
+    const shortDurFactor = Math.max(0.65, Math.min(2.6, shortSec / 30));
+    const shortCost = draft.shortVideosQty * extraVideoRate * shortDurFactor;
+
+    const longMin = parseDurationMinutes(draft.longVideosDuration);
+    const longDurFactor = Math.max(0.85, Math.min(3.8, 0.7 + (longMin / 15) * 0.55));
+    const longCost = draft.longVideosQty * extraVideoRate * 2.1 * longDurFactor;
+
+    const totalVideoCost = shortCost + longCost;
+    const includedVideoCredit = Math.min(totalVideoCost, basePkgVideos * extraVideoRate);
+    digitalScope += Math.max(0, totalVideoCost - includedVideoCredit);
   }
+
+  if (draft.instantUpdates) {
+    digitalScope += 35000;
+  }
+
+  if (draft.editingStyle === 'Editorial / magazine' || draft.editingStyle === 'Cinematic') {
+    digitalScope += 15000;
+  }
+  if (draft.usageRights === 'Full commercial buyout') {
+    digitalScope *= 1.18;
+  } else if (draft.usageRights === 'Social media & brand promotion') {
+    digitalScope *= 1.06;
+  }
+
+  // 3. Live Stream & Instant Wishes & Memories Sharing
   if (draft.liveStream) {
-    digitalTotal += 80000;
+    digitalScope += liveStreamBase + Math.round(exactHours * 12000);
   }
   if (draft.instantWishesAndMemories) {
-    digitalTotal += 30000;
+    digitalScope += 35000;
   }
 
-  // Print additions ("Complete" tier)
-  let printAndExtras = 0;
+  // 4. Print Products (Photo Books, Photo Albums, Wall Portraits)
+  let printBaseCost = 0;
   if (draft.photoBooksQty > 0) {
-    const pageMult = draft.photoBookPages.startsWith('60')
-      ? 1.5
-      : draft.photoBookPages.startsWith('40')
-        ? 1.3
-        : draft.photoBookPages.startsWith('30')
-          ? 1.15
-          : 1;
-    printAndExtras += Math.round(draft.photoBooksQty * 60000 * pageMult);
+    const sizeStr = draft.photoBookSize.toLowerCase();
+    const bookUnit = sizeStr.includes('30')
+      ? 85000
+      : sizeStr.includes('a5')
+        ? 45000
+        : 60000;
+    const pages = parseLeadingInt(draft.photoBookPages, 20);
+    const pageMult = Math.max(0.8, 1.0 + (pages - 20) * 0.018);
+    printBaseCost += Math.round(draft.photoBooksQty * bookUnit * pageMult);
   }
+
   if (draft.photoAlbumsQty > 0) {
-    const printMult = draft.photoAlbumPrints.startsWith('100')
-      ? 1.45
-      : draft.photoAlbumPrints.startsWith('80')
-        ? 1.25
-        : 1;
-    printAndExtras += Math.round(draft.photoAlbumsQty * 55000 * printMult);
+    const sizeStr = draft.photoAlbumSize.toLowerCase();
+    const albumUnit = sizeStr.includes('30')
+      ? 70000
+      : sizeStr.includes('20')
+        ? 45000
+        : 55000;
+    const prints = parseLeadingInt(draft.photoAlbumPrints, 50);
+    const printMult = Math.max(0.75, 1.0 + (prints - 50) * 0.01);
+    printBaseCost += Math.round(draft.photoAlbumsQty * albumUnit * printMult);
   }
+
   if (draft.wallPortraitsQty > 0) {
-    const frameMult = draft.wallPortraitFrame === 'Unframed' ? 0.75 : 1;
-    printAndExtras += Math.round(draft.wallPortraitsQty * 35000 * frameMult);
+    const sizeStr = draft.wallPortraitSize.toLowerCase();
+    const portraitUnit = sizeStr.includes('60') && sizeStr.includes('90')
+      ? 65000
+      : sizeStr.includes('50')
+        ? 48000
+        : sizeStr.includes('30')
+          ? 25000
+          : 36000;
+    const frameStr = draft.wallPortraitFrame.toLowerCase();
+    const frameMult = frameStr.includes('unframed')
+      ? 0.72
+      : frameStr.includes('frameless')
+        ? 0.9
+        : frameStr.includes('gold')
+          ? 1.2
+          : 1.0;
+    printBaseCost += Math.round(draft.wallPortraitsQty * portraitUnit * frameMult);
   }
 
-  if (printAndExtras === 0) {
-    printAndExtras = 60000;
+  // 5. Digital Delivery Deadline & Print Delivery Turnaround Multipliers
+  const deadlineDays = getDeadlineCalendarDays(draft.digitalDeadline);
+  const digitalTurnaroundMult =
+    deadlineDays <= 1
+      ? 1.38
+      : deadlineDays <= 2
+        ? 1.26
+        : deadlineDays <= 3
+          ? 1.18
+          : deadlineDays <= 4
+            ? 1.12
+            : deadlineDays <= 6
+              ? 1.06
+              : deadlineDays <= 8
+                ? 1.0
+                : deadlineDays <= 14
+                  ? 0.93
+                  : 0.89;
+
+  let printProductionMult = 1.0;
+  if (draft.printProductionTime === 'Express production (7–10 days)') {
+    printProductionMult = 1.25;
+  } else if (draft.printProductionTime === 'Propose production & handover date') {
+    const leadDays = getPrintProposedLeadDays(draft.date, draft.printProposedDate);
+    printProductionMult =
+      leadDays <= 7 ? 1.35 : leadDays <= 12 ? 1.2 : leadDays <= 18 ? 1.1 : 1.0;
   }
 
-  let low = Math.max(50000, Math.round(digitalTotal / 10000) * 10000);
-  let recommended = Math.round((low + printAndExtras) / 10000) * 10000;
-  let priority = Math.round((recommended + 100000) / 10000) * 10000;
+  const hasAnyPrints =
+    draft.photoBooksQty > 0 || draft.photoAlbumsQty > 0 || draft.wallPortraitsQty > 0;
+  let printLogisticsFee = 0;
+  if (draft.printCollectionMethod === 'Deliver to my home address') {
+    printLogisticsFee = draft.printDeliveryAddress.trim().length > 0 ? 18000 : 15000;
+  } else if (draft.printCollectionMethod === 'Ship by courier') {
+    printLogisticsFee = 25000;
+  }
+
+  const adjustedPrintTotal = hasAnyPrints
+    ? Math.round(printBaseCost * printProductionMult) + printLogisticsFee
+    : 35000 + printLogisticsFee;
+
+  // Essential: Digital-only at relaxed 14-day turnaround
+  const essentialRaw = digitalScope * 0.92;
+  // Complete: Full digital scope at chosen digital deadline + full print scope & print delivery
+  const completeRaw = digitalScope * digitalTurnaroundMult + adjustedPrintTotal;
+  // Priority: Express digital & priority print handling + dedicated fast-track crew
+  const priorityDigitalMult = Math.max(digitalTurnaroundMult + 0.16, 1.24);
+  const priorityPrintMult = Math.max(printProductionMult + 0.15, 1.25);
+  const priorityRaw =
+    digitalScope * priorityDigitalMult +
+    (hasAnyPrints ? Math.round(printBaseCost * priorityPrintMult) : 45000) +
+    printLogisticsFee +
+    55000;
+
+  let low = Math.max(50000, Math.round(essentialRaw / 10000) * 10000);
+  let recommended = Math.max(low + 40000, Math.round(completeRaw / 10000) * 10000);
+  let priority = Math.max(recommended + 60000, Math.round(priorityRaw / 10000) * 10000);
 
   if (isExpressMajorFloor) {
-    low = Math.max(EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF, low);
-    recommended = Math.max(low + Math.max(300000, printAndExtras), recommended);
-    priority = Math.max(recommended + 500000, priority);
+    const extraScopeAboveBaseline = Math.max(0, low - 250000);
+    low = Math.round((EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF + extraScopeAboveBaseline) / 10000) * 10000;
+    recommended =
+      Math.round(
+        Math.max(low + 450000, low + adjustedPrintTotal + (completeRaw - essentialRaw)) / 10000
+      ) * 10000;
+    priority =
+      Math.round(Math.max(recommended + 650000, recommended + (priorityRaw - completeRaw) + 400000) / 10000) *
+      10000;
   }
 
   return {
@@ -438,12 +632,12 @@ export function formatOfferDeliverablesSummaryLines(
     completeDigitalParts.push(`${draft.editedPhotos} photos`);
   }
   if (draft.coverageMode !== 'PHOTOGRAPHY' && draft.shortVideosQty > 0) {
-    const sv = `${draft.shortVideosQty} short video${draft.shortVideosQty === 1 ? '' : 's'}`;
+    const sv = `${draft.shortVideosQty} short video${draft.shortVideosQty === 1 ? '' : 's'} (${draft.shortVideosDuration})`;
     digitalParts.push(sv);
     completeDigitalParts.push(sv);
   }
   if (draft.coverageMode !== 'PHOTOGRAPHY' && draft.longVideosQty > 0) {
-    const lv = `${draft.longVideosQty} long video${draft.longVideosQty === 1 ? '' : 's'}`;
+    const lv = `${draft.longVideosQty} long video${draft.longVideosQty === 1 ? '' : 's'} (${draft.longVideosDuration})`;
     digitalParts.push(lv);
     completeDigitalParts.push(lv);
   }
@@ -452,32 +646,44 @@ export function formatOfferDeliverablesSummaryLines(
     completeDigitalParts.push('Live stream');
   }
   if (draft.instantWishesAndMemories) {
-    digitalParts.push('Instant wishes & memories');
+    digitalParts.push('Wishes & memories');
+    completeDigitalParts.push('Wishes & memories');
+  }
+  if (draft.instantUpdates) {
+    digitalParts.push('Same-day highlights');
+    completeDigitalParts.push('Same-day highlights');
   }
 
   const printParts: string[] = [];
   const completePrintParts: string[] = [];
   if (draft.photoBooksQty > 0) {
-    const pb = `${draft.photoBooksQty} photo book${draft.photoBooksQty === 1 ? '' : 's'}`;
+    const shortSize = draft.photoBookSize.split(' ')[0] || draft.photoBookSize;
+    const pb = `${draft.photoBooksQty} ${shortSize} photo book${draft.photoBooksQty === 1 ? '' : 's'} (${draft.photoBookPages})`;
     printParts.push(pb);
     completePrintParts.push(pb);
   }
   if (draft.photoAlbumsQty > 0) {
-    const pa = `${draft.photoAlbumsQty} photo album${draft.photoAlbumsQty === 1 ? '' : 's'}`;
+    const pa = `${draft.photoAlbumsQty} album${draft.photoAlbumsQty === 1 ? '' : 's'} (${draft.photoAlbumSize}, ${draft.photoAlbumPrints})`;
     printParts.push(pa);
     completePrintParts.push(pa);
   }
   if (draft.wallPortraitsQty > 0) {
-    printParts.push(`${draft.wallPortraitsQty} wall portrait${draft.wallPortraitsQty === 1 ? '' : 's'}`);
-    const frameWord = draft.wallPortraitFrame === 'Framed' ? 'framed ' : '';
-    completePrintParts.push(`${draft.wallPortraitsQty} ${frameWord}portrait${draft.wallPortraitsQty === 1 ? '' : 's'}`);
+    const frameWord = draft.wallPortraitFrame.toLowerCase().includes('unframed')
+      ? 'unframed'
+      : 'framed';
+    const wp = `${draft.wallPortraitsQty} ${frameWord} portrait${draft.wallPortraitsQty === 1 ? '' : 's'} (${draft.wallPortraitSize})`;
+    printParts.push(wp);
+    completePrintParts.push(wp);
   }
 
   return {
     digitalLine: digitalParts.join(' • '),
     completeDigitalLine: completeDigitalParts.join(' • '),
     printLine: printParts.length > 0 ? printParts.join(' • ') : 'No print products selected',
-    completePrintLine: completePrintParts.length > 0 ? completePrintParts.join(' • ') : 'Digital gallery & highlights included',
+    completePrintLine:
+      completePrintParts.length > 0
+        ? completePrintParts.join(' • ')
+        : 'Digital gallery & highlights included',
   };
 }
 
