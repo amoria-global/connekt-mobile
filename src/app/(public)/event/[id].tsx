@@ -163,7 +163,7 @@ function buildCta(
   const inPerson = isInPersonEvent(e);
   const canBuy = canBuyEventTicket(e);
   const price = canShowDigitalPrice(!isPaid) || canBuy
-    ? formatPrice(e.price || e.streamFee || 0, e.streamFeeCurrencyAbbreviation || 'RWF')
+    ? formatPrice(e.streamFee || e.price || 0, e.streamFeeCurrencyAbbreviation || 'RWF')
     : undefined;
   if (isCancelled)
     return { label: t('b4_ctaCancelled'), icon: 'close-circle', tone: 'cancelled', disabled: true };
