@@ -274,7 +274,8 @@ export default function LoginScreen() {
       <AuthGlassLayout
         title={t('welcomeBack')}
         subtitle={t('signInToAccount')}
-        bandRatio={0.28}
+        bandRatio={0.4}
+        compact
         bandFooter={guestPaths}
         scrollRef={scrollRef}
         footer={
@@ -390,37 +391,42 @@ export default function LoginScreen() {
           <View style={styles.line} />
         </View>
 
+        {/* Side by side, so the two providers take one row of the sheet instead of two. */}
         <View style={styles.social}>
           {/* SIGN-IN mode: no role is known here, so this must never create
               an account. An unrecognised Google profile is routed to role
               selection with its details carried over. */}
-          <GoogleButton
-            mode="login"
-            label={t('continueWithGoogle')}
-            onNeedsRole={(profile) => {
-              setPrefilledProfile({
-                email: profile.email,
-                firstName: profile.firstName,
-                lastName: profile.lastName,
-              });
-              setRoleSheetVisible(true);
-            }}
-          />
+          <View style={styles.flex}>
+            <GoogleButton
+              mode="login"
+              label="Google"
+              onNeedsRole={(profile) => {
+                setPrefilledProfile({
+                  email: profile.email,
+                  firstName: profile.firstName,
+                  lastName: profile.lastName,
+                });
+                setRoleSheetVisible(true);
+              }}
+            />
+          </View>
           {/* Same rule as Google: sign-in never creates an account. The
               backend is asked not to register an unknown Apple ID and the
               verified profile is carried into role selection. */}
-          <AppleButton
-            mode="login"
-            label={t('continueWithApple')}
-            onNeedsRole={(profile) => {
-              setPrefilledProfile({
-                email: profile.email,
-                firstName: profile.firstName,
-                lastName: profile.lastName,
-              });
-              setRoleSheetVisible(true);
-            }}
-          />
+          <View style={styles.flex}>
+            <AppleButton
+              mode="login"
+              label="Apple"
+              onNeedsRole={(profile) => {
+                setPrefilledProfile({
+                  email: profile.email,
+                  firstName: profile.firstName,
+                  lastName: profile.lastName,
+                });
+                setRoleSheetVisible(true);
+              }}
+            />
+          </View>
         </View>
 
         <InvitePaste onAdopt={invite.adopt} />
@@ -509,7 +515,7 @@ const useStyles = makeStyles((c) => ({
   guestRow: { flexDirection: "row", gap: spacing.sm },
   guestCard: {
     flex: 1,
-    height: 112,
+    height: 136,
     borderRadius: radii.lg,
     overflow: "hidden",
     justifyContent: "flex-end",
@@ -549,7 +555,7 @@ const useStyles = makeStyles((c) => ({
   guestSub: { fontSize: 10, color: "rgba(255,255,255,0.78)", marginTop: 1, letterSpacing: 0.3 },
 
   // ── Sheet content ─────────────────────────────────────────────────────
-  fields: { gap: spacing.md },
+  fields: { gap: spacing.sm },
   forgot: { alignSelf: "flex-end", paddingVertical: 2 },
   forgotText: {
     color: c.primary,
@@ -583,7 +589,7 @@ const useStyles = makeStyles((c) => ({
   line: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: c.border },
   dividerText: { color: c.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
 
-  social: { gap: spacing.sm },
+  social: { flexDirection: "row", gap: spacing.sm },
 
   registerLine: { alignSelf: "center", paddingVertical: spacing.xs },
   registerText: { color: c.textSoft, fontSize: fontSize.sm },
