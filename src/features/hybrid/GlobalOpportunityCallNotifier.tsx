@@ -2,7 +2,8 @@
  * GlobalOpportunityCallNotifier — App-wide incoming shoot alert listener.
  * Mounted in `(app)/_layout.tsx` so that when a photographer is using the app
  * on ANY screen or tab (Home, Events, Bookings, Wallet, Chat, etc.), an incoming
- * shoot match request rings full-screen like an incoming phone call.
+ * shoot match request rings full-screen like an incoming phone call for 47 seconds,
+ * and stays available for 2 hours before permanently disappearing.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
@@ -10,9 +11,30 @@ import { Alert } from '@/components/ui/dialog';
 import { useRouter } from 'expo-router';
 import { useRole } from '@/features/auth/role';
 import { env } from '@/config/env';
-import { listOpportunities, approveOpportunity, rejectOpportunity } from './api';
-import type { PhotographerOpportunity } from './types';
-import { IncomingOpportunityAlertModal } from './IncomingOpportunityAlertModal';
+import { listOpportunities, approveOpportunity, rejectOpportunity, serverNowMs } from './api';
+import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
+import {
+  IncomingOpportunityAlertModal,
+  OPPORTUNITY_AVAILABILITY_WINDOW_MS,
+} from './IncomingOpportunityAlertModal';
+
+function isWithinTwoHourWindow(opp: PhotographerOpportunity): boolean {
+  const now = serverNowMs();
+  const deadlineStr = opp.responseDeadlineAt || opp.candidateExpiresAt;
+  if (deadlineStr) {
+    const deadlineMs = Date.parse(deadlineStr);
+    if (Number.isFinite(deadlineMs)) {
+      return deadlineMs > now;
+    }
+  }
+  if (opp.invitedAt) {
+    const invitedMs = Date.parse(opp.invitedAt);
+    if (Number.isFinite(invitedMs)) {
+      return invitedMs + OPPORTUNITY_AVAILABILITY_WINDOW_MS > now;
+    }
+  }
+  return true;
+}
 
 export function GlobalOpportunityCallNotifier() {
   const router = useRouter();
@@ -34,11 +56,17 @@ export function GlobalOpportunityCallNotifier() {
         return;
       }
 
-      // Find first pending opportunity not dismissed
+      // Find first pending opportunity not dismissed and still within its 2-hour window
       const pending = opps.find((opp) => {
         const s = (opp.status ?? '').toUpperCase();
-        const isClosed = s === 'APPROVED' || s === 'REJECTED' || s === 'DECLINED' || s === 'EXPIRED';
-        return !isClosed && !dismissedIds.includes(opp.candidateId);
+        const isClosed =
+          s === 'APPROVED' ||
+          s === 'REJECTED' ||
+          s === 'DECLINED' ||
+          s === 'EXPIRED' ||
+          s === 'WITHDRAWN' ||
+          s === 'NO_LONGER_AVAILABLE';
+        return !isClosed && isWithinTwoHourWindow(opp) && !dismissedIds.includes(opp.candidateId);
       });
 
       if (pending) {
@@ -70,14 +98,22 @@ export function GlobalOpportunityCallNotifier() {
     };
   }, [checkOpportunities, isEligible]);
 
-  const handleApprove = async (opp: PhotographerOpportunity) => {
+  const handleApprove = async (
+    opp: PhotographerOpportunity,
+    deliveryPolicy: OpportunityDeliveryPolicy = 'CLIENT',
+  ) => {
     try {
       isBusyRef.current = true;
-      await approveOpportunity(opp.candidateId);
+      await approveOpportunity(opp.candidateId, { deliveryPolicy });
+      setDismissedIds((ids) => [...ids, opp.candidateId]);
       setActiveOpportunity(null);
+      const policyNote =
+        deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+          ? 'with your package delivery policy (digital & print delivery will update to your package schedule once the client confirms you)'
+          : "with the client's requested delivery policy";
       Alert.alert(
-        'You said yes',
-        `The client now sees you for ${opp.eventTitle} and can choose you. We'll tell you the outcome either way.`,
+        'Offer accepted',
+        `You accepted ${opp.eventTitle} ${policyNote}. The client can now review and confirm you.`,
         [
           {
             text: 'View Opportunities',
@@ -102,8 +138,12 @@ export function GlobalOpportunityCallNotifier() {
     try {
       isBusyRef.current = true;
       await rejectOpportunity(opp.candidateId);
+      setDismissedIds((ids) => [...ids, opp.candidateId]);
       setActiveOpportunity(null);
-      Alert.alert('Opportunity Declined', 'The brief has been passed to another photographer.');
+      Alert.alert(
+        'Offer Rejected',
+        'You passed on this offer. It remains active for other available photographers.',
+      );
     } catch (e: any) {
       Alert.alert('Decline error', e?.message || 'Could not decline this opportunity.');
     } finally {
@@ -118,6 +158,11 @@ export function GlobalOpportunityCallNotifier() {
     }
   };
 
+  const handleOpenOfferPage = (opp: PhotographerOpportunity) => {
+    // Navigate photographer dashboard to incoming opportunities page while keeping Offer Details open
+    router.push(`/bookings?tab=opportunities&candidate=${encodeURIComponent(opp.candidateId)}` as never);
+  };
+
   if (!env.hybridBookingEnabled || !isEligible || !activeOpportunity) {
     return null;
   }
@@ -126,9 +171,11 @@ export function GlobalOpportunityCallNotifier() {
     <IncomingOpportunityAlertModal
       opportunity={activeOpportunity}
       visible={activeOpportunity !== null}
+      initialStage="ringing"
       onApprove={handleApprove}
       onReject={handleReject}
       onDismiss={handleDismiss}
+      onOpenOfferPage={handleOpenOfferPage}
     />
   );
 }

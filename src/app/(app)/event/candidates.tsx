@@ -248,6 +248,14 @@ export default function EventCandidatesScreen() {
           <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
             <Text style={styles.sheetTitle}>{t('b3_cand_book_name', { name: choosing?.name ?? '' })}</Text>
             <Text style={styles.body}>{t('b3_cand_book_body')}</Text>
+            {choosing?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? (
+              <View style={styles.policyNoticeBox}>
+                <Ionicons name="cube-outline" size={16} color={colors.info} />
+                <Text style={styles.policyNoticeText}>
+                  This photographer accepted with their package delivery policy. Confirming them will update your event&apos;s digital and print delivery schedule to match their package{choosing.packageDeliveryDays ? ` (${choosing.packageDeliveryDays} days turnaround)` : ''}.
+                </Text>
+              </View>
+            ) : null}
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               {escrowOptions.map((p) => (
                 <Pressable key={p} onPress={() => setEscrow(p)} accessibilityRole="radio" accessibilityState={{ checked: escrow === p }}
@@ -319,6 +327,22 @@ const useStyles = makeStyles((c) => ({
   scrim: { flex: 1, justifyContent: 'flex-end' },
   sheet: { padding: spacing.lg, gap: spacing.md },
   sheetTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  policyNoticeBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  policyNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: c.textSoft,
+  },
   escrow: { flex: 1, alignItems: 'center', paddingVertical: spacing.md, borderRadius: radii.md, borderWidth: 2, borderColor: c.border },
   escrowPct: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
   primary: { flex: 1.4, minHeight: 50, borderRadius: radii.md, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
