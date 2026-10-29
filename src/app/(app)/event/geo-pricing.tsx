@@ -5,6 +5,7 @@
  * over a continent price, which wins over the event's default. Anywhere you
  * don't set a price, viewers pay the event's default.
  */
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -641,9 +642,7 @@ export default function GeoPricingScreen() {
                     onPress={() => setCurrencyId(c.id)}
                     style={[styles.chip, effectiveCurrencyId === c.id && styles.chipActive]}
                   >
-                    <Text style={[styles.chipText, effectiveCurrencyId === c.id && styles.chipTextActive]}>
-                      {c.code}
-                    </Text>
+                    <CurrencyLabel code={c.code} textStyle={[styles.chipText, effectiveCurrencyId === c.id && styles.chipTextActive]} />
                   </Pressable>
                 ))}
               </View>

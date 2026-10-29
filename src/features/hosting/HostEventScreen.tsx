@@ -7,6 +7,7 @@
  * a failure part-way keeps the event it already made and retries from the failed step, so a second tap
  * never makes a second event.
  */
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
@@ -295,7 +296,7 @@ export default function HostEventScreen() {
                       accessibilityState={{ selected: on }}
                       style={[styles.chip, on && styles.chipOn]}
                     >
-                      <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.code}</Text>
+                      <CurrencyLabel code={c.code} textStyle={[styles.chipText, on && styles.chipTextOn]} />
                     </Pressable>
                   );
                 })}

@@ -10,6 +10,7 @@
  *   • Informative Workflow Callout: Transparent explanation of the draft & approval lifecycle.
  *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
  */
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCallback, useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
@@ -409,9 +410,7 @@ export default function NewContentAlbumScreen() {
                         onPress={() => setCurrencyId(c.id)}
                         style={[styles.chip, active && styles.chipActive]}
                       >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                          {c.code}
-                        </Text>
+                        <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
                       </Pressable>
                     );
                   })}
