@@ -68,3 +68,16 @@ describe('ensureAlbumInviteCode and getAlbum', () => {
     expect(a).toMatchObject({ isFreeAlbum: true, accessCode: '482913', inviteCode: 'ALB1', faceRecognitionEnabled: true });
   });
 });
+
+describe('getAlbum: standalone', () => {
+  it('flags a standalone album so a paid one is not offered Send to client', async () => {
+    mockGet.mockResolvedValue({ action: 1, data: { id: 'a1', title: 'T', albumType: 'standalone', freeAlbum: false, images: [] } });
+    const a = await getAlbum('a1');
+    expect(a.isStandalone).toBe(true);
+    expect(a.isFreeAlbum).toBe(false);
+  });
+  it('does not flag an event album', async () => {
+    mockGet.mockResolvedValue({ action: 1, data: { id: 'a2', title: 'T', albumType: 'event', images: [] } });
+    expect((await getAlbum('a2')).isStandalone).toBe(false);
+  });
+});
