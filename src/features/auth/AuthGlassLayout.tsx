@@ -60,6 +60,8 @@ type Props = {
   eyebrow?: ReactNode;
   /** Center the heading (confirmation states) instead of aligning it left. */
   centered?: boolean;
+  /** Smaller title and tighter spacing in the sheet, so the photo band can keep 40% of the height. */
+  compact?: boolean;
   /** Closes the sheet, pushed to its bottom edge (login's "Create an account"). */
   footer?: ReactNode;
   scrollRef?: Ref<ScrollView>;
@@ -74,6 +76,7 @@ export function AuthGlassLayout({
   bandFooter,
   eyebrow,
   centered = false,
+  compact = false,
   footer,
   scrollRef,
 }: Props) {
@@ -133,15 +136,27 @@ export function AuthGlassLayout({
               {bandFooter ? <View style={styles.bandFooter}>{bandFooter}</View> : null}
             </View>
 
-            <View style={[styles.sheet, glassEdge, { paddingBottom: insets.bottom + spacing.lg }]}>
+            <View
+              style={[
+                styles.sheet,
+                compact && styles.sheetCompact,
+                glassEdge,
+                { paddingBottom: insets.bottom + (compact ? spacing.md : spacing.lg) },
+              ]}
+            >
               <GlassSurface strength="thick" style={styles.sheetGlass} />
               <View style={[styles.heading, centered && styles.headingCentered]}>
                 {eyebrow}
-                <Text style={[styles.title, centered && styles.textCenter]} accessibilityRole="header">
+                <Text
+                  style={[styles.title, compact && styles.titleCompact, centered && styles.textCenter]}
+                  accessibilityRole="header"
+                >
                   {title}
                 </Text>
                 {subtitle ? (
-                  <Text style={[styles.subtitle, centered && styles.textCenter]}>{subtitle}</Text>
+                  <Text style={[styles.subtitle, compact && styles.subtitleCompact, centered && styles.textCenter]}>
+                    {subtitle}
+                  </Text>
                 ) : null}
               </View>
               {children}
@@ -249,6 +264,10 @@ const useStyles = makeStyles((c) => ({
     paddingTop: spacing.xl + spacing.xs,
     gap: spacing.lg,
   },
+  // Tighter sheet for screens that must leave the photo band at least 40% of the height.
+  sheetCompact: { paddingTop: spacing.md, gap: spacing.sm },
+  titleCompact: { fontSize: 24, lineHeight: 30, letterSpacing: -0.4 },
+  subtitleCompact: { fontSize: fontSize.sm, lineHeight: 18 },
   // Takes the sheet's spare height, so the footer rests on the bottom edge.
   footer: { flexGrow: 1, justifyContent: 'flex-end', alignItems: 'center' },
   sheetGlass: { borderTopLeftRadius: SHEET_RADIUS, borderTopRightRadius: SHEET_RADIUS },
