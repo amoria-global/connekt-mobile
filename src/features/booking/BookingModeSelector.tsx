@@ -1,17 +1,12 @@
 /**
- * BookingModeSelector: the fork at the top of booking, and the Post My Event
- * wizard behind it.
- *
- *   Find a Photographer (Direct)  browse and book directly.
- *   Post My Event (Matched)       describe the event, available photographers
- *                                 who fit say yes, pick one.
- *
- * Mirrors the web dashboard: the same names, colours, steps and choices, all
- * from GET /public/hybrid/options. Every answer is a choice from a list except
- * the event name, the venue and optional notes. The live count is the
- * server's, from the same engine that sends the alerts.
+ * BookingModeSelector: the fork at the top of booking, and the 4-page
+ * "Create Your Event Offer" (Post Brief / Hybrid) wizard behind it:
+ *   Page 1: Event details
+ *   Page 2: Coverage & print products (Digital coverage, Live stream & instant wishes & memories sharing, Print products)
+ *   Page 3: Delivery & price estimate (with budget range, info tooltips, and compact Recommended pricing)
+ *   Page 4: Review & publish
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -25,317 +20,105 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { ProgressTrack } from '@/features/client/studio';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import { createMatchRequest, getHybridOptions, getMatchPreview } from '@/features/hybrid/api';
-import type { HybridOptions, LocationCoverage, MatchPreviewResult, PhotographerType } from '@/features/hybrid/types';
+import type { HybridOptions, MatchPreviewResult } from '@/features/hybrid/types';
 import {
-  Chip, MODE_META, OptionCard, budgetLabel, durationBetween, durationText,
+  Chip,
+  MODE_META,
+  budgetLabel,
+  durationBetween,
+  durationText,
 } from '@/features/hybrid/hybridUi';
+import {
+  DEFAULT_OFFER_DRAFT,
+  DIGITAL_DEADLINE_CUSTOM_OPTIONS,
+  DIGITAL_DEADLINE_PRESETS,
+  EDITING_STYLES,
+  EVENT_TYPE_PRESETS,
+  EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF,
+  LONG_VIDEO_CUSTOM_OPTIONS,
+  LONG_VIDEO_DURATIONS,
+  LONG_VIDEO_QTY_PRESETS,
+  PHOTO_ALBUM_PRINTS,
+  PHOTO_ALBUM_SIZES,
+  PHOTO_BOOK_PAGES,
+  PHOTO_BOOK_SIZES,
+  PHOTO_CUSTOM_OPTIONS,
+  PHOTO_QUANTITY_PRESETS,
+  POPULAR_VENUES_BY_CITY,
+  PRINT_COLLECTION_METHODS,
+  PRINT_PRODUCTION_TIMES,
+  PRINT_QTY_CUSTOM_OPTIONS,
+  PRINT_QTY_PRESETS,
+  SHORT_VIDEO_CUSTOM_OPTIONS,
+  SHORT_VIDEO_DURATIONS,
+  SHORT_VIDEO_QTY_PRESETS,
+  USAGE_RIGHTS,
+  WALL_PORTRAIT_FRAMES,
+  WALL_PORTRAIT_SIZES,
+  estimateOfferPriceRwf,
+  formatCoverageModeLabel,
+  formatInstantWishesSummary,
+  formatLiveStreamSummary,
+  formatLongVideosSummary,
+  formatOfferDeliverablesSummaryLines,
+  formatPhotoAlbumSummary,
+  formatPhotoBookSummary,
+  formatPrintHandoverSummary,
+  formatShortVideosSummary,
+  formatWallPortraitSummary,
+  getDeadlineCalendarDays,
+  serializeOfferBrief,
+  type ClientEntityType,
+  type DigitalCoverageMode,
+  type HybridOfferDraft,
+} from '@/features/hybrid/offerBrief';
 import { createEvent } from '@/features/events/api';
 import { useRole } from '@/features/auth/role';
 import { useAuth, isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
 import { translateSharedRw } from '@/i18n/kinyarwanda';
 import { translateSharedSw } from '@/i18n/swahili';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
+import { fontSize, fontWeight, fonts, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 import { glassTile } from '@/components/ui/GlassCard';
+import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
 
-const BMS_I18N: Record<'fr' | 'es' | 'rw', Record<string, string>> = {
-  fr: {
-    'Could not load the event options.': "Impossible de charger les options de l'événement.",
-    'Choose the type of event.': "Choisissez le type d'événement.",
-    'Give your event a name.': 'Donnez un nom à votre événement.',
-    'Choose the event date.': "Choisissez la date de l'événement.",
-    'That date has passed. Choose a future date.': 'Cette date est passée. Choisissez une date future.',
-    'That start time has passed. Choose a later time.': 'Cette heure de début est passée. Choisissez une heure ultérieure.',
-    'Add the venue or address so photographers know where to go.': 'Ajoutez le lieu ou l’adresse pour que les photographes sachent où aller.',
-    'Could not post your event. Please try again.': 'Impossible de publier votre événement. Veuillez réessayer.',
-    "Couldn't count photographers right now": 'Impossible de compter les photographes pour le moment',
-    'photographer fits right now': 'photographe correspond actuellement',
-    'photographers fit right now': 'photographes correspondent actuellement',
-    'You can still continue; we check again when you post.': 'Vous pouvez continuer ; nous vérifions à nouveau à la publication.',
-    'of any type': 'de tout type',
-    'are studios': 'sont des studios',
-    'are freelancers': 'sont indépendants',
-    'any budget': 'tout budget',
-    'fit your budget': 'correspondent à votre budget',
-    'anywhere in Rwanda': 'partout au Rwanda',
-    'Try widening your request:': "Essayez d'élargir votre demande :",
-    'Include nearby cities': 'Inclure les villes proches',
-    'Anywhere in Rwanda': 'Partout au Rwanda',
-    'Any type': 'Tout type',
-    'Any specialty': 'Toute spécialité',
-    'Flexible budget': 'Budget flexible',
-    'Browse Photographers': 'Parcourir les photographes',
-    Direct: 'Direct',
-    'Look through portfolios, compare packages, and reach out directly to the photographer you want.': 'Parcourez les portfolios, comparez les forfaits et contactez directement le photographe de votre choix.',
-    'See photos, reviews, and package prices': 'Voir les photos, avis et tarifs des forfaits',
-    'Message and book directly with the creator': 'Envoyer un message et réserver directement avec le créateur',
-    'Post Your Event': 'Publier votre événement',
-    Faster: 'Plus rapide',
-    'Share your event date, location, and budget. Photographers who are free will reply, and you choose who you like.': 'Partagez la date, le lieu et le budget. Les photographes disponibles répondront et vous choisirez celui qui vous plaît.',
-    'Photographers who are actually free respond to you': 'Les photographes réellement disponibles vous répondent',
-    'Saves time — no need to message people one by one': 'Gagnez du temps — inutile de contacter chacun individuellement',
-    'Post My Event is paused right now. Use Find a Photographer to book directly.': 'Publier mon événement est temporairement suspendu. Utilisez Trouver un photographe pour réserver directement.',
-    'What kind of event is it?': "Quel type d'événement est-ce ?",
-    'Event name': "Nom de l'événement",
-    'What guests and photographers will see.': 'Ce que verront les invités et les photographes.',
-    'e.g. Birthday Celebration': "ex. Fête d'anniversaire",
-    'When is it?': 'Quand a-t-il lieu ?',
-    Tomorrow: 'Demain',
-    'This Saturday': 'Ce samedi',
-    'Next Saturday': 'Samedi prochain',
-    'Pick a date': 'Choisir une date',
-    Starts: 'Début',
-    Ends: 'Fin',
-    ' (+1 day)': ' (+1 jour)',
-    ' · ends next day': ' · se termine le lendemain',
-    City: 'Ville',
-    Country: 'Pays',
-    'Venue or address': 'Lieu ou adresse',
-    'A venue name, street or landmark.': 'Un nom de lieu, une rue ou un point de repère.',
-    'e.g. Kigali Convention Centre': 'ex. Kigali Convention Centre',
-    'Notes for photographers': 'Notes pour les photographes',
-    'Optional: shots you want, indoor or outdoor, dress code.': 'Facultatif : photos souhaitées, intérieur ou extérieur, code vestimentaire.',
-    'Photographer type': 'Type de photographe',
-    Budget: 'Budget',
-    'Photographers whose packages fit this range are alerted.': 'Les photographes dont les forfaits correspondent à cette fourchette sont alertés.',
-    'Photographer specialty': 'Spécialité du photographe',
-    'Choose one only if it must be a specialist.': "N'en choisissez une que s'il faut un spécialiste.",
-    'Where can the photographer come from?': 'D’où peut venir le photographe ?',
-    'Collect answers for': 'Recueillir les réponses pendant',
-    'After this, you choose from whoever said yes.': 'Ensuite, vous choisissez parmi ceux qui ont dit oui.',
-    EVENT: 'ÉVÉNEMENT',
-    WHEN: 'QUAND',
-    WHERE: 'OÙ',
-    'LOOKING FOR': 'RECHERCHE',
-    BUDGET: 'BUDGET',
-    Flexible: 'Flexible',
-    'COLLECT ANSWERS FOR': 'RECUEILLIR LES RÉPONSES PENDANT',
-    'What happens next': 'Ce qui se passe ensuite',
-    'Only photographers who said yes appear for you, grouped as top, good and possible matches, three of each.': 'Seuls les photographes qui ont dit oui vous sont présentés, regroupés par pertinence.',
-    'You choose one and pay 50%, 70% or 100% upfront. Connekyt holds it until delivery.': 'Vous en choisissez un et payez 50 %, 70 % ou 100 % d’avance. Connekyt conserve le montant jusqu’à la livraison.',
-    'Your event stays private. It only appears publicly once a photographer is booked.': "Votre événement reste privé. Il n'apparaît publiquement qu'une fois un photographe réservé.",
-    'Saved, but nobody fits right now': 'Enregistré, mais personne ne correspond pour le moment',
-    'Your event is saved privately. Post it again with a wider area or budget, or use Find a Photographer to book one yourself.': 'Votre événement est enregistré en privé. Republiez-le avec une zone ou un budget plus large, ou utilisez Trouver un photographe.',
-    "We'll notify you each time a photographer says yes.": "Nous vous informerons chaque fois qu'un photographe dira oui.",
-    'How would you like to book?': 'Comment souhaitez-vous réserver ?',
-    'Tell us about your event': 'Parlez-nous de votre événement',
-    'Who should we look for?': 'Qui devons-nous rechercher ?',
-    'Review and post': 'Vérifier et publier',
-    'Your event is posted': 'Votre événement est publié',
-    'Pick someone yourself, or let available photographers come to you.': 'Choisissez vous-même, ou laissez les photographes disponibles venir à vous.',
-    'Follow the answers': 'Suivre les réponses',
-    Done: 'Terminé',
-    Continue: 'Continuer',
-    'Widen your request first': "Élargissez d'abord votre demande",
-    'Post and alert photographers': 'Publier et alerter les photographes',
-    'Start time': 'Heure de début',
-    'End time': 'Heure de fin',
-    ' (next day)': ' (lendemain)',
-  },
-  es: {
-    'Could not load the event options.': 'No se pudieron cargar las opciones del evento.',
-    'Choose the type of event.': 'Elige el tipo de evento.',
-    'Give your event a name.': 'Dale un nombre a tu evento.',
-    'Choose the event date.': 'Elige la fecha del evento.',
-    'That date has passed. Choose a future date.': 'Esa fecha ya pasó. Elige una fecha futura.',
-    'That start time has passed. Choose a later time.': 'Esa hora de inicio ya pasó. Elige una hora posterior.',
-    'Add the venue or address so photographers know where to go.': 'Agrega el lugar o la dirección para que los fotógrafos sepan a dónde ir.',
-    'Could not post your event. Please try again.': 'No se pudo publicar tu evento. Inténtalo de nuevo.',
-    "Couldn't count photographers right now": 'No se pudo contar los fotógrafos ahora mismo',
-    'photographer fits right now': 'fotógrafo encaja ahora mismo',
-    'photographers fit right now': 'fotógrafos encajan ahora mismo',
-    'You can still continue; we check again when you post.': 'Aún puedes continuar; volvemos a verificar al publicar.',
-    'of any type': 'de cualquier tipo',
-    'are studios': 'son estudios',
-    'are freelancers': 'son independientes',
-    'any budget': 'cualquier presupuesto',
-    'fit your budget': 'se ajustan a tu presupuesto',
-    'anywhere in Rwanda': 'en cualquier lugar de Ruanda',
-    'Try widening your request:': 'Intenta ampliar tu solicitud:',
-    'Include nearby cities': 'Incluir ciudades cercanas',
-    'Anywhere in Rwanda': 'En cualquier lugar de Ruanda',
-    'Any type': 'Cualquier tipo',
-    'Any specialty': 'Cualquier especialidad',
-    'Flexible budget': 'Presupuesto flexible',
-    'Browse Photographers': 'Explorar fotógrafos',
-    Direct: 'Directo',
-    'Look through portfolios, compare packages, and reach out directly to the photographer you want.': 'Explora portafolios, compara paquetes y contacta directamente al fotógrafo que deseas.',
-    'See photos, reviews, and package prices': 'Ver fotos, reseñas y precios de paquetes',
-    'Message and book directly with the creator': 'Envía mensajes y reserva directamente con el creador',
-    'Post Your Event': 'Publicar tu evento',
-    Faster: 'Más rápido',
-    'Share your event date, location, and budget. Photographers who are free will reply, and you choose who you like.': 'Comparte la fecha, lugar y presupuesto de tu evento. Los fotógrafos libres responderán y tú eliges.',
-    'Photographers who are actually free respond to you': 'Los fotógrafos realmente disponibles te responden',
-    'Saves time — no need to message people one by one': 'Ahorra tiempo — sin escribir uno por uno',
-    'Post My Event is paused right now. Use Find a Photographer to book directly.': 'Publicar mi evento está en pausa ahora mismo. Usa Buscar un fotógrafo para reservar directamente.',
-    'What kind of event is it?': '¿Qué tipo de evento es?',
-    'Event name': 'Nombre del evento',
-    'What guests and photographers will see.': 'Lo que verán los invitados y fotógrafos.',
-    'e.g. Birthday Celebration': 'ej. Celebración de cumpleaños',
-    'When is it?': '¿Cuándo es?',
-    Tomorrow: 'Mañana',
-    'This Saturday': 'Este sábado',
-    'Next Saturday': 'El próximo sábado',
-    'Pick a date': 'Elegir una fecha',
-    Starts: 'Empieza',
-    Ends: 'Termina',
-    ' (+1 day)': ' (+1 día)',
-    ' · ends next day': ' · termina al día siguiente',
-    City: 'Ciudad',
-    Country: 'País',
-    'Venue or address': 'Lugar o dirección',
-    'A venue name, street or landmark.': 'Nombre del lugar, calle o punto de referencia.',
-    'e.g. Kigali Convention Centre': 'ej. Kigali Convention Centre',
-    'Notes for photographers': 'Notas para los fotógrafos',
-    'Optional: shots you want, indoor or outdoor, dress code.': 'Opcional: tomas que deseas, interior o exterior, código de vestimenta.',
-    'Photographer type': 'Tipo de fotógrafo',
-    Budget: 'Presupuesto',
-    'Photographers whose packages fit this range are alerted.': 'Se alerta a los fotógrafos cuyos paquetes se ajustan a este rango.',
-    'Photographer specialty': 'Especialidad del fotógrafo',
-    'Choose one only if it must be a specialist.': 'Elige una solo si debe ser un especialista.',
-    'Where can the photographer come from?': '¿De dónde puede venir el fotógrafo?',
-    'Collect answers for': 'Recibir respuestas durante',
-    'After this, you choose from whoever said yes.': 'Después de esto, eliges entre quienes dijeron que sí.',
-    EVENT: 'EVENTO',
-    WHEN: 'CUÁNDO',
-    WHERE: 'DÓNDE',
-    'LOOKING FOR': 'BUSCANDO',
-    BUDGET: 'PRESUPUESTO',
-    Flexible: 'Flexible',
-    'COLLECT ANSWERS FOR': 'RECIBIR RESPUESTAS DURANTE',
-    'What happens next': 'Qué sucede después',
-    'Only photographers who said yes appear for you, grouped as top, good and possible matches, three of each.': 'Solo aparecen los fotógrafos que dijeron que sí, agrupados por mejores coincidencias.',
-    'You choose one and pay 50%, 70% or 100% upfront. Connekyt holds it until delivery.': 'Eliges uno y pagas el 50%, 70% o 100% por adelantado. Connekyt lo retiene hasta la entrega.',
-    'Your event stays private. It only appears publicly once a photographer is booked.': 'Tu evento permanece privado. Solo aparece públicamente cuando se reserva un fotógrafo.',
-    'Saved, but nobody fits right now': 'Guardado, pero nadie encaja ahora mismo',
-    'Your event is saved privately. Post it again with a wider area or budget, or use Find a Photographer to book one yourself.': 'Tu evento se guardó en privado. Publícalo de nuevo con un área o presupuesto más amplio, o usa Buscar un fotógrafo.',
-    "We'll notify you each time a photographer says yes.": 'Te notificaremos cada vez que un fotógrafo diga que sí.',
-    'How would you like to book?': '¿Cómo te gustaría reservar?',
-    'Tell us about your event': 'Cuéntanos sobre tu evento',
-    'Who should we look for?': '¿A quién debemos buscar?',
-    'Review and post': 'Revisar y publicar',
-    'Your event is posted': 'Tu evento está publicado',
-    'Pick someone yourself, or let available photographers come to you.': 'Elige a alguien tú mismo, o deja que los fotógrafos disponibles vengan a ti.',
-    'Follow the answers': 'Seguir las respuestas',
-    Done: 'Listo',
-    Continue: 'Continuar',
-    'Widen your request first': 'Amplía tu solicitud primero',
-    'Post and alert photographers': 'Publicar y alertar a fotógrafos',
-    'Start time': 'Hora de inicio',
-    'End time': 'Hora de finalización',
-    ' (next day)': ' (día siguiente)',
-  },
-  rw: {
-    'Could not load the event options.': 'Ntibishobotse gufungura amahitamo y’igikorwa.',
-    'Choose the type of event.': 'Hitamo ubwoko bw’igikorwa.',
-    'Give your event a name.': 'Ha igikorwa cyawe izina.',
-    'Choose the event date.': 'Hitamo itariki y’igikorwa.',
-    'That date has passed. Choose a future date.': 'Iyo tariki yararenze. Hitamo itariki iri imbere.',
-    'That start time has passed. Choose a later time.': 'Iyo saha yo gutangira yararenze. Hitamo isaha iri imbere.',
-    'Add the venue or address so photographers know where to go.': 'Ongeraho aho bibera cyangwa aderesi kugira ngo abafotozi bamenye aho bajya.',
-    'Could not post your event. Please try again.': 'Ntibishobotse gutangaza igikorwa cyawe. Ongera ugerageze.',
-    "Couldn't count photographers right now": 'Ntibishobotse kubara abafotozi aka kanya',
-    'photographer fits right now': 'gafotozi ahuye n’ibisabwa ubu',
-    'photographers fit right now': 'abafotozi bahuye n’ibisabwa ubu',
-    'You can still continue; we check again when you post.': 'Ushobora gukomeza; tuzongera tugenzure nutangaza igikorwa.',
-    'of any type': 'b’ubwoko bwose',
-    'are studios': 'ni za sitidiyo',
-    'are freelancers': 'ni abigenga',
-    'any budget': 'ingengo y’imari yose',
-    'fit your budget': 'bahuye n’ingengo y’imari yawe',
-    'anywhere in Rwanda': 'ahari ho hose mu Rwanda',
-    'Try widening your request:': 'Gerageza kwagura ibyo usaba:',
-    'Include nearby cities': 'Ongeramo imijyi ya hafi',
-    'Anywhere in Rwanda': 'Ahari ho hose mu Rwanda',
-    'Any type': 'Ubwoko bwose',
-    'Any specialty': 'Umwihariko wose',
-    'Flexible budget': 'Ingengo y’imari ihinduka',
-    'Browse Photographers': 'Shakisha abafotozi',
-    Direct: 'Ako kanya',
-    'Look through portfolios, compare packages, and reach out directly to the photographer you want.': 'Reba ibikorwa byabo, gereranya amapaki, maze uvugishe gafotozi ushaka ako kanya.',
-    'See photos, reviews, and package prices': 'Reba amafoto, ibitekerezo, n’ibiciro by’amapaki',
-    'Message and book directly with the creator': 'Andikira kandi ufate umwanya ako kanya ku muhanzi',
-    'Post Your Event': 'Tangaza igikorwa cyawe',
-    Faster: 'Byihuse',
-    'Share your event date, location, and budget. Photographers who are free will reply, and you choose who you like.': 'Sangiza itariki, aho bibera, n’ingengo y’imari. Abafotozi baboneka bazagusubiza, uhitemo uwo ukunze.',
-    'Photographers who are actually free respond to you': 'Abafotozi baboneka koko nibo bagusubiza',
-    'Saves time — no need to message people one by one': 'Birokora igihe — ntukeneye kwandikira buri wese ukwe',
-    'Post My Event is paused right now. Use Find a Photographer to book directly.': 'Gutangaza igikorwa bihagaze gato. Koresha Shaka Gafotozi ufate umwanya ako kanya.',
-    'What kind of event is it?': 'Ni bwoko ki bw’igikorwa?',
-    'Event name': 'Izina ry’igikorwa',
-    'What guests and photographers will see.': 'Icyo abatumirwa n’abafotozi bazabona.',
-    'e.g. Birthday Celebration': 'urugero: Ibirori by’isabukuru',
-    'When is it?': 'Bizaba ryari?',
-    Tomorrow: 'Ejo hazaza',
-    'This Saturday': 'Ku wa Gatandatu utaha',
-    'Next Saturday': 'Ku wa Gatandatu ukurikira',
-    'Pick a date': 'Hitamo itariki',
-    Starts: 'Bitangira',
-    Ends: 'Birangira',
-    ' (+1 day)': ' (+umunsi 1)',
-    ' · ends next day': ' · birangira bucyeye',
-    City: 'Umujyi',
-    Country: 'Igihugu',
-    'Venue or address': 'Aho bibera cyangwa aderesi',
-    'A venue name, street or landmark.': 'Izina ry’ahantu, umuhanda cyangwa ikimenyetso.',
-    'e.g. Kigali Convention Centre': 'urugero: Kigali Convention Centre',
-    'Notes for photographers': 'Ibisobanuro ku bafotozi',
-    'Optional: shots you want, indoor or outdoor, dress code.': 'Si itegeko: amafoto wifuza, imbere cyangwa hanze, imyambarire.',
-    'Photographer type': 'Ubwoko bwa gafotozi',
-    Budget: 'Ingengo y’imari',
-    'Photographers whose packages fit this range are alerted.': 'Abafotozi bafite amapaki ajyanye n’iyi ngengo y’imari baramenyeshwa.',
-    'Photographer specialty': 'Umwihariko wa gafotozi',
-    'Choose one only if it must be a specialist.': 'Hitamo kimwe gusa niba ukeneye inzobere yihariye.',
-    'Where can the photographer come from?': 'Gafotozi ashobora kuva he?',
-    'Collect answers for': 'Kusanya ibisubizo mu gihe cya',
-    'After this, you choose from whoever said yes.': 'Nyuma y’ibi, uhitamo mu bavuze ko baboneka.',
-    EVENT: 'IGIKORWA',
-    WHEN: 'IGIHE',
-    WHERE: 'AHO BIBERA',
-    'LOOKING FOR': 'IBISHAKISHWA',
-    BUDGET: 'INGENGO Y’IMARI',
-    Flexible: 'Ihinduka',
-    'COLLECT ANSWERS FOR': 'KUSANYA IBISUBIZO MU GIHE CYA',
-    'What happens next': 'Igikurikiraho ni iki',
-    'Only photographers who said yes appear for you, grouped as top, good and possible matches, three of each.': 'Abafotozi bavuze ko baboneka bonyine nibo bagaragara, bagabanyije mu byiciro by’abahuye kurusha abandi.',
-    'You choose one and pay 50%, 70% or 100% upfront. Connekyt holds it until delivery.': 'Uhitamo umwe ukishyura 50%, 70% cyangwa 100% mbere. Connekyt iyabika kugeza amafoto atanzwe.',
-    'Your event stays private. It only appears publicly once a photographer is booked.': 'Igikorwa cyawe kiguma ari ibanga. Kigaragara ku mugaragaro gusa iyo gafotozi amaze kwemezwa.',
-    'Saved, but nobody fits right now': 'Byabitswe, ariko nta we uhuye n’ibisabwa aka kanya',
-    'Your event is saved privately. Post it again with a wider area or budget, or use Find a Photographer to book one yourself.': 'Igikorwa cyawe cyabitswe mu ibanga. Ongera ugitangaze waguye agace cyangwa ingengo y’imari, cyangwa ukoreshe Shaka Gafotozi.',
-    "We'll notify you each time a photographer says yes.": 'Tuzakumenyesha buri uko gafotozi avuze ko aboneka.',
-    'How would you like to book?': 'Urifuza gufata umwanya ute?',
-    'Tell us about your event': 'Tubwire ibyerekeye igikorwa cyawe',
-    'Who should we look for?': 'Dushakishe nde?',
-    'Review and post': 'Suzuma maze utangaze',
-    'Your event is posted': 'Igikorwa cyawe cyatangajwe',
-    'Pick someone yourself, or let available photographers come to you.': 'Hitamo uwo ushaka ubwawe, cyangwa ureke abafotozi baboneka bakugane.',
-    'Follow the answers': 'Kurikirana ibisubizo',
-    Done: 'Byarangiye',
-    Continue: 'Komeza',
-    'Widen your request first': 'Banza wagure ibyo usaba',
-    'Post and alert photographers': 'Tangaza kandi umenyeshe abafotozi',
-    'Start time': 'Isaha yo gutangira',
-    'End time': 'Isaha yo kurangira',
-    ' (next day)': ' (bucyeye)',
-  },
+export type BookingStep = 'select' | 1 | 2 | 3 | 4;
+
+const WIZARD_STEPS = [
+  { n: 1, title: 'EVENT DETAILS', short: 'Event details' },
+  { n: 2, title: 'COVERAGE & PRINT PRODUCTS', short: 'Coverage & print' },
+  { n: 3, title: 'DELIVERY & PRICE ESTIMATE', short: 'Delivery & budget' },
+  { n: 4, title: 'REVIEW & PUBLISH', short: 'Review & publish' },
+] as const;
+
+const HOME_DELIVERY_AREAS_BY_CITY: Record<string, string[]> = {
+  Kigali: ['Nyarutarama', 'Kimihurura', 'Kacyiru', 'Remera', 'Kibagabaga', 'Kiyovu', 'Gacuriro', 'Kanombe'],
+  Musanze: ['Muhoza', 'Kinigi', 'Cyuve'],
+  Rubavu: ['Gisenyi Town', 'Nyamyumba', 'Rubavu Sector'],
+  Huye: ['Ngoma', 'Tumba', 'Butare Center'],
 };
 
-export type BookingStep = 'select' | 1 | 2 | 3;
+const STANDARD_BUDGET_RANGES: readonly { min: number; max: number; label: string }[] = [
+  { min: 0, max: 100000, label: 'Up to 100,000 RWF' },
+  { min: 100000, max: 200000, label: '100,000 – 200,000 RWF' },
+  { min: 200000, max: 350000, label: '200,000 – 350,000 RWF' },
+  { min: 350000, max: 500000, label: '350,000 – 500,000 RWF' },
+  { min: 500000, max: 1000000, label: '500,000 – 1,000,000 RWF' },
+  { min: 1000000, max: 2000000, label: '1,000,000 – 2,000,000 RWF' },
+];
 
-/** The three named steps shown on the progress track. */
-const WIZARD_STEPS = [
-  { n: 1, label: 'Event' },
-  { n: 2, label: 'Talent' },
-  { n: 3, label: 'Review' },
-] as const;
+const EXPRESS_MAJOR_BUDGET_RANGES: readonly { min: number; max: number; label: string }[] = [
+  { min: 7000000, max: 8500000, label: '7,000,000 – 8,500,000 RWF' },
+  { min: 8500000, max: 10000000, label: '8,500,000 – 10,000,000 RWF' },
+  { min: 10000000, max: 12500000, label: '10,000,000 – 12,500,000 RWF' },
+];
 
 export type ExistingHybridEvent = {
   id: string;
@@ -350,26 +133,67 @@ export type ExistingHybridEvent = {
 export type BookingModeSelectorProps = {
   visible: boolean;
   onClose: () => void;
-  /** Optional custom navigation callback */
   onSelectDirect?: () => void;
   onSelectHybrid?: () => void;
-  /** Initial step when sheet mounts (defaults to 'select') */
   initialStep?: BookingStep;
-  /** Post an existing event (a Direct one, or one whose matching ended) instead of creating one. */
   existingEvent?: ExistingHybridEvent | null;
-  /** Called after posting, before navigating to the answers screen. */
   onPosted?: (eventId: string) => void;
 };
 
 type Step = BookingStep | 'done';
 
+type PickerSheetKey =
+  | null
+  | 'start'
+  | 'end'
+  | 'city'
+  | 'photosCustom'
+  | 'shortVideosCustom'
+  | 'shortVideoDurationCustom'
+  | 'longVideosCustom'
+  | 'longVideoDurationCustom'
+  | 'photoBooksCustom'
+  | 'photoBookSize'
+  | 'photoBookPages'
+  | 'photoAlbumsCustom'
+  | 'photoAlbumSize'
+  | 'photoAlbumPrints'
+  | 'wallPortraitsCustom'
+  | 'wallPortraitSize'
+  | 'wallPortraitFrame'
+  | 'digitalDeadlineCustom'
+  | 'printProductionTime'
+  | 'printCollectionMethod';
+
+type InfoKey =
+  | 'instantUpdates'
+  | 'liveAndWishes'
+  | 'printProducts'
+  | 'digitalDelivery'
+  | 'printDelivery'
+  | 'budgetRange'
+  | 'recPricing'
+  | 'reviewProcess';
+
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoDate = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const addDaysIso = (baseIso: string, daysToAdd: number) => {
+  const base = baseIso ? new Date(`${baseIso}T12:00:00`) : new Date();
+  if (!Number.isFinite(base.getTime())) {
+    const fallback = new Date();
+    fallback.setDate(fallback.getDate() + daysToAdd);
+    return isoDate(fallback);
+  }
+  base.setDate(base.getDate() + daysToAdd);
+  return isoDate(base);
+};
 const prettyDate = (iso: string) => {
   const t = Date.parse(`${iso}T00:00:00`);
   const lang = useLanguage.getState().language;
   const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-GB';
-  return Number.isFinite(t) ? new Date(t).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : iso;
+  return Number.isFinite(t)
+    ? new Date(t).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    : iso;
 };
 function nextWeekday(weekday: number, weeksAhead = 0): Date {
   const d = new Date();
@@ -399,10 +223,10 @@ export function BookingModeSelector({
       language === 'en'
         ? s
         : language === 'rw'
-        ? translateSharedRw(s)
-        : language === 'sw'
-        ? translateSharedSw(s)
-        : (BMS_I18N as Record<string, Record<string, string>>)[language]?.[s] ?? s,
+          ? translateSharedRw(s)
+          : language === 'sw'
+            ? translateSharedSw(s)
+            : s,
     [language],
   );
   const styles = useStyles();
@@ -410,104 +234,284 @@ export function BookingModeSelector({
   const insets = useSafeAreaInsets();
   const { isCoordinator } = useRole();
   const user = useAuth((s) => s.user);
+  const scrollRef = useRef<ScrollView>(null);
 
   const [step, setStep] = useState<Step>(initialStep);
   const [options, setOptions] = useState<HybridOptions | null>(null);
   const [optionsError, setOptionsError] = useState<string | null>(null);
 
-  // Step 1
-  const [eventTypeId, setEventTypeId] = useState('');
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState('');
-  const [startTime, setStartTime] = useState('18:00');
-  const [endTime, setEndTime] = useState('22:00');
-  const [city, setCity] = useState('Kigali');
-  const [venue, setVenue] = useState('');
-  const [notes, setNotes] = useState('');
+  const [draft, setDraft] = useState<HybridOfferDraft>(DEFAULT_OFFER_DRAFT);
+  const [moreStyleOpen, setMoreStyleOpen] = useState(false);
+  const [policiesOpen, setPoliciesOpen] = useState(false);
+  const [openInfo, setOpenInfo] = useState<Record<string, boolean>>({});
   const [datePickerOpen, setDatePickerOpen] = useState(false);
-  const [listSheet, setListSheet] = useState<null | 'start' | 'end' | 'city'>(null);
-
-  // Step 2
-  const [photographerType, setPhotographerType] = useState<PhotographerType>('ANY');
-  const [budgetIndex, setBudgetIndex] = useState(1);
-  const [specialty, setSpecialty] = useState('ANY');
-  const [coverage, setCoverage] = useState<LocationCoverage>('SAME_CITY');
-  const [windowHours, setWindowHours] = useState(24);
+  const [printDatePickerOpen, setPrintDatePickerOpen] = useState(false);
+  const [activeSheet, setActiveSheet] = useState<PickerSheetKey>(null);
+  const [customSheetText, setCustomSheetText] = useState('');
 
   const [preview, setPreview] = useState<MatchPreviewResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewFailed, setPreviewFailed] = useState(false);
 
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [result, setResult] = useState<{ eventId: string; invited: number; status?: string } | null>(null);
 
+  const toggleInfo = useCallback((k: InfoKey) => {
+    setOpenInfo((prev) => ({ ...prev, [k]: !prev[k] }));
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: 0, animated: false });
+    });
+  }, []);
+
+  useEffect(() => {
+    scrollToTop();
+  }, [step, scrollToTop]);
+
+  useEffect(() => {
+    setCustomSheetText('');
+  }, [activeSheet]);
+
+  const updateDraft = useCallback(<K extends keyof HybridOfferDraft>(key: K, value: HybridOfferDraft[K]) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
   useEffect(() => {
     if (!visible) return;
-    setStep(existingEvent ? 2 : initialStep);
+    setStep(existingEvent ? 1 : initialStep);
     setError(null);
     setResult(null);
     setCreatedEventId(existingEvent?.id ?? null);
     if (existingEvent) {
-      if (existingEvent.title) setTitle(existingEvent.title);
-      if (existingEvent.eventDate) setDate(existingEvent.eventDate.slice(0, 10));
-      if (existingEvent.startTime) setStartTime(existingEvent.startTime.slice(0, 5));
-      if (existingEvent.endTime) setEndTime(existingEvent.endTime.slice(0, 5));
-      if (existingEvent.city) setCity(existingEvent.city);
-      if (existingEvent.venue) setVenue(existingEvent.venue);
+      setDraft((prev) => ({
+        ...prev,
+        date: existingEvent.eventDate ? existingEvent.eventDate.slice(0, 10) : prev.date,
+        startTime: existingEvent.startTime ? existingEvent.startTime.slice(0, 5) : prev.startTime,
+        endTime: existingEvent.endTime ? existingEvent.endTime.slice(0, 5) : prev.endTime,
+        city: existingEvent.city || prev.city,
+        venue: existingEvent.venue || prev.venue,
+      }));
     }
     getHybridOptions()
-      .then((o) => { setOptions(o); setWindowHours(o.defaultMatchWindowHours); setOptionsError(null); })
+      .then((o) => {
+        setOptions(o);
+        setOptionsError(null);
+        if (o.eventTypes.length > 0) {
+          setDraft((prev) => {
+            if (prev.eventTypeId) return prev;
+            const match =
+              o.eventTypes.find((t) => t.name.toLowerCase().includes(prev.eventTypeKey.toLowerCase())) ??
+              o.eventTypes[0];
+            return { ...prev, eventTypeId: match?.id ?? '' };
+          });
+        }
+      })
       .catch((e) => setOptionsError(isApiError(e) ? e.message : tr('Could not load the event options.')));
-  }, [visible, initialStep, existingEvent]);
+  }, [visible, initialStep, existingEvent, tr]);
 
-  const eventType = options?.eventTypes.find((t) => t.id === eventTypeId);
-  const cityInfo = options?.cities.find((c) => c.name === city);
-  const minutes = durationBetween(startTime, endTime);
-  const overnight = endTime <= startTime;
+  const eventTypeObj = useMemo(() => {
+    if (!options?.eventTypes.length) return undefined;
+    return (
+      options.eventTypes.find((t) => t.id === draft.eventTypeId) ??
+      options.eventTypes.find((t) => t.name.toLowerCase().includes(draft.eventTypeKey.toLowerCase())) ??
+      options.eventTypes[0]
+    );
+  }, [options, draft.eventTypeId, draft.eventTypeKey]);
+
+  const cityInfo = options?.cities.find((c) => c.name === draft.city);
+  const minutes = durationBetween(draft.startTime, draft.endTime);
+  const overnight = draft.endTime <= draft.startTime;
   const slots = useMemo(() => timeSlots(options?.timeStepMinutes || 30), [options]);
-  const preset = options?.budgetPresets[budgetIndex];
+
+  const localPriceEstimate = useMemo(
+    () => estimateOfferPriceRwf(draft, minutes),
+    [draft, minutes],
+  );
+
+  // Merge backend package comparison prices (computed from available photographers' uploaded packages)
+  // with local baseline formula while enforcing the 7M express major event floor.
+  const priceEstimate = useMemo(() => {
+    const serverLow = preview?.packagePriceLow;
+    const serverRec = preview?.packagePriceRecommended;
+    const serverPri = preview?.packagePricePriority;
+    if (
+      typeof serverLow === 'number' &&
+      serverLow > 0 &&
+      typeof serverRec === 'number' &&
+      serverRec > 0 &&
+      typeof serverPri === 'number' &&
+      serverPri > 0
+    ) {
+      const floor = localPriceEstimate.minimumAllowedBudget;
+      const low = Math.max(floor, Math.round(serverLow / 10000) * 10000);
+      const recommended = Math.max(low + 50000, Math.round(serverRec / 10000) * 10000);
+      const priority = Math.max(recommended + 50000, Math.round(serverPri / 10000) * 10000);
+      return {
+        ...localPriceEstimate,
+        low,
+        recommended,
+        priority,
+        high: priority,
+      };
+    }
+    return localPriceEstimate;
+  }, [localPriceEstimate, preview?.packagePriceLow, preview?.packagePriceRecommended, preview?.packagePricePriority]);
+
+  // Enforce the 7,000,000 RWF minimum budget floor automatically when Wedding/Corporate/Commercial/Large event + < 4 days digital delivery is selected
+  useEffect(() => {
+    if (priceEstimate.isExpressMajorFloor) {
+      const currentMin = parseAmountNumber(draft.minBudgetInput);
+      const currentMax = parseAmountNumber(draft.maxBudgetInput);
+      if (currentMin < EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF || currentMax < EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF) {
+        const minFormatted = formatAmountWithCommas(String(EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF));
+        const maxFormatted = formatAmountWithCommas(String(Math.max(8500000, currentMax)));
+        setDraft((prev) => ({
+          ...prev,
+          minBudgetInput: minFormatted,
+          maxBudgetInput: maxFormatted,
+        }));
+      }
+    }
+  }, [priceEstimate.isExpressMajorFloor, draft.minBudgetInput, draft.maxBudgetInput]);
+
+  // Client's typed/selected min & max budget range
+  const hasExplicitZeroMin = draft.minBudgetInput.trim() === '0';
+  const clientMinBudget = useMemo(() => {
+    const minP = parseAmountNumber(draft.minBudgetInput);
+    const maxP = parseAmountNumber(draft.maxBudgetInput);
+    if (hasExplicitZeroMin && !priceEstimate.isExpressMajorFloor) {
+      return 0;
+    }
+    const raw = minP || maxP || (priceEstimate.isExpressMajorFloor ? EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF : 0);
+    return Math.max(priceEstimate.minimumAllowedBudget, raw);
+  }, [draft.minBudgetInput, draft.maxBudgetInput, hasExplicitZeroMin, priceEstimate.minimumAllowedBudget, priceEstimate.isExpressMajorFloor]);
+
+  const clientMaxBudget = useMemo(() => {
+    const maxP = parseAmountNumber(draft.maxBudgetInput);
+    const minP = parseAmountNumber(draft.minBudgetInput);
+    const raw = maxP || minP || (priceEstimate.isExpressMajorFloor ? 8500000 : 100000);
+    return Math.max(clientMinBudget, raw);
+  }, [draft.minBudgetInput, draft.maxBudgetInput, clientMinBudget, priceEstimate.isExpressMajorFloor]);
+
+  const isOpenFlexibleBudget =
+    draft.budgetMode === 'FLEXIBLE' &&
+    !draft.minBudgetInput.trim() &&
+    !draft.maxBudgetInput.trim() &&
+    !priceEstimate.isExpressMajorFloor;
+
+  const clientRangeDisplay = useMemo(() => {
+    if (isOpenFlexibleBudget) return tr('Flexible');
+    if (clientMinBudget === 0 && clientMaxBudget > 0) {
+      return `Up to RWF ${clientMaxBudget.toLocaleString('en-US')}`;
+    }
+    if (clientMinBudget === clientMaxBudget) {
+      return `RWF ${clientMaxBudget.toLocaleString('en-US')}`;
+    }
+    return `RWF ${clientMinBudget.toLocaleString('en-US')} – ${clientMaxBudget.toLocaleString('en-US')}`;
+  }, [isOpenFlexibleBudget, clientMinBudget, clientMaxBudget, tr]);
+
+  // Price of whichever matching package card is selected
+  const selectedPackagePrice = useMemo(() => {
+    if (draft.packageOption === 'WITHIN_BUDGET') return priceEstimate.low;
+    if (draft.packageOption === 'PRIORITY') return priceEstimate.priority;
+    return priceEstimate.recommended;
+  }, [draft.packageOption, priceEstimate]);
+
+  const effectiveMinBudget = useMemo(() => {
+    if (draft.pricingDecision === 'RECOMMENDED') return selectedPackagePrice;
+    if (isOpenFlexibleBudget) return undefined;
+    return clientMinBudget;
+  }, [draft.pricingDecision, selectedPackagePrice, isOpenFlexibleBudget, clientMinBudget]);
+
+  const effectiveMaxBudget = useMemo(() => {
+    if (draft.pricingDecision === 'RECOMMENDED') return selectedPackagePrice;
+    if (isOpenFlexibleBudget) return undefined;
+    return clientMaxBudget;
+  }, [draft.pricingDecision, selectedPackagePrice, isOpenFlexibleBudget, clientMaxBudget]);
+
+  const effectiveBudgetDisplay = useMemo(() => {
+    if (effectiveMinBudget === undefined && effectiveMaxBudget === undefined) {
+      return tr('Flexible');
+    }
+    const minVal = effectiveMinBudget ?? 0;
+    const maxVal = effectiveMaxBudget ?? minVal;
+    if (minVal === 0 && maxVal > 0) {
+      return `Up to RWF ${maxVal.toLocaleString('en-US')}`;
+    }
+    if (minVal === maxVal) {
+      return `RWF ${maxVal.toLocaleString('en-US')}`;
+    }
+    return `RWF ${minVal.toLocaleString('en-US')} – ${maxVal.toLocaleString('en-US')}`;
+  }, [effectiveMinBudget, effectiveMaxBudget, tr]);
 
   const fetchPreview = useCallback(async () => {
-    if (!date) return;
+    if (!draft.date) return;
     setPreviewLoading(true);
     try {
       const res = await getMatchPreview({
-        eventDate: date,
-        startTime: `${startTime}:00`,
-        endTime: `${endTime}:00`,
-        city,
+        eventDate: draft.date,
+        startTime: `${draft.startTime}:00`,
+        endTime: `${draft.endTime}:00`,
+        city: draft.city,
         latitude: cityInfo?.latitude,
         longitude: cityInfo?.longitude,
-        minBudget: preset?.min ?? undefined,
-        maxBudget: preset?.max ?? undefined,
+        minBudget: effectiveMinBudget,
+        maxBudget: effectiveMaxBudget,
         currency: 'RWF',
-        photographerType,
-        specialty: eventType?.name,
-        photographerSpecialty: specialty,
-        locationCoverage: coverage,
+        photographerType: 'ANY',
+        specialty: eventTypeObj?.name || draft.eventTypeKey,
+        photographerSpecialty: 'ANY',
+        locationCoverage: 'ANY',
         eventId: existingEvent?.id,
+        editedPhotos: draft.coverageMode === 'VIDEO' ? 0 : draft.editedPhotos,
+        shortVideosQty: draft.coverageMode === 'PHOTOGRAPHY' ? 0 : draft.shortVideosQty,
+        longVideosQty: draft.coverageMode === 'PHOTOGRAPHY' ? 0 : draft.longVideosQty,
+        digitalDeliveryDays: getDeadlineCalendarDays(draft.digitalDeadline),
+        hasLiveStream: draft.liveStream,
+        allowWishInvites: draft.instantWishesAndMemories,
+        photoBooksQty: draft.photoBooksQty,
+        photoAlbumsQty: draft.photoAlbumsQty,
+        wallPortraitsQty: draft.wallPortraitsQty,
       });
       setPreview(res);
-      setPreviewFailed(false);
     } catch {
       setPreview(null);
-      setPreviewFailed(true);
     } finally {
       setPreviewLoading(false);
     }
-  }, [date, startTime, endTime, city, cityInfo, preset, photographerType, eventType, specialty, coverage, existingEvent]);
+  }, [
+    draft.date,
+    draft.startTime,
+    draft.endTime,
+    draft.city,
+    draft.eventTypeKey,
+    draft.coverageMode,
+    draft.editedPhotos,
+    draft.shortVideosQty,
+    draft.longVideosQty,
+    draft.digitalDeadline,
+    draft.liveStream,
+    draft.instantWishesAndMemories,
+    draft.photoBooksQty,
+    draft.photoAlbumsQty,
+    draft.wallPortraitsQty,
+    cityInfo,
+    effectiveMinBudget,
+    effectiveMaxBudget,
+    eventTypeObj,
+    existingEvent,
+  ]);
 
   useEffect(() => {
-    if (!visible || (step !== 2 && step !== 3)) return;
-    const t = setTimeout(fetchPreview, 400);
+    if (!visible || (step !== 3 && step !== 4)) return;
+    const t = setTimeout(fetchPreview, 350);
     return () => clearTimeout(t);
   }, [visible, step, fetchPreview]);
 
-  const close = () => {
-    onClose();
-  };
+  const close = () => onClose();
 
   const goDirect = () => {
     close();
@@ -523,36 +527,115 @@ export function BookingModeSelector({
     }
   };
 
-  const validate1 = (): string | null => {
-    if (!eventTypeId) return tr('Choose the type of event.');
-    if (!title.trim()) return tr('Give your event a name.');
-    if (!date) return tr('Choose the event date.');
+  const validateStep1 = (): string | null => {
+    if (!draft.eventTypeKey && !draft.eventTypeId) return tr('Choose what you are planning.');
+    if (!draft.date) return tr('Select the event date.');
     const today = isoDate(new Date());
-    if (date < today) return tr('That date has passed. Choose a future date.');
-    if (date === today) {
+    if (draft.date < today) return tr('That date has passed. Choose a future date.');
+    if (draft.date === today) {
       const now = new Date();
-      if (startTime <= `${pad(now.getHours())}:${pad(now.getMinutes())}`) return tr('That start time has passed. Choose a later time.');
+      if (draft.startTime <= `${pad(now.getHours())}:${pad(now.getMinutes())}`) {
+        return tr('That start time has passed. Choose a later time.');
+      }
     }
-    if (!venue.trim()) return tr('Add the venue or address so photographers know where to go.');
+    if (!draft.venue.trim() && !draft.city.trim()) {
+      return tr('Select or enter the event venue / location.');
+    }
+    return null;
+  };
+
+  const validateStep3 = (): string | null => {
+    if (
+      draft.printProductionTime === 'Propose production & handover date' &&
+      !draft.printProposedDate.trim()
+    ) {
+      return tr('Please select your proposed print production & handover date.');
+    }
+    if (
+      draft.printCollectionMethod === 'Deliver to my home address' &&
+      !draft.printDeliveryAddress.trim()
+    ) {
+      return tr('Please enter your exact home delivery address for print products.');
+    }
+    const minP = parseAmountNumber(draft.minBudgetInput);
+    const maxP = parseAmountNumber(draft.maxBudgetInput);
+    if (minP > 0 && maxP > 0 && minP > maxP) {
+      return tr('Minimum budget cannot be higher than maximum budget.');
+    }
+    const checkAmt = maxP || minP;
+    if (priceEstimate.isExpressMajorFloor && checkAmt > 0 && checkAmt < EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF) {
+      return tr('For Wedding, Corporate, Commercial, or large events with delivery under 4 days, minimum budget starts from RWF 7,000,000.');
+    }
     return null;
   };
 
   const next = () => {
     setError(null);
     if (step === 1) {
-      const e = validate1();
+      const e = validateStep1();
       if (e) return setError(e);
       setStep(2);
+      scrollToTop();
     } else if (step === 2) {
       setStep(3);
+      scrollToTop();
+    } else if (step === 3) {
+      const e3 = validateStep3();
+      if (e3) return setError(e3);
+      setStep(4);
+      scrollToTop();
     }
   };
 
   const back = () => {
     setError(null);
     if (step === 1) setStep('select');
-    else if (step === 2 && !existingEvent) setStep(1);
+    else if (step === 2) setStep(1);
     else if (step === 3) setStep(2);
+    else if (step === 4) setStep(3);
+    scrollToTop();
+  };
+
+  const handleSelectCoverageMode = (mode: DigitalCoverageMode) => {
+    setDraft((prev) => ({
+      ...prev,
+      coverageMode: mode,
+      editedPhotos: mode === 'VIDEO' ? 0 : prev.editedPhotos === 0 ? 100 : prev.editedPhotos,
+      shortVideosQty: mode === 'PHOTOGRAPHY' ? 0 : prev.shortVideosQty === 0 ? 2 : prev.shortVideosQty,
+      longVideosQty: mode === 'PHOTOGRAPHY' ? 0 : prev.longVideosQty,
+    }));
+  };
+
+  const handleUseRecommendedPricing = () => {
+    setError(null);
+    const e3 = validateStep3();
+    if (e3) return setError(e3);
+    const chosenDeadline = priceEstimate.isExpressMajorFloor
+      ? draft.digitalDeadline
+      : draft.packageOption === 'WITHIN_BUDGET'
+        ? '14 days'
+        : draft.packageOption === 'PRIORITY'
+          ? '4 days'
+          : '7 days';
+    setDraft((prev) => ({
+      ...prev,
+      pricingDecision: 'RECOMMENDED',
+      digitalDeadline: chosenDeadline,
+    }));
+    setStep(4);
+    scrollToTop();
+  };
+
+  const handlePublishMyOfferAnyway = () => {
+    setError(null);
+    const e3 = validateStep3();
+    if (e3) return setError(e3);
+    setDraft((prev) => ({
+      ...prev,
+      pricingDecision: 'MY_OFFER_ANYWAY',
+    }));
+    setStep(4);
+    scrollToTop();
   };
 
   const publish = async () => {
@@ -560,54 +643,79 @@ export function BookingModeSelector({
     setError(null);
     try {
       let eventId = createdEventId;
+      const resolvedEventType = eventTypeObj?.name || draft.eventTypeKey || 'Event';
+      const generatedTitle =
+        existingEvent?.title?.trim() ||
+        `${resolvedEventType} · ${draft.venue.trim() || draft.city}`;
+      const serializedBrief = serializeOfferBrief(draft, minutes);
+
       if (!eventId) {
         const ev = await createEvent(
           {
-            title: title.trim(),
-            category: eventType?.name || 'Event',
-            eventCategoryId: eventTypeId || undefined,
-            eventDate: date,
-            startTime,
-            endTime,
-            location: [venue.trim(), city, options?.country].filter(Boolean).join(', '),
-            description: notes.trim() || undefined,
-            organizer: [user?.firstName, user?.lastName].filter(Boolean).join(' ') || user?.organizationName || 'Organizer',
-            // Not PRIVATE: here that means a self-streamed event that must charge at
-            // least 100 RWF, and the backend refused every post. The backend keeps a
-            // posted event off public listings until a photographer is booked.
+            title: generatedTitle,
+            category: resolvedEventType,
+            eventCategoryId: eventTypeObj?.id || undefined,
+            eventDate: draft.date,
+            startTime: draft.startTime,
+            endTime: draft.endTime,
+            location: [draft.venue.trim(), draft.city, options?.country].filter(Boolean).join(', '),
+            description: serializedBrief,
+            organizer:
+              draft.clientType === 'ORGANIZATION'
+                ? user?.organizationName ||
+                  [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+                  'Organization'
+                : [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Individual Client',
             eventVisibility: 'PUBLIC',
+            allowWishInvites: draft.instantWishesAndMemories,
+            hasLiveStream: draft.liveStream,
+            attendanceMode: draft.liveStream ? 'HYBRID' : 'IN_PERSON',
+            minimumPhotos: draft.coverageMode === 'VIDEO' ? 0 : draft.editedPhotos,
           },
           isCoordinator,
         );
         eventId = ev.id;
         setCreatedEventId(eventId);
       }
+
       let posted;
       try {
         posted = await createMatchRequest(eventId, {
-          minBudget: preset?.min ?? undefined,
-          maxBudget: preset?.max ?? undefined,
+          minBudget: effectiveMinBudget,
+          maxBudget: effectiveMaxBudget,
           currency: 'RWF',
-          photographerType,
-          specialty: eventType?.name,
-          photographerSpecialty: specialty,
-          locationCoverage: coverage,
-          expirationHours: windowHours,
-          instructions: notes.trim() || undefined,
-          city,
+          photographerType: 'ANY',
+          specialty: resolvedEventType,
+          photographerSpecialty: 'ANY',
+          locationCoverage: 'ANY',
+          expirationHours: options?.defaultMatchWindowHours ?? 24,
+          instructions: serializedBrief,
+          city: draft.city,
           country: options?.country,
-          venue: venue.trim() || undefined,
+          venue: draft.venue.trim() || draft.city,
           latitude: cityInfo?.latitude,
           longitude: cityInfo?.longitude,
+          hasLiveStream: draft.liveStream,
+          allowWishInvites: draft.instantWishesAndMemories,
+          minimumPhotos: draft.coverageMode === 'VIDEO' ? 0 : draft.editedPhotos,
+          clientType: draft.clientType,
+          digitalDeliveryDays: getDeadlineCalendarDays(draft.digitalDeadline),
+          printDeliveryMethod: draft.printCollectionMethod,
+          printDeliveryAddress: draft.printDeliveryAddress.trim() || undefined,
+          printProposedDate: draft.printProposedDate.trim() || undefined,
         });
       } catch (e) {
-        throw { message: `Your event was saved, but photographers weren't alerted: ${isApiError(e) ? e.message : 'please try again'}. Tap Post again to retry.` };
+        throw {
+          message: `Your event was saved, but photographers weren't alerted: ${
+            isApiError(e) ? e.message : 'please try again'
+          }. Tap Publish Offer again to retry.`,
+        };
       }
       setResult({ eventId, invited: posted?.invitedCount ?? 0, status: posted?.status });
       setStep('done');
       onPosted?.(eventId);
     } catch (e: any) {
-      setError(e?.message || tr('Could not post your event. Please try again.'));
+      setError(e?.message || tr('Could not publish your offer. Please try again.'));
     } finally {
       setSubmitting(false);
     }
@@ -616,88 +724,113 @@ export function BookingModeSelector({
   const finish = () => {
     const id = result?.eventId;
     close();
-    if (id && result?.invited) setTimeout(() => router.push(`/event/candidates?id=${id}` as never), 200);
+    if (id && result?.invited) {
+      setTimeout(() => router.push(`/event/candidates?id=${id}` as never), 200);
+    }
   };
 
   const accent = MODE_META.HYBRID.color;
-  const count = preview?.matchCount;
-  const zero = count === 0 && !previewLoading;
+  const popularVenues = POPULAR_VENUES_BY_CITY[draft.city] ?? POPULAR_VENUES_BY_CITY.Kigali;
+  const homeDeliveryAreas = HOME_DELIVERY_AREAS_BY_CITY[draft.city] ?? HOME_DELIVERY_AREAS_BY_CITY.Kigali;
 
-  // ───────── pieces ─────────
+  // ───────── Reusable UI Pieces ─────────
 
-  const Label = ({ text, hint, required }: { text: string; hint?: string; required?: boolean }) => (
-    <View style={{ marginBottom: spacing.sm }}>
-      <Text style={styles.label}>{tr(text)}{required ? <Text style={{ color: accent }}> *</Text> : null}</Text>
-      {hint ? <Text style={styles.hint}>{tr(hint)}</Text> : null}
-    </View>
-  );
+  const InfoBadgeButton = ({ infoKey, label }: { infoKey: InfoKey; label?: string }) => {
+    const active = !!openInfo[infoKey];
+    return (
+      <Pressable
+        onPress={() => toggleInfo(infoKey)}
+        hitSlop={8}
+        style={[styles.infoIconBtn, active && styles.infoIconBtnActive]}
+        accessibilityRole="button"
+        accessibilityLabel={label || tr('More information')}
+      >
+        <Ionicons
+          name={active ? 'information-circle' : 'information-circle-outline'}
+          size={16}
+          color={active ? colors.primary : colors.textMuted}
+        />
+      </Pressable>
+    );
+  };
 
-  const SelectButton = ({ value, onPress, icon, a11y }: { value: string; onPress: () => void; icon: keyof typeof Ionicons.glyphMap; a11y: string }) => (
-    <Pressable onPress={onPress} style={styles.select} accessibilityRole="button" accessibilityLabel={a11y}>
-      <Ionicons name={icon} size={16} color={colors.primary} />
-      <Text style={styles.selectText} numberOfLines={1}>{value}</Text>
-      <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+  const InfoPopover = ({ infoKey, text }: { infoKey: InfoKey; text: string }) => {
+    if (!openInfo[infoKey]) return null;
+    return (
+      <View style={styles.infoPopoverBox}>
+        <Ionicons name="information-circle" size={15} color={colors.primary} style={{ marginTop: 1 }} />
+        <Text style={styles.infoPopoverText}>{text}</Text>
+        <Pressable onPress={() => toggleInfo(infoKey)} hitSlop={8}>
+          <Ionicons name="close" size={14} color={colors.textMuted} />
+        </Pressable>
+      </View>
+    );
+  };
+
+  const DropdownPill = ({
+    label,
+    onPress,
+    icon,
+  }: {
+    label: string;
+    onPress: () => void;
+    icon?: keyof typeof Ionicons.glyphMap;
+  }) => (
+    <Pressable onPress={onPress} style={styles.dropdownPill} accessibilityRole="button">
+      {icon ? <Ionicons name={icon} size={14} color={colors.primary} /> : null}
+      <Text style={styles.dropdownPillText} numberOfLines={1}>
+        {label}
+      </Text>
+      <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
     </Pressable>
   );
 
-  const MatchPanel = (
-    <View style={[styles.matchPanel, zero && { borderColor: colors.pending, backgroundColor: colors.warningBg }]} accessibilityLiveRegion="polite">
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-        <View style={{ minWidth: 48, alignItems: 'center' }}>
-          {previewLoading ? <ActivityIndicator color={colors.primary} /> : (
-            <Text style={[styles.matchCount, zero && { color: colors.pending }]}>{count ?? '–'}</Text>
-          )}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.matchTitle}>
-            {previewFailed ? tr("Couldn't count photographers right now") : count === 1 ? tr('photographer fits right now') : tr('photographers fit right now')}
+  const QtyPillGroup = ({
+    presets,
+    value,
+    onSelect,
+    onCustomPress,
+  }: {
+    presets: readonly number[];
+    value: number;
+    onSelect: (n: number) => void;
+    onCustomPress: () => void;
+  }) => {
+    const isCustom = !presets.includes(value);
+    return (
+      <View style={styles.qtyPillRow}>
+        {presets.map((n) => {
+          const active = value === n;
+          return (
+            <Pressable
+              key={n}
+              onPress={() => onSelect(n)}
+              style={[styles.qtyPill, active && styles.qtyPillActive]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+            >
+              <Text style={[styles.qtyPillText, active && styles.qtyPillTextActive]}>{n}</Text>
+            </Pressable>
+          );
+        })}
+        <Pressable
+          onPress={onCustomPress}
+          style={[styles.qtyPill, styles.qtyPillCustom, isCustom && styles.qtyPillActive]}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isCustom }}
+        >
+          <Text style={[styles.qtyPillText, isCustom && styles.qtyPillTextActive]}>
+            {isCustom ? `${value} (Custom)` : tr('Custom')}
           </Text>
-          <Text style={styles.hint}>
-            {previewFailed
-              ? tr('You can still continue; we check again when you post.')
-              : language === 'fr'
-                ? `Disponibles pour toute la durée (${durationText(minutes) || 'événement'}). Vérifié à nouveau à la publication.`
-                : language === 'es'
-                  ? `Libres durante todo el ${durationText(minutes) || 'evento'}. Se verifica de nuevo al publicar.`
-                  : language === 'rw'
-                    ? `Baboneka igihe cyose (${durationText(minutes) || 'igikorwa'}). Byongera kugenzurwa nutangaza.`
-                    : `Free for the whole ${durationText(minutes) || 'event'}. Checked again when you post.`}
-          </Text>
-        </View>
+        </Pressable>
       </View>
-      {preview?.breakdown && !previewLoading ? (
-        <View style={{ marginTop: spacing.sm, gap: 4 }}>
-          {([
-            [preview.breakdown.availableForFullEvent, language === 'fr' ? `disponibles pour toute la durée (${durationText(minutes) || 'événement'})` : language === 'es' ? `libres todo el ${durationText(minutes) || 'evento'}` : language === 'rw' ? `baboneka igihe cyose (${durationText(minutes) || 'igikorwa'})` : `free for the full ${durationText(minutes) || 'event'}`],
-            [preview.breakdown.typeMatched, photographerType === 'ANY' ? tr('of any type') : photographerType === 'STUDIO' ? tr('are studios') : tr('are freelancers')],
-            [preview.breakdown.withinBudget, preset?.min == null && preset?.max == null ? tr('any budget') : tr('fit your budget')],
-            [preview.breakdown.inCoverage, coverage === 'ANY' ? tr('anywhere in Rwanda') : language === 'fr' ? `autour de ${city}` : language === 'es' ? `alrededor de ${city}` : language === 'rw' ? `hafi ya ${city}` : `around ${city}`],
-            ...(specialty !== 'ANY' ? [[preview.breakdown.specialtyMatched, `${specialty} specialists`]] : []),
-          ] as [number | undefined, string][]).map(([n, l]) => (
-            <Text key={l} style={styles.breakdown}>
-              <Ionicons name="checkmark-circle" size={13} color={colors.success} /> <Text style={{ fontWeight: fontWeight.bold, color: colors.text }}>{n ?? 0}</Text> {l}
-            </Text>
-          ))}
-          {preview.breakdown.nearbyFallback ? <Text style={styles.breakdown}>Nobody is free in {city}, so nearby cities are included.</Text> : null}
-        </View>
-      ) : null}
-      {zero && options ? (
-        <View style={{ marginTop: spacing.md }}>
-          <Text style={[styles.label, { marginBottom: spacing.sm }]}>{tr('Try widening your request:')}</Text>
-          <View style={styles.wrap}>
-            {coverage !== 'ANY' && <Chip selected={false} icon="location-outline" label={coverage === 'SAME_CITY' ? tr('Include nearby cities') : tr('Anywhere in Rwanda')} onPress={() => setCoverage(coverage === 'SAME_CITY' ? 'NEARBY_CITY' : 'ANY')} />}
-            {photographerType !== 'ANY' && <Chip selected={false} icon="people-outline" label={tr('Any type')} onPress={() => setPhotographerType('ANY')} />}
-            {specialty !== 'ANY' && <Chip selected={false} icon="camera-outline" label={tr('Any specialty')} onPress={() => setSpecialty('ANY')} />}
-            {(preset?.min != null || preset?.max != null) && <Chip selected={false} icon="cash-outline" label={tr('Flexible budget')} onPress={() => setBudgetIndex(options.budgetPresets.length - 1)} />}
-          </View>
-        </View>
-      ) : null}
-    </View>
-  );
+    );
+  };
 
-  // ───────── body ─────────
+  // ───────── Step Bodies ─────────
 
   let body: React.ReactNode = null;
+
   if (step === 'select') {
     body = (
       <View style={{ gap: spacing.md }}>
@@ -706,10 +839,7 @@ export function BookingModeSelector({
           onPress={goDirect}
           accessibilityRole="button"
           accessibilityLabel={tr('Browse Photographers')}
-          style={({ pressed }) => [
-            styles.modeCard,
-            pressed && styles.modeCardPressed,
-          ]}
+          style={({ pressed }) => [styles.modeCard, pressed && styles.modeCardPressed]}
         >
           <View style={styles.modeCardHeader}>
             <View style={[styles.modeIconBox, { backgroundColor: colors.tint }]}>
@@ -728,24 +858,13 @@ export function BookingModeSelector({
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </View>
-
-          <View style={styles.modeFeatureList}>
-            <View style={styles.modeFeatureItem}>
-              <Ionicons name="images-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.modeFeatureText}>{tr('See photos, reviews, and package prices')}</Text>
-            </View>
-            <View style={styles.modeFeatureItem}>
-              <Ionicons name="chatbubbles-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.modeFeatureText}>{tr('Message and book directly with the creator')}</Text>
-            </View>
-          </View>
         </Pressable>
 
-        {/* Option 2: Post My Event (Smart Matching) */}
+        {/* Option 2: Post Event Offer */}
         <Pressable
           onPress={goHybrid}
           accessibilityRole="button"
-          accessibilityLabel={tr('Post Your Event')}
+          accessibilityLabel={tr('Create Your Event Offer')}
           style={({ pressed }) => [
             styles.modeCard,
             styles.modeCardFeatured,
@@ -758,28 +877,17 @@ export function BookingModeSelector({
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <View style={styles.modeTitleRow}>
-                <Text style={styles.modeCardTitle}>{tr('Post Your Event')}</Text>
+                <Text style={styles.modeCardTitle}>{tr('Create Your Event Offer')}</Text>
                 <View style={[styles.modeTypePill, styles.modeTypePillFeatured]}>
                   <Ionicons name="flash" size={8} color={colors.accent} />
-                  <Text style={[styles.modeTypePillText, { color: colors.accent }]}>{tr('Faster')}</Text>
+                  <Text style={[styles.modeTypePillText, { color: colors.accent }]}>{tr('4 short pages')}</Text>
                 </View>
               </View>
               <Text style={styles.modeCardDesc}>
-                {tr('Share your event date, location, and budget. Photographers who are free will reply, and you choose who you like.')}
+                {tr('Select event details, digital coverage, print products & delivery schedule. Available photographers accept or counter.')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </View>
-
-          <View style={styles.modeFeatureList}>
-            <View style={styles.modeFeatureItem}>
-              <Ionicons name="notifications-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.modeFeatureText}>{tr('Photographers who are actually free respond to you')}</Text>
-            </View>
-            <View style={styles.modeFeatureItem}>
-              <Ionicons name="time-outline" size={14} color={colors.textMuted} />
-              <Text style={styles.modeFeatureText}>{tr('Saves time — no need to message people one by one')}</Text>
-            </View>
           </View>
         </Pressable>
       </View>
@@ -789,158 +897,1475 @@ export function BookingModeSelector({
   } else if (optionsError) {
     body = <Text style={styles.error}>{optionsError}</Text>;
   } else if (options && !options.enabled) {
-    body = <Text style={styles.hint}>{tr('Post My Event is paused right now. Use Find a Photographer to book directly.')}</Text>;
+    body = (
+      <Text style={styles.hint}>
+        {tr('Post My Event is paused right now. Use Find a Photographer to book directly.')}
+      </Text>
+    );
   } else if (step === 1 && options) {
-    const tomorrow = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return isoDate(d); })();
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 1 OF 4: EVENT DETAILS
+    // ═══════════════════════════════════════════════════════════════════════
+    const tomorrow = (() => {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return isoDate(d);
+    })();
     const sat = isoDate(nextWeekday(6));
     const nextSat = isoDate(nextWeekday(6, 1));
+
     body = (
-      <View style={{ gap: spacing.lg }}>
-        <View>
-          <Label text="What kind of event is it?" required />
-          <View style={styles.wrap}>
-            {options.eventTypes.map((t) => <Chip key={t.id} selected={eventTypeId === t.id} label={t.name} onPress={() => setEventTypeId(t.id)} />)}
+      <View style={styles.pageCard}>
+        {/* Individual or Organization */}
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionTitle}>{tr('Booking as')}</Text>
+          <View style={styles.segmentedRow}>
+            {(
+              [
+                ['INDIVIDUAL', 'person-outline', 'Individual'],
+                ['ORGANIZATION', 'business-outline', 'Organization'],
+              ] as [ClientEntityType, keyof typeof Ionicons.glyphMap, string][]
+            ).map(([val, icon, label]) => {
+              const active = draft.clientType === val;
+              return (
+                <Pressable
+                  key={val}
+                  onPress={() => updateDraft('clientType', val)}
+                  style={[styles.segmentCard, active && styles.segmentCardActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Ionicons name={icon} size={16} color={active ? onFill : colors.primary} />
+                  <Text style={[styles.segmentCardText, active && styles.segmentCardTextActive]}>
+                    {tr(label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </View>
-        <View>
-          <Label text="Event name" hint="What guests and photographers will see." required />
-          <TextInput value={title} onChangeText={setTitle} maxLength={120} style={styles.input} placeholderTextColor={colors.textMuted}
-            placeholder={eventType ? `e.g. ${eventType.name} celebration` : tr('e.g. Birthday Celebration')} returnKeyType="done" />
-          {eventType && !title ? (
-            <View style={[styles.wrap, { marginTop: spacing.sm }]}>
-              {[`${eventType.name} celebration`, `${eventType.name} party`, `Our ${eventType.name.toLowerCase()}`].map((s) => (
-                <Chip key={s} selected={false} icon="flash-outline" label={s} onPress={() => setTitle(s)} />
+
+        {/* What are you planning? */}
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionTitle}>{tr('What are you planning?')}</Text>
+          <View style={styles.eventTypeGrid}>
+            {EVENT_TYPE_PRESETS.map((presetItem) => {
+              const active = draft.eventTypeKey === presetItem.key;
+              return (
+                <Pressable
+                  key={presetItem.key}
+                  onPress={() => {
+                    updateDraft('eventTypeKey', presetItem.key);
+                    const matched = options.eventTypes.find((t) =>
+                      t.name.toLowerCase().includes(presetItem.key.toLowerCase()),
+                    );
+                    if (matched) updateDraft('eventTypeId', matched.id);
+                  }}
+                  style={[styles.eventTypeCard, active && styles.eventTypeCardActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Ionicons
+                    name={presetItem.icon}
+                    size={18}
+                    color={active ? onFill : colors.primary}
+                  />
+                  <Text style={[styles.eventTypeCardText, active && styles.eventTypeCardTextActive]}>
+                    {tr(presetItem.label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          {draft.eventTypeKey === 'Other' && options.eventTypes.length > 0 ? (
+            <View style={[styles.wrap, { marginTop: spacing.xs }]}>
+              {options.eventTypes.map((t) => (
+                <Chip
+                  key={t.id}
+                  selected={draft.eventTypeId === t.id}
+                  label={t.name}
+                  onPress={() => updateDraft('eventTypeId', t.id)}
+                />
               ))}
             </View>
           ) : null}
         </View>
-        <View>
-          <Label text="When is it?" required />
+
+        {/* Date • Start & end time */}
+        <View style={styles.sectionBlock}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>{tr('Date • Start & end time')}</Text>
+            <View style={styles.durationPill}>
+              <Ionicons name="time-outline" size={13} color={colors.primary} />
+              <Text style={styles.durationPillText}>
+                {durationText(minutes)}
+                {overnight ? tr(' · next day') : ''}
+              </Text>
+            </View>
+          </View>
+
           <View style={styles.wrap}>
-            <Chip selected={date === tomorrow} label={tr('Tomorrow')} onPress={() => setDate(tomorrow)} />
-            <Chip selected={date === sat} label={tr('This Saturday')} onPress={() => setDate(sat)} />
-            <Chip selected={date === nextSat} label={tr('Next Saturday')} onPress={() => setDate(nextSat)} />
+            <Chip
+              selected={draft.date === tomorrow}
+              label={tr('Tomorrow')}
+              onPress={() => updateDraft('date', tomorrow)}
+            />
+            <Chip
+              selected={draft.date === sat}
+              label={tr('This Saturday')}
+              onPress={() => updateDraft('date', sat)}
+            />
+            <Chip
+              selected={draft.date === nextSat}
+              label={tr('Next Saturday')}
+              onPress={() => updateDraft('date', nextSat)}
+            />
           </View>
-          <View style={{ marginTop: spacing.sm }}>
-            <SelectButton icon="calendar-outline" value={date ? prettyDate(date) : tr('Pick a date')} onPress={() => setDatePickerOpen(true)} a11y={tr('Pick a date')} />
+
+          <View style={styles.dateAndTimeGrid}>
+            <Pressable
+              onPress={() => setDatePickerOpen(true)}
+              style={[styles.selectBox, { flex: 1.3, position: 'relative' }]}
+              accessibilityRole="button"
+              accessibilityLabel={tr('Select date')}
+            >
+              {Platform.OS === 'web' &&
+                React.createElement('input', {
+                  type: 'date',
+                  min: new Date().toISOString().split('T')[0],
+                  value: draft.date || '',
+                  onClick: (e: any) => e.currentTarget?.showPicker?.(),
+                  onChange: (e: any) => {
+                    const val = e.target?.value;
+                    if (val) updateDraft('date', val);
+                  },
+                  style: {
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    opacity: 0,
+                    cursor: 'pointer',
+                    zIndex: 2,
+                  },
+                })}
+              <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+              <Text
+                style={[styles.selectBoxText, !draft.date && { color: colors.textMuted }]}
+                numberOfLines={1}
+              >
+                {draft.date ? prettyDate(draft.date) : tr('Select date')}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setActiveSheet('start')}
+              style={[styles.selectBox, { flex: 1 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`${tr('Start time')} ${draft.startTime}`}
+            >
+              <Ionicons name="time-outline" size={16} color={colors.primary} />
+              <Text style={styles.selectBoxText}>{draft.startTime}</Text>
+              <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+            </Pressable>
+
+            <Pressable
+              onPress={() => setActiveSheet('end')}
+              style={[styles.selectBox, { flex: 1 }]}
+              accessibilityRole="button"
+              accessibilityLabel={`${tr('End time')} ${draft.endTime}`}
+            >
+              <Ionicons name="time-outline" size={16} color={colors.primary} />
+              <Text style={styles.selectBoxText}>{draft.endTime}</Text>
+              <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+            </Pressable>
           </View>
         </View>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <View style={{ flex: 1 }}>
-            <Label text="Starts" required />
-            <SelectButton icon="time-outline" value={startTime} onPress={() => setListSheet('start')} a11y={`${tr('Starts')} ${startTime}`} />
+
+        {/* Location • Venue */}
+        <View style={styles.sectionBlock}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>{tr('Location • Venue')}</Text>
+            <DropdownPill
+              icon="location-outline"
+              label={draft.city}
+              onPress={() => setActiveSheet('city')}
+            />
           </View>
-          <View style={{ flex: 1 }}>
-            <Label text="Ends" required />
-            <SelectButton icon="time-outline" value={`${endTime}${overnight ? tr(' (+1 day)') : ''}`} onPress={() => setListSheet('end')} a11y={`${tr('Ends')} ${endTime}`} />
+
+          <View style={styles.wrap}>
+            {popularVenues.map((v) => {
+              const selected = draft.venue === v;
+              return (
+                <Chip
+                  key={v}
+                  selected={selected}
+                  icon="navigate-outline"
+                  label={v}
+                  onPress={() => updateDraft('venue', v)}
+                />
+              );
+            })}
           </View>
-        </View>
-        <View style={styles.durationPill}>
-          <Ionicons name="hourglass-outline" size={15} color={accent} />
-          <Text style={{ color: accent, fontWeight: fontWeight.extrabold }}>{durationText(minutes)}{overnight ? tr(' · ends next day') : ''}</Text>
-        </View>
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <View style={{ flex: 1 }}>
-            <Label text="City" required />
-            <SelectButton icon="location-outline" value={city} onPress={() => setListSheet('city')} a11y={`${tr('City')} ${city}`} />
+
+          <View style={styles.venueInputRow}>
+            <Ionicons name="location-outline" size={17} color={colors.primary} />
+            <TextInput
+              value={draft.venue}
+              onChangeText={(t) => updateDraft('venue', t)}
+              maxLength={200}
+              style={styles.venueInput}
+              placeholder={tr('Search venue or enter location')}
+              placeholderTextColor={colors.textMuted}
+            />
+            {draft.venue ? (
+              <Pressable onPress={() => updateDraft('venue', '')} hitSlop={8}>
+                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
-          <View style={{ flex: 1 }}>
-            <Label text="Country" />
-            <View style={[styles.select, { opacity: 0.7 }]}><Ionicons name="flag-outline" size={16} color={colors.primary} /><Text style={styles.selectText}>{options.country}</Text></View>
-          </View>
-        </View>
-        <View>
-          <Label text="Venue or address" hint="A venue name, street or landmark." required />
-          <TextInput value={venue} onChangeText={setVenue} maxLength={200} style={styles.input} placeholder={tr('e.g. Kigali Convention Centre')} placeholderTextColor={colors.textMuted} />
-        </View>
-        <View>
-          <Label text="Notes for photographers" hint="Optional: shots you want, indoor or outdoor, dress code." />
-          <TextInput value={notes} onChangeText={setNotes} maxLength={600} multiline style={[styles.input, { minHeight: 70, textAlignVertical: 'top' }]} placeholderTextColor={colors.textMuted} />
         </View>
       </View>
     );
   } else if (step === 2 && options) {
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 2 OF 4: COVERAGE & PRINT PRODUCTS
+    // ═══════════════════════════════════════════════════════════════════════
+    const showPhotos = draft.coverageMode === 'PHOTOGRAPHY' || draft.coverageMode === 'BOTH';
+    const showVideos = draft.coverageMode === 'VIDEO' || draft.coverageMode === 'BOTH';
+    const isCustomShortDur = !(SHORT_VIDEO_DURATIONS as readonly string[]).includes(draft.shortVideosDuration);
+    const isCustomLongDur = !(LONG_VIDEO_DURATIONS as readonly string[]).includes(draft.longVideosDuration);
+
     body = (
-      <View style={{ gap: spacing.lg }}>
-        {MatchPanel}
-        <View>
-          <Label text="Photographer type" />
-          <View style={{ gap: spacing.sm }}>
-            {options.photographerTypes.map((t) => (
-              <OptionCard key={t.value} selected={photographerType === t.value} onPress={() => setPhotographerType(t.value)} title={t.label} description={t.description}
-                icon={t.value === 'STUDIO' ? 'business-outline' : t.value === 'FREELANCER' ? 'person-outline' : 'people-outline'} />
-            ))}
+      <View style={{ gap: spacing.md }}>
+        {/* CARD 1: DIGITAL COVERAGE */}
+        <View style={styles.pageCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderIconBox}>
+              <Ionicons name="camera" size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardHeading}>{tr('Digital coverage')}</Text>
+              <Text style={styles.cardSubheading}>{tr('What do you need?')}</Text>
+            </View>
+          </View>
+
+          {/* Photography / Video / Both */}
+          <View style={styles.segmentedRow}>
+            {(
+              [
+                ['PHOTOGRAPHY', 'camera-outline', 'Photography'],
+                ['VIDEO', 'videocam-outline', 'Video'],
+                ['BOTH', 'film-outline', 'Both'],
+              ] as [DigitalCoverageMode, keyof typeof Ionicons.glyphMap, string][]
+            ).map(([modeKey, icon, label]) => {
+              const active = draft.coverageMode === modeKey;
+              return (
+                <Pressable
+                  key={modeKey}
+                  onPress={() => handleSelectCoverageMode(modeKey)}
+                  style={[styles.segmentCard, active && styles.segmentCardActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Ionicons name={icon} size={16} color={active ? onFill : colors.primary} />
+                  <Text style={[styles.segmentCardText, active && styles.segmentCardTextActive]}>
+                    {tr(label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Edited photos: Quantity */}
+          {showPhotos ? (
+            <View style={styles.deliverableRow}>
+              <View style={styles.deliverableLabelCol}>
+                <Text style={styles.deliverableTitle}>
+                  {tr('Edited photos:')}{' '}
+                  <Text style={styles.deliverableSubtitle}>{tr('Quantity')}</Text>
+                </Text>
+              </View>
+              <QtyPillGroup
+                presets={PHOTO_QUANTITY_PRESETS}
+                value={draft.editedPhotos}
+                onSelect={(n) => updateDraft('editedPhotos', n)}
+                onCustomPress={() => setActiveSheet('photosCustom')}
+              />
+            </View>
+          ) : null}
+
+          {/* Short videos: Quantity + Duration */}
+          {showVideos ? (
+            <View style={styles.deliverableRow}>
+              <View style={styles.deliverableLabelCol}>
+                <Text style={styles.deliverableTitle}>
+                  {tr('Short videos:')}{' '}
+                  <Text style={styles.deliverableSubtitle}>{tr('Quantity + Duration')}</Text>
+                </Text>
+              </View>
+              <QtyPillGroup
+                presets={SHORT_VIDEO_QTY_PRESETS}
+                value={draft.shortVideosQty}
+                onSelect={(n) => updateDraft('shortVideosQty', n)}
+                onCustomPress={() => setActiveSheet('shortVideosCustom')}
+              />
+              {draft.shortVideosQty > 0 ? (
+                <View style={styles.subDurationRow}>
+                  <Text style={styles.subDurationLabel}>{tr('Duration per video')}</Text>
+                  <View style={styles.qtyPillRow}>
+                    {SHORT_VIDEO_DURATIONS.map((dur) => {
+                      const active = draft.shortVideosDuration === dur;
+                      return (
+                        <Pressable
+                          key={dur}
+                          onPress={() => updateDraft('shortVideosDuration', dur)}
+                          style={[styles.qtyPill, active && styles.qtyPillActive]}
+                        >
+                          <Text style={[styles.qtyPillText, active && styles.qtyPillTextActive]}>
+                            {dur}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                    <Pressable
+                      onPress={() => setActiveSheet('shortVideoDurationCustom')}
+                      style={[styles.qtyPill, styles.qtyPillCustom, isCustomShortDur && styles.qtyPillActive]}
+                    >
+                      <Text style={[styles.qtyPillText, isCustomShortDur && styles.qtyPillTextActive]}>
+                        {isCustomShortDur ? `${draft.shortVideosDuration} (Custom)` : tr('Custom')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Long videos: Quantity + Duration */}
+          {showVideos ? (
+            <View style={styles.deliverableRow}>
+              <View style={styles.deliverableLabelCol}>
+                <Text style={styles.deliverableTitle}>
+                  {tr('Long videos:')}{' '}
+                  <Text style={styles.deliverableSubtitle}>{tr('Quantity + Duration')}</Text>
+                </Text>
+              </View>
+              <QtyPillGroup
+                presets={LONG_VIDEO_QTY_PRESETS}
+                value={draft.longVideosQty}
+                onSelect={(n) => updateDraft('longVideosQty', n)}
+                onCustomPress={() => setActiveSheet('longVideosCustom')}
+              />
+              {draft.longVideosQty > 0 ? (
+                <View style={styles.subDurationRow}>
+                  <Text style={styles.subDurationLabel}>{tr('Set duration if selected')}</Text>
+                  <View style={styles.qtyPillRow}>
+                    {LONG_VIDEO_DURATIONS.map((dur) => {
+                      const active = draft.longVideosDuration === dur;
+                      return (
+                        <Pressable
+                          key={dur}
+                          onPress={() => updateDraft('longVideosDuration', dur)}
+                          style={[styles.qtyPill, active && styles.qtyPillActive]}
+                        >
+                          <Text style={[styles.qtyPillText, active && styles.qtyPillTextActive]}>
+                            {dur}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                    <Pressable
+                      onPress={() => setActiveSheet('longVideoDurationCustom')}
+                      style={[styles.qtyPill, styles.qtyPillCustom, isCustomLongDur && styles.qtyPillActive]}
+                    >
+                      <Text style={[styles.qtyPillText, isCustomLongDur && styles.qtyPillTextActive]}>
+                        {isCustomLongDur ? `${draft.longVideosDuration} (Custom)` : tr('Custom')}
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Instant updates (same day) with ⓘ */}
+          <View style={[styles.deliverableRow, { borderBottomWidth: 0, paddingBottom: 0 }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
+                <Ionicons name="flash" size={16} color={colors.accent} />
+                <Text style={styles.deliverableTitle}>{tr('Instant updates (same day)')}</Text>
+                <InfoBadgeButton infoKey="instantUpdates" />
+              </View>
+              <View style={styles.qtyPillRow}>
+                {([false, true] as const).map((flag) => {
+                  const active = draft.instantUpdates === flag;
+                  return (
+                    <Pressable
+                      key={String(flag)}
+                      onPress={() => updateDraft('instantUpdates', flag)}
+                      style={[styles.qtyPill, { minWidth: 64 }, active && styles.qtyPillActive]}
+                    >
+                      <Text style={[styles.qtyPillText, active && styles.qtyPillTextActive]}>
+                        {flag ? tr('Yes') : tr('No')}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+            <InfoPopover
+              infoKey="instantUpdates"
+              text={tr('Receive a few edited highlight photos or short clips on the same day of your event for social media.')}
+            />
           </View>
         </View>
-        <View>
-          <Label text="Budget" hint="Photographers whose packages fit this range are alerted." />
-          <View style={styles.wrap}>
-            {options.budgetPresets.map((p, i) => <Chip key={p.label} selected={budgetIndex === i} label={p.label} onPress={() => setBudgetIndex(i)} />)}
+
+        {/* CARD 2: LIVE STREAM & INSTANT WISHES & MEMORIES SHARING */}
+        <View style={styles.pageCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderIconBox}>
+              <Ionicons name="radio-outline" size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.cardHeading}>
+                {tr('Live stream & instant wishes & memories sharing')}
+              </Text>
+              <InfoBadgeButton infoKey="liveAndWishes" />
+            </View>
+          </View>
+          <InfoPopover
+            infoKey="liveAndWishes"
+            text={tr(
+              'Live stream broadcasts your event online for remote guests. Instant wishes & memories lets guests at the venue share wishes and view live event moments.',
+            )}
+          />
+
+          {/* 1. LIVE STREAM (Yes / No) */}
+          <View style={styles.printProductCard}>
+            <View style={styles.rowBetween}>
+              <View style={[styles.printProductTop, { flex: 1 }]}>
+                <View style={styles.printIconBox}>
+                  <Ionicons name="videocam-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.printProductTitle}>{tr('LIVE STREAM')}</Text>
+                  <Text style={styles.printProductSub}>{tr('Live broadcast of your event')}</Text>
+                </View>
+              </View>
+              <View style={styles.qtyPillRow}>
+                {([false, true] as const).map((flag) => {
+                  const active = draft.liveStream === flag;
+                  return (
+                    <Pressable
+                      key={String(flag)}
+                      onPress={() => updateDraft('liveStream', flag)}
+                      style={[styles.qtyPill, { minWidth: 64 }, active && styles.qtyPillActive]}
+                    >
+                      <Text style={[styles.qtyPillText, active && styles.qtyPillTextActive]}>
+                        {flag ? tr('Yes') : tr('No')}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+
+          {/* 2. INSTANT WISHES & MEMORIES SHARING (Yes / No) */}
+          <View style={styles.printProductCard}>
+            <View style={styles.rowBetween}>
+              <View style={[styles.printProductTop, { flex: 1 }]}>
+                <View style={styles.printIconBox}>
+                  <Ionicons name="sparkles-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.printProductTitle}>
+                    {tr('INSTANT WISHES & MEMORIES SHARING')}
+                  </Text>
+                  <Text style={styles.printProductSub}>
+                    {tr('Guests share wishes & memories during the event')}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.qtyPillRow}>
+                {([false, true] as const).map((flag) => {
+                  const active = draft.instantWishesAndMemories === flag;
+                  return (
+                    <Pressable
+                      key={String(flag)}
+                      onPress={() => updateDraft('instantWishesAndMemories', flag)}
+                      style={[styles.qtyPill, { minWidth: 64 }, active && styles.qtyPillActive]}
+                    >
+                      <Text style={[styles.qtyPillText, active && styles.qtyPillTextActive]}>
+                        {flag ? tr('Yes') : tr('No')}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
           </View>
         </View>
-        <View>
-          <Label text="Photographer specialty" hint="Choose one only if it must be a specialist." />
-          <View style={styles.wrap}>
-            {options.photographerSpecialties.map((s) => <Chip key={s.value} selected={specialty === s.value} label={s.label} onPress={() => setSpecialty(s.value)} />)}
+
+        {/* CARD 3: PHOTO BOOKS, ALBUMS & PORTRAITS */}
+        <View style={styles.pageCard}>
+          <View style={styles.cardHeaderRow}>
+            <View style={styles.cardHeaderIconBox}>
+              <Ionicons name="book-outline" size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.cardHeading}>{tr('Photo books, albums & portraits')}</Text>
+              <InfoBadgeButton infoKey="printProducts" />
+            </View>
           </View>
-        </View>
-        <View>
-          <Label text="Where can the photographer come from?" />
-          <View style={{ gap: spacing.sm }}>
-            {options.coverageOptions.map((c) => (
-              <OptionCard key={c.value} selected={coverage === c.value} onPress={() => setCoverage(c.value)}
-                title={c.value === 'SAME_CITY' ? `${city} only` : c.label} description={c.description}
-                icon={c.value === 'SAME_CITY' ? 'location-outline' : c.value === 'NEARBY_CITY' ? 'git-branch-outline' : 'map-outline'} />
-            ))}
+          <InfoPopover
+            infoKey="printProducts"
+            text={tr('Choose 0 if you only need digital coverage, or set the quantity, size, and finish for each print product.')}
+          />
+
+          {/* 1. PHOTO BOOKS */}
+          <View style={styles.printProductCard}>
+            <View style={styles.printProductTop}>
+              <View style={styles.printIconBox}>
+                <Ionicons name="book-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.printProductTitle}>{tr('PHOTO BOOKS')}</Text>
+                <Text style={styles.printProductSub}>{tr('Quantity • Size • Page count')}</Text>
+              </View>
+            </View>
+            <QtyPillGroup
+              presets={PRINT_QTY_PRESETS}
+              value={draft.photoBooksQty}
+              onSelect={(n) => updateDraft('photoBooksQty', n)}
+              onCustomPress={() => setActiveSheet('photoBooksCustom')}
+            />
+            {draft.photoBooksQty > 0 ? (
+              <View style={styles.printDropdownsRow}>
+                <DropdownPill
+                  label={draft.photoBookSize}
+                  onPress={() => setActiveSheet('photoBookSize')}
+                />
+                <DropdownPill
+                  label={draft.photoBookPages}
+                  onPress={() => setActiveSheet('photoBookPages')}
+                />
+              </View>
+            ) : null}
           </View>
-        </View>
-        <View>
-          <Label text="Collect answers for" hint="After this, you choose from whoever said yes." />
-          <View style={styles.wrap}>
-            {options.matchWindowHours.map((h) => <Chip key={h} selected={windowHours === h} label={language === 'fr' ? `${h} heures` : language === 'es' ? `${h} horas` : language === 'rw' ? `amasaha ${h}` : `${h} hours`} onPress={() => setWindowHours(h)} />)}
+
+          {/* 2. PHOTO ALBUMS */}
+          <View style={styles.printProductCard}>
+            <View style={styles.printProductTop}>
+              <View style={styles.printIconBox}>
+                <Ionicons name="images-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.printProductTitle}>{tr('PHOTO ALBUMS')}</Text>
+                <Text style={styles.printProductSub}>{tr('Quantity • Size • Print count')}</Text>
+              </View>
+            </View>
+            <QtyPillGroup
+              presets={PRINT_QTY_PRESETS}
+              value={draft.photoAlbumsQty}
+              onSelect={(n) => updateDraft('photoAlbumsQty', n)}
+              onCustomPress={() => setActiveSheet('photoAlbumsCustom')}
+            />
+            {draft.photoAlbumsQty > 0 ? (
+              <View style={styles.printDropdownsRow}>
+                <DropdownPill
+                  label={draft.photoAlbumSize}
+                  onPress={() => setActiveSheet('photoAlbumSize')}
+                />
+                <DropdownPill
+                  label={draft.photoAlbumPrints}
+                  onPress={() => setActiveSheet('photoAlbumPrints')}
+                />
+              </View>
+            ) : null}
           </View>
+
+          {/* 3. WALL PORTRAITS */}
+          <View style={styles.printProductCard}>
+            <View style={styles.printProductTop}>
+              <View style={styles.printIconBox}>
+                <Ionicons name="easel-outline" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.printProductTitle}>{tr('WALL PORTRAITS')}</Text>
+                <Text style={styles.printProductSub}>{tr('Quantity • Size • Framed or unframed')}</Text>
+              </View>
+            </View>
+            <QtyPillGroup
+              presets={PRINT_QTY_PRESETS}
+              value={draft.wallPortraitsQty}
+              onSelect={(n) => updateDraft('wallPortraitsQty', n)}
+              onCustomPress={() => setActiveSheet('wallPortraitsCustom')}
+            />
+            {draft.wallPortraitsQty > 0 ? (
+              <View style={styles.printDropdownsRow}>
+                <DropdownPill
+                  label={draft.wallPortraitSize}
+                  onPress={() => setActiveSheet('wallPortraitSize')}
+                />
+                <DropdownPill
+                  label={draft.wallPortraitFrame}
+                  onPress={() => setActiveSheet('wallPortraitFrame')}
+                />
+              </View>
+            ) : null}
+          </View>
+
+          {/* More options: editing style & usage */}
+          <Pressable
+            onPress={() => setMoreStyleOpen((v) => !v)}
+            style={styles.moreOptionsBar}
+            accessibilityRole="button"
+          >
+            <Ionicons name="settings-outline" size={16} color={colors.primary} />
+            <Text style={styles.moreOptionsText}>
+              {tr('More options: editing style & usage')}
+            </Text>
+            <Ionicons
+              name={moreStyleOpen ? 'chevron-up' : 'chevron-down'}
+              size={16}
+              color={colors.textMuted}
+            />
+          </Pressable>
+
+          {moreStyleOpen ? (
+            <View style={{ gap: spacing.sm, paddingTop: spacing.xs }}>
+              <Text style={styles.subDurationLabel}>{tr('Editing style')}</Text>
+              <View style={styles.wrap}>
+                {EDITING_STYLES.map((st) => (
+                  <Chip
+                    key={st}
+                    selected={draft.editingStyle === st}
+                    label={st}
+                    onPress={() => updateDraft('editingStyle', st)}
+                  />
+                ))}
+              </View>
+              <Text style={styles.subDurationLabel}>{tr('Usage')}</Text>
+              <View style={styles.wrap}>
+                {USAGE_RIGHTS.map((u) => (
+                  <Chip
+                    key={u}
+                    selected={draft.usageRights === u}
+                    label={u}
+                    onPress={() => updateDraft('usageRights', u)}
+                  />
+                ))}
+              </View>
+            </View>
+          ) : null}
         </View>
       </View>
     );
   } else if (step === 3 && options) {
-    const typeLabel = options.photographerTypes.find((t) => t.value === photographerType)?.label;
-    const coverageLabel = options.coverageOptions.find((c) => c.value === coverage)?.label;
-    const rows: [keyof typeof Ionicons.glyphMap, string, string][] = [
-      ['sparkles-outline', tr('EVENT'), `${title}${eventType ? ` · ${eventType.name}` : ''}`],
-      ['calendar-outline', tr('WHEN'), `${prettyDate(date)} · ${startTime}–${endTime} · ${durationText(minutes)}${overnight ? tr(' · ends next day') : ''}`],
-      ['location-outline', tr('WHERE'), `${venue}, ${city}, ${options.country}`],
-      ['person-outline', tr('LOOKING FOR'), `${typeLabel}${specialty !== 'ANY' ? ` · ${specialty} specialist` : ''} · ${coverageLabel}`],
-      ['cash-outline', tr('BUDGET'), budgetLabel(preset?.min, preset?.max) || tr('Flexible')],
-      ['time-outline', tr('COLLECT ANSWERS FOR'), language === 'fr' ? `${windowHours} heures` : language === 'es' ? `${windowHours} horas` : language === 'rw' ? `amasaha ${windowHours}` : `${windowHours} hours`],
-    ];
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 3 OF 4: DELIVERY & PRICE ESTIMATE + RECOMMENDED PRICING
+    // ═══════════════════════════════════════════════════════════════════════
+    const isCustomDigitalDeadline = !(DIGITAL_DEADLINE_PRESETS as readonly string[]).includes(
+      draft.digitalDeadline,
+    );
+    const isProposePrintDate = draft.printProductionTime === 'Propose production & handover date';
+    const isHomeDelivery = draft.printCollectionMethod === 'Deliver to my home address';
+    const summaryLines = formatOfferDeliverablesSummaryLines(draft, minutes);
+    const completeDelta = priceEstimate.recommended - clientMaxBudget;
+    const backendBudgetPresets = (options?.budgetPresets ?? []).filter(
+      (p): p is { label: string; min: number; max: number } =>
+        typeof p.min === 'number' && typeof p.max === 'number' && p.max > 0,
+    );
+    const budgetRangesList = priceEstimate.isExpressMajorFloor
+      ? EXPRESS_MAJOR_BUDGET_RANGES
+      : backendBudgetPresets.length > 0
+        ? backendBudgetPresets
+        : STANDARD_BUDGET_RANGES;
+
+    const plus7Date = addDaysIso(draft.date, 7);
+    const plus14Date = addDaysIso(draft.date, 14);
+    const plus21Date = addDaysIso(draft.date, 21);
+
     body = (
-      <View style={{ gap: spacing.lg }}>
-        <View style={styles.summary}>
-          {rows.map(([icon, k, v]) => (
-            <View key={k} style={{ flexDirection: 'row', gap: spacing.sm, paddingVertical: 6 }}>
-              <Ionicons name={icon} size={16} color={colors.primary} style={{ marginTop: 2 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.summaryKey}>{k}</Text>
-                <Text style={styles.summaryVal}>{v}</Text>
+      <View style={{ gap: spacing.sm }}>
+        {/* CARD 1: DIGITAL & PRINT DELIVERY + CLIENT BUDGET RANGE */}
+        <View style={styles.pageCardCompact}>
+          {/* DIGITAL DELIVERY + ⓘ */}
+          <View style={styles.sectionBlock}>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.cardHeaderIconBox}>
+                <Ionicons name="cloud-download-outline" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.cardHeading}>{tr('DIGITAL DELIVERY')}</Text>
+                <InfoBadgeButton infoKey="digitalDelivery" />
               </View>
             </View>
-          ))}
-        </View>
-        {MatchPanel}
-        <View style={{ gap: spacing.sm }}>
-          <Text style={styles.label}>{tr('What happens next')}</Text>
-          {([
-            ['radio-outline', language === 'fr' ? `Les photographes les mieux adaptés (jusqu'à ${options.firstBatchSize}) sont alertés immédiatement.` : language === 'es' ? `Los fotógrafos que mejor encajan (hasta ${options.firstBatchSize}) reciben una alerta de inmediato.` : language === 'rw' ? `Abafotozi bahuye neza n'ibyo usaba (kugeza kuri ${options.firstBatchSize}) bamenyeshwa ako kanya.` : `The best-matched photographers (up to ${options.firstBatchSize}) are alerted right away.`],
-            ['thumbs-up-outline', language === 'fr' ? `Chacun dispose de ${durationText(options.inviteWindowMinutes)} pour dire oui ; tout refus est remplacé par le suivant.` : language === 'es' ? `Cada uno tiene ${durationText(options.inviteWindowMinutes)} para decir que sí; quien pase es reemplazado por el siguiente.` : language === 'rw' ? `Buri wese afite ${durationText(options.inviteWindowMinutes)} yo kwemeza; utabyemeye asimburwa n'ukurikiraho.` : `Each has ${durationText(options.inviteWindowMinutes)} to say yes; anyone who passes is replaced by the next best match.`],
-            ['people-outline', tr('Only photographers who said yes appear for you, grouped as top, good and possible matches, three of each.')],
-            ['shield-checkmark-outline', tr('You choose one and pay 50%, 70% or 100% upfront. Connekyt holds it until delivery.')],
-          ] as [keyof typeof Ionicons.glyphMap, string][]).map(([icon, t]) => (
-            <View key={t} style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <View style={styles.nextIcon}><Ionicons name={icon} size={14} color={colors.primary} /></View>
-              <Text style={[styles.modeStep, { flex: 1 }]}>{t}</Text>
+            <InfoPopover
+              infoKey="digitalDelivery"
+              text={tr(
+                'Corporate, commercial, fashion & large events: recommend 4+ calendar days for final digital delivery. More work may need longer. Express delivery under 4 days for Wedding, Corporate, Commercial, or large events starts from RWF 7,000,000.',
+              )}
+            />
+
+            <View style={styles.qtyPillRow}>
+              {DIGITAL_DEADLINE_PRESETS.map((d) => {
+                const active = draft.digitalDeadline === d;
+                return (
+                  <Pressable
+                    key={d}
+                    onPress={() => updateDraft('digitalDeadline', d)}
+                    style={[styles.qtyPill, active && styles.qtyPillActive]}
+                  >
+                    <Text style={[styles.qtyPillText, active && styles.qtyPillTextActive]}>
+                      {tr(d)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => setActiveSheet('digitalDeadlineCustom')}
+                style={[styles.qtyPill, styles.qtyPillCustom, isCustomDigitalDeadline && styles.qtyPillActive]}
+              >
+                <Text style={[styles.qtyPillText, isCustomDigitalDeadline && styles.qtyPillTextActive]}>
+                  {isCustomDigitalDeadline ? `${draft.digitalDeadline} (Custom)` : tr('Custom')}
+                </Text>
+              </Pressable>
             </View>
-          ))}
-          <Text style={styles.hint}>{tr('Your event stays private. It only appears publicly once a photographer is booked.')}</Text>
+
+            {/* Only show the active warning when < 4 days express floor is triggered */}
+            {priceEstimate.isExpressMajorFloor ? (
+              <View style={[styles.infoBanner, styles.warningBanner]}>
+                <Ionicons name="warning" size={15} color={colors.pending} />
+                <Text style={[styles.infoBannerText, { color: colors.text, fontWeight: fontWeight.bold }]}>
+                  {tr(
+                    'Express delivery (< 4 days) for Wedding, Corporate, Commercial, or large events starts from RWF 7,000,000.',
+                  )}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          {/* PRINT DELIVERY + ⓘ */}
+          <View style={styles.sectionBlock}>
+            <View style={styles.cardHeaderRow}>
+              <View style={styles.cardHeaderIconBox}>
+                <Ionicons name="cube-outline" size={16} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.cardHeading}>{tr('PRINT DELIVERY')}</Text>
+                <InfoBadgeButton infoKey="printDelivery" />
+              </View>
+            </View>
+            <InfoPopover
+              infoKey="printDelivery"
+              text={tr(
+                'Print delivery is separate from digital delivery. Production starts after you select your favorite edited photos and approve the print proof.',
+              )}
+            />
+
+            <View style={styles.printDropdownsRow}>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.subDurationLabel}>{tr('Production time')}</Text>
+                <DropdownPill
+                  label={draft.printProductionTime}
+                  onPress={() => setActiveSheet('printProductionTime')}
+                />
+              </View>
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={styles.subDurationLabel}>{tr('Collection / delivery')}</Text>
+                <DropdownPill
+                  label={draft.printCollectionMethod}
+                  onPress={() => setActiveSheet('printCollectionMethod')}
+                />
+              </View>
+            </View>
+
+            {/* Custom Date Selector when "Propose production & handover date" is selected */}
+            {isProposePrintDate ? (
+              <View style={styles.homeAddressCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={styles.deliverableTitle}>
+                    {tr('Select proposed production & handover date')}
+                  </Text>
+                </View>
+                <View style={styles.wrap}>
+                  {[
+                    [plus7Date, '+7 days'],
+                    [plus14Date, '+14 days'],
+                    [plus21Date, '+21 days'],
+                  ].map(([isoVal, lbl]) => (
+                    <Chip
+                      key={lbl}
+                      selected={draft.printProposedDate === isoVal}
+                      icon="calendar-outline"
+                      label={`${lbl} (${prettyDate(isoVal)})`}
+                      onPress={() => updateDraft('printProposedDate', isoVal)}
+                    />
+                  ))}
+                </View>
+
+                <Pressable
+                  onPress={() => setPrintDatePickerOpen(true)}
+                  style={[styles.selectBox, { position: 'relative' }]}
+                  accessibilityRole="button"
+                  accessibilityLabel={tr('Select proposed handover date')}
+                >
+                  {Platform.OS === 'web' &&
+                    React.createElement('input', {
+                      type: 'date',
+                      min: draft.date || new Date().toISOString().split('T')[0],
+                      value: draft.printProposedDate || '',
+                      onClick: (e: any) => e.currentTarget?.showPicker?.(),
+                      onChange: (e: any) => {
+                        const val = e.target?.value;
+                        if (val) updateDraft('printProposedDate', val);
+                      },
+                      style: {
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer',
+                        zIndex: 2,
+                      },
+                    })}
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text
+                    style={[styles.selectBoxText, !draft.printProposedDate && { color: colors.textMuted }]}
+                  >
+                    {draft.printProposedDate
+                      ? prettyDate(draft.printProposedDate)
+                      : tr('Pick custom production & handover date')}
+                  </Text>
+                  <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+                </Pressable>
+              </View>
+            ) : null}
+
+            {/* Exact home address input when "Deliver to my home address" is selected */}
+            {isHomeDelivery ? (
+              <View style={styles.homeAddressCard}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="home-outline" size={16} color={colors.primary} />
+                  <Text style={styles.deliverableTitle}>
+                    {tr('Where exactly should we deliver your print products?')}
+                  </Text>
+                </View>
+                <View style={styles.wrap}>
+                  {homeDeliveryAreas.map((area) => {
+                    const selected = draft.printDeliveryAddress.includes(area);
+                    return (
+                      <Chip
+                        key={area}
+                        selected={selected}
+                        icon="location-outline"
+                        label={area}
+                        onPress={() => updateDraft('printDeliveryAddress', `${area}, ${draft.city}`)}
+                      />
+                    );
+                  })}
+                </View>
+                <View style={styles.venueInputRow}>
+                  <Ionicons name="navigate-outline" size={17} color={colors.primary} />
+                  <TextInput
+                    value={draft.printDeliveryAddress}
+                    onChangeText={(t) => updateDraft('printDeliveryAddress', t)}
+                    maxLength={220}
+                    style={styles.venueInput}
+                    placeholder={tr('e.g. Nyarutarama KG 9 Ave, House #14 (near Golf Club)')}
+                    placeholderTextColor={colors.textMuted}
+                  />
+                  {draft.printDeliveryAddress ? (
+                    <Pressable onPress={() => updateDraft('printDeliveryAddress', '')} hitSlop={8}>
+                      <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </View>
+            ) : null}
+          </View>
+
+          {/* CLIENT BUDGET RANGE (Small-unit presets + Flexible custom inputs) */}
+          <View style={styles.sectionBlock}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.sectionTitle}>{tr('Your budget (preferred range)')}</Text>
+                <InfoBadgeButton infoKey="budgetRange" />
+              </View>
+              <Text style={styles.budgetRangeActiveBadge}>{clientRangeDisplay}</Text>
+            </View>
+            <InfoPopover
+              infoKey="budgetRange"
+              text={tr(
+                'Choose one of the suggested budget ranges or select Flexible to enter your own custom minimum and maximum budget in RWF. Small events under 7 hours use uploaded photographer tariffs.',
+              )}
+            />
+
+            {/* Suggestion Range Presets (starting from small units) + Flexible Option */}
+            <View style={styles.wrap}>
+              {budgetRangesList.map((r) => {
+                const minStr = r.min === 0 ? '0' : formatAmountWithCommas(String(r.min));
+                const maxStr = formatAmountWithCommas(String(r.max));
+                const active =
+                  draft.budgetMode === 'PRESET' &&
+                  draft.minBudgetInput === minStr &&
+                  draft.maxBudgetInput === maxStr;
+                return (
+                  <Chip
+                    key={r.label}
+                    selected={active}
+                    label={r.label}
+                    onPress={() => {
+                      updateDraft('budgetMode', 'PRESET');
+                      updateDraft('minBudgetInput', minStr);
+                      updateDraft('maxBudgetInput', maxStr);
+                      updateDraft('pricingDecision', 'MY_OFFER_ANYWAY');
+                    }}
+                  />
+                );
+              })}
+              <Chip
+                selected={draft.budgetMode === 'FLEXIBLE'}
+                icon="options-outline"
+                label={tr('Flexible')}
+                onPress={() => {
+                  updateDraft('budgetMode', 'FLEXIBLE');
+                  updateDraft('pricingDecision', 'MY_OFFER_ANYWAY');
+                }}
+              />
+            </View>
+
+            {/* Minimum & Maximum Input Boxes — ONLY shown when Flexible is clicked */}
+            {draft.budgetMode === 'FLEXIBLE' ? (
+              <View style={styles.budgetRangeRow}>
+                <View style={styles.politeBudgetField}>
+                  <Text style={styles.politeBudgetLabel}>{tr('Minimum offer')}</Text>
+                  <View style={styles.politeBudgetInputRow}>
+                    <View style={styles.currencyBadge}>
+                      <Text style={styles.currencyTag}>RWF</Text>
+                    </View>
+                    <TextInput
+                      value={draft.minBudgetInput}
+                      onChangeText={(t) => {
+                        updateDraft('minBudgetInput', formatAmountWithCommas(t));
+                        updateDraft('pricingDecision', 'MY_OFFER_ANYWAY');
+                      }}
+                      keyboardType="number-pad"
+                      placeholder={
+                        priceEstimate.isExpressMajorFloor ? '7,000,000' : 'e.g. 150,000'
+                      }
+                      placeholderTextColor={colors.textMuted}
+                      style={styles.budgetInput}
+                    />
+                    {draft.minBudgetInput ? (
+                      <Pressable onPress={() => updateDraft('minBudgetInput', '')} hitSlop={8}>
+                        <Ionicons name="close-circle" size={15} color={colors.textMuted} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+
+                <View style={styles.budgetRangeDashWrap}>
+                  <Text style={styles.budgetRangeDash}>—</Text>
+                </View>
+
+                <View style={styles.politeBudgetField}>
+                  <Text style={styles.politeBudgetLabel}>{tr('Maximum offer')}</Text>
+                  <View style={styles.politeBudgetInputRow}>
+                    <View style={styles.currencyBadge}>
+                      <Text style={styles.currencyTag}>RWF</Text>
+                    </View>
+                    <TextInput
+                      value={draft.maxBudgetInput}
+                      onChangeText={(t) => {
+                        updateDraft('maxBudgetInput', formatAmountWithCommas(t));
+                        updateDraft('pricingDecision', 'MY_OFFER_ANYWAY');
+                      }}
+                      keyboardType="number-pad"
+                      placeholder={
+                        priceEstimate.isExpressMajorFloor ? '8,500,000' : 'e.g. 350,000'
+                      }
+                      placeholderTextColor={colors.textMuted}
+                      style={styles.budgetInput}
+                    />
+                    {draft.maxBudgetInput ? (
+                      <Pressable onPress={() => updateDraft('maxBudgetInput', '')} hitSlop={8}>
+                        <Ionicons name="close-circle" size={15} color={colors.textMuted} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* CARD 2: RECOMMENDED PRICING & COMPARE MATCHING PACKAGES (Cool Vertical Display with Tightened Spacing) */}
+        <View style={styles.recPricingContainer}>
+          {/* Header with ⓘ */}
+          <View style={styles.recHeaderCenter}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text style={styles.recMainTitle}>{tr('Recommended pricing.')}</Text>
+              <InfoBadgeButton infoKey="recPricing" />
+            </View>
+            <Text style={styles.recSubtitle}>
+              {tr('According to your shared data, this may fit (advisory only).')}
+            </Text>
+          </View>
+          <InfoPopover
+            infoKey="recPricing"
+            text={tr(
+              'According to your shared event scope and timeline, we compare what you need and in how long against available photographers’ supported packages. Prices are advisory only and require provider agreement.',
+            )}
+          />
+
+          {/* "Your offer" summary card in vertical display */}
+          <View style={styles.yourOfferCard}>
+            <View style={styles.yourOfferIconCircle}>
+              <Ionicons name="calendar" size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={styles.yourOfferTitle}>{tr('Your offer')}</Text>
+              <Text style={styles.yourOfferScopeText}>{summaryLines.digitalLine}</Text>
+              <Text style={styles.yourOfferScopeText}>{summaryLines.printLine}</Text>
+              <Text style={styles.yourOfferBudgetRow}>
+                {tr('Budget:')}{' '}
+                <Text style={styles.yourOfferBudgetHighlight}>{clientRangeDisplay}</Text>
+              </Text>
+            </View>
+          </View>
+
+          {/* Section Title: Compare matching packages. */}
+          <Text style={styles.compareSectionTitle}>{tr('Compare matching packages.')}</Text>
+
+          {/* PACKAGE 1: Essential */}
+          {(() => {
+            const active = draft.packageOption === 'WITHIN_BUDGET';
+            return (
+              <Pressable
+                onPress={() => updateDraft('packageOption', 'WITHIN_BUDGET')}
+                style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+              >
+                <View style={styles.pkgLeftCol}>
+                  <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
+                    {active ? <View style={styles.pkgRadioInner} /> : null}
+                  </View>
+                  <View style={styles.pkgIconCircle}>
+                    <Ionicons name="camera" size={18} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={[styles.pkgBadge, styles.pkgBadgeCyan]}>
+                      <Text style={styles.pkgBadgeCyanText}>{tr('Within budget')}</Text>
+                    </View>
+                    <Text style={styles.pkgTitle}>{tr('Essential')}</Text>
+                    <Text style={styles.pkgScopeDesc}>{summaryLines.completeDigitalLine}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.pkgRightCol}>
+                  <Text style={styles.pkgPriceText}>
+                    RWF {priceEstimate.low.toLocaleString('en-US')}
+                  </Text>
+                  <View style={styles.pkgMetaLine}>
+                    <Ionicons name="images-outline" size={12} color={colors.textSoft} />
+                    <Text style={styles.pkgMetaText}>{tr('Digital delivery: 14 days')}</Text>
+                  </View>
+                  <View style={styles.pkgMetaLine}>
+                    <Ionicons name="book-outline" size={12} color={colors.textSoft} />
+                    <Ionicons name="close" size={12} color={colors.error} />
+                    <Text style={styles.pkgMetaText}>
+                      {tr('Photo book & portraits not included')}
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })()}
+
+          {/* PACKAGE 2: Complete (Recommended) */}
+          {(() => {
+            const active = draft.packageOption === 'RECOMMENDED';
+            return (
+              <Pressable
+                onPress={() => updateDraft('packageOption', 'RECOMMENDED')}
+                style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+              >
+                <View style={styles.pkgLeftCol}>
+                  <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
+                    {active ? <View style={styles.pkgRadioInner} /> : null}
+                  </View>
+                  <View style={[styles.pkgIconCircle, { backgroundColor: 'rgba(139, 92, 246, 0.22)' }]}>
+                    <Ionicons name="book" size={18} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={[styles.pkgBadge, styles.pkgBadgePurple]}>
+                      <Text style={styles.pkgBadgePurpleText}>{tr('Recommended')}</Text>
+                    </View>
+                    <Text style={styles.pkgTitle}>{tr('Complete')}</Text>
+                    <Text style={styles.pkgScopeDesc}>{summaryLines.completeDigitalLine}</Text>
+                    <Text style={styles.pkgScopeDesc}>{summaryLines.completePrintLine}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.pkgRightCol}>
+                  <Text style={styles.pkgPriceText}>
+                    RWF {priceEstimate.recommended.toLocaleString('en-US')}
+                  </Text>
+                  <View style={styles.pkgMetaLine}>
+                    <Ionicons name="images-outline" size={12} color={colors.textSoft} />
+                    <Text style={styles.pkgMetaText}>{tr('Digital delivery: 7 days')}</Text>
+                  </View>
+                  <View style={styles.pkgMetaLine}>
+                    <Ionicons name="book-outline" size={12} color={colors.textSoft} />
+                    <Text style={styles.pkgMetaText}>
+                      {tr('Print delivery confirmed separately')}
+                    </Text>
+                  </View>
+                  {completeDelta > 0 ? (
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="arrow-up" size={12} color={colors.accent} />
+                      <Text style={styles.pkgDeltaAboveText}>
+                        RWF {completeDelta.toLocaleString('en-US')} {tr('above your budget')}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+                      <Text style={[styles.pkgDeltaAboveText, { color: colors.success }]}>
+                        {tr('Within your budget')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </Pressable>
+            );
+          })()}
+
+          {/* PACKAGE 3: Priority (Faster delivery) */}
+          {(() => {
+            const active = draft.packageOption === 'PRIORITY';
+            return (
+              <Pressable
+                onPress={() => updateDraft('packageOption', 'PRIORITY')}
+                style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: active }}
+              >
+                <View style={styles.pkgLeftCol}>
+                  <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
+                    {active ? <View style={styles.pkgRadioInner} /> : null}
+                  </View>
+                  <View style={styles.pkgIconCircle}>
+                    <Ionicons name="flash" size={18} color="#38BDF8" />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <View style={[styles.pkgBadge, styles.pkgBadgeCyan]}>
+                      <Text style={styles.pkgBadgeCyanText}>{tr('Faster delivery')}</Text>
+                    </View>
+                    <Text style={styles.pkgTitle}>{tr('Priority')}</Text>
+                    <Text style={styles.pkgScopeDesc}>{tr('Same deliverables as Complete.')}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.pkgRightCol}>
+                  <Text style={styles.pkgPriceText}>
+                    RWF {priceEstimate.priority.toLocaleString('en-US')}
+                  </Text>
+                  <View style={styles.pkgMetaLine}>
+                    <Ionicons name="images-outline" size={12} color={colors.textSoft} />
+                    <Text style={styles.pkgMetaText}>{tr('Digital delivery: 4 days')}</Text>
+                  </View>
+                  <View style={styles.pkgMetaLine}>
+                    <Ionicons name="book-outline" size={12} color={colors.textSoft} />
+                    <Text style={styles.pkgMetaText}>
+                      {tr('Print delivery confirmed separately')}
+                    </Text>
+                  </View>
+                  <View style={styles.pkgMetaLine}>
+                    <Ionicons name="time-outline" size={12} color={colors.textMuted} />
+                    <Text style={styles.pkgMetaText}>{tr('Subject to provider availability.')}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })()}
+
+          {/* Two Choice Buttons in Vertical Stack */}
+          <View style={{ gap: 8, marginTop: 2 }}>
+            <Pressable
+              onPress={handleUseRecommendedPricing}
+              style={styles.useRecommendedBtn}
+              accessibilityRole="button"
+              accessibilityLabel={tr('Use recommended pricing')}
+            >
+              <View style={styles.useRecommendedCheckCircle}>
+                <Ionicons name="checkmark" size={14} color={colors.primary} />
+              </View>
+              <Text style={styles.useRecommendedBtnText}>{tr('Use recommended pricing')}</Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handlePublishMyOfferAnyway}
+              style={styles.publishAnywayBtn}
+              accessibilityRole="button"
+              accessibilityLabel={tr('Publish my offer anyway')}
+            >
+              <Ionicons name="arrow-forward" size={16} color="#38BDF8" />
+              <Text style={styles.publishAnywayBtnText}>{tr('Publish my offer anyway')}</Text>
+            </Pressable>
+
+            <View style={styles.recFooterBottomRow}>
+              <Text style={styles.publishAnywayNote}>
+                {tr('Publishing anyway keeps your')} {clientRangeDisplay}{' '}
+                {tr('budget and original requirements.')}
+              </Text>
+              <Pressable
+                onPress={() => setPoliciesOpen((v) => !v)}
+                hitSlop={8}
+                accessibilityRole="button"
+              >
+                <Text style={styles.viewPoliciesLink}>{tr('View booking policies')}</Text>
+              </Pressable>
+            </View>
+
+            {policiesOpen ? (
+              <View style={styles.policiesBox}>
+                <Text style={styles.policiesBoxTitle}>{tr('Booking & Matching Policies')}</Text>
+                <Text style={styles.policiesBoxText}>
+                  • {tr('Photographers review your full scope, delivery dates, and budget before accepting or countering.')}{'\n'}
+                  • {tr('Print production begins after you select your favorite photos and approve the print proof.')}{'\n'}
+                  • {tr('No payment is charged until you select a responding photographer and confirm final terms.')}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </View>
+    );
+  } else if (step === 4 && options) {
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 4 OF 4: CLEAN, EXECUTIVE REVIEW & PUBLISH
+    // ═══════════════════════════════════════════════════════════════════════
+    const resolvedEventType = eventTypeObj?.name || draft.eventTypeKey || 'Event';
+    const coverageHoursStr = durationText(minutes) || '6 hours';
+    const printHandoverStr = formatPrintHandoverSummary(draft);
+
+    body = (
+      <View style={{ gap: spacing.md }}>
+        {/* 1. EXECUTIVE OFFER HERO CARD */}
+        <View style={styles.reviewHeroCard}>
+          <View style={styles.rowBetween}>
+            <View style={styles.receiverModeBanner}>
+              <Ionicons name="videocam-outline" size={14} color={colors.accent} />
+              <Text style={styles.receiverModeBannerText}>
+                {tr('Requested')}: {formatCoverageModeLabel(draft.coverageMode)}
+              </Text>
+            </View>
+            <View style={styles.durationPill}>
+              <Ionicons name="person-outline" size={12} color={colors.primary} />
+              <Text style={styles.durationPillText}>
+                {draft.clientType === 'ORGANIZATION' ? tr('Organization') : tr('Individual')}
+              </Text>
+            </View>
+          </View>
+
+          {/* Event Title + Date/Time + Venue */}
+          <View style={styles.reviewEventIdentityBox}>
+            <View style={{ flex: 1, gap: 4 }}>
+              <Text style={styles.reviewHeroEventTitle}>
+                {resolvedEventType} • {draft.venue || draft.city}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="calendar-outline" size={13} color={colors.primary} />
+                  <Text style={styles.reviewHeroMetaText}>
+                    {draft.date ? prettyDate(draft.date) : tr('Date TBD')}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="time-outline" size={13} color={colors.primary} />
+                  <Text style={styles.reviewHeroMetaText}>
+                    {draft.startTime}–{draft.endTime} ({coverageHoursStr})
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="location-outline" size={13} color={colors.primary} />
+                  <Text style={styles.reviewHeroMetaText}>
+                    {draft.venue ? `${draft.venue}, ${draft.city}` : draft.city}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <Pressable onPress={() => setStep(1)} style={styles.editChipBtn} hitSlop={8}>
+              <Ionicons name="create-outline" size={13} color={colors.primary} />
+              <Text style={styles.editChipText}>{tr('Edit')}</Text>
+            </Pressable>
+          </View>
+
+          {/* Published Budget Banner */}
+          <View style={styles.receiverClientOfferBox}>
+            <View style={styles.rowBetween}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Ionicons name="wallet-outline" size={14} color={colors.accent} />
+                <Text style={styles.receiverOfferEyebrow}>
+                  {draft.pricingDecision === 'RECOMMENDED'
+                    ? tr('RECOMMENDED PACKAGE OFFER')
+                    : tr("CLIENT'S BUDGET RANGE")}
+                </Text>
+              </View>
+              <Pressable onPress={() => setStep(3)} hitSlop={8}>
+                <Text style={styles.editLink}>{tr('Change budget')}</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.receiverOfferAmount}>{effectiveBudgetDisplay}</Text>
+            <View style={styles.rowBetween}>
+              <Text style={styles.receiverOfferSub}>
+                {draft.pricingDecision === 'RECOMMENDED'
+                  ? tr('Matched to recommended package scope')
+                  : tr('For the complete requested scope')}
+              </Text>
+              <View style={styles.matchPreviewBadge}>
+                <Ionicons name="sparkles" size={11} color={colors.primary} />
+                <Text style={styles.matchPreviewBadgeText}>
+                  {previewLoading
+                    ? tr('Checking matches...')
+                    : preview?.matchCount != null
+                      ? `${preview.matchCount} ${
+                          preview.matchCount === 1
+                            ? tr('photographer fits')
+                            : tr('photographers fit')
+                        }`
+                      : tr('Ready to broadcast')}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* 2. SIDE-BY-SIDE DELIVERABLES & DELIVERY SCHEDULE (Matches Image 3 cleanly) */}
+        <View style={styles.receiverGrid}>
+          {/* Box A: Requested deliverables */}
+          <View style={styles.receiverDetailBox}>
+            <View style={styles.rowBetween}>
+              <View style={styles.receiverBoxHeader}>
+                <Ionicons name="list-outline" size={15} color={colors.primary} />
+                <Text style={styles.receiverBoxTitle}>{tr('Requested deliverables')}</Text>
+              </View>
+              <Pressable onPress={() => setStep(2)} style={styles.editChipBtn} hitSlop={8}>
+                <Ionicons name="create-outline" size={13} color={colors.primary} />
+                <Text style={styles.editChipText}>{tr('Edit')}</Text>
+              </Pressable>
+            </View>
+
+            {(
+              [
+                ['time-outline', tr('Coverage'), coverageHoursStr],
+                [
+                  'image-outline',
+                  tr('Edited photos'),
+                  String(draft.coverageMode === 'VIDEO' ? 0 : draft.editedPhotos),
+                ],
+                ['videocam-outline', tr('Short videos'), formatShortVideosSummary(draft)],
+                ['film-outline', tr('Long videos'), formatLongVideosSummary(draft)],
+                [
+                  'flash-outline',
+                  tr('Instant updates'),
+                  draft.instantUpdates ? tr('Yes (same day)') : tr('Not requested'),
+                ],
+                ['radio-outline', tr('Live stream'), formatLiveStreamSummary(draft)],
+                [
+                  'sparkles-outline',
+                  tr('Wishes & memories'),
+                  formatInstantWishesSummary(draft),
+                ],
+                ['book-outline', tr('Photo book'), formatPhotoBookSummary(draft)],
+                ['images-outline', tr('Photo album'), formatPhotoAlbumSummary(draft)],
+                ['easel-outline', tr('Wall portraits'), formatWallPortraitSummary(draft)],
+              ] as [keyof typeof Ionicons.glyphMap, string, string][]
+            ).map(([ic, k, v]) => (
+              <View key={k} style={styles.receiverItemRow}>
+                <Ionicons name={ic} size={13} color={colors.textMuted} />
+                <Text style={styles.receiverItemKey}>{k}</Text>
+                <Text style={styles.receiverItemVal} numberOfLines={1}>
+                  {v}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Box B: Delivery & Style */}
+          <View style={styles.receiverDetailBox}>
+            <View style={styles.rowBetween}>
+              <View style={styles.receiverBoxHeader}>
+                <Ionicons name="calendar-outline" size={15} color={colors.primary} />
+                <Text style={styles.receiverBoxTitle}>{tr('Delivery & preferences')}</Text>
+              </View>
+              <Pressable onPress={() => setStep(3)} style={styles.editChipBtn} hitSlop={8}>
+                <Ionicons name="create-outline" size={13} color={colors.primary} />
+                <Text style={styles.editChipText}>{tr('Edit')}</Text>
+              </Pressable>
+            </View>
+
+            <View style={styles.receiverItemRow}>
+              <Ionicons name="cloud-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.receiverItemKey}>{tr('Digital')}</Text>
+              <Text style={styles.receiverItemVal}>
+                {tr('Within')} {draft.digitalDeadline} {tr('after the event')}
+              </Text>
+            </View>
+            <View style={styles.receiverItemRow}>
+              <Ionicons name="print-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.receiverItemKey}>{tr('Print products')}</Text>
+              <Text style={styles.receiverItemVal}>{printHandoverStr}</Text>
+            </View>
+            <View style={styles.receiverItemRow}>
+              <Ionicons name="color-palette-outline" size={13} color={colors.textMuted} />
+              <Text style={styles.receiverItemKey}>{tr('Editing style')}</Text>
+              <Text style={styles.receiverItemVal}>
+                {draft.editingStyle} ({draft.usageRights})
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* 3. COMPACT PROCESS TIMELINE WITH ⓘ */}
+        <View style={styles.timelineCard}>
+          <View style={styles.rowBetween}>
+            <Text style={styles.cardHeading}>{tr('What happens after you publish')}</Text>
+            <InfoBadgeButton infoKey="reviewProcess" />
+          </View>
+          <InfoPopover
+            infoKey="reviewProcess"
+            text={tr(
+              'Preliminary estimate only — final price, availability and terms are confirmed with the photographer. Print fulfilment (image selection, proof approval, production, and handover) happens after digital editing.',
+            )}
+          />
+          <View style={styles.timelineRow}>
+            {(
+              [
+                ['people-outline', '1. Photographers respond', 'Accept or counter your offer'],
+                ['document-text-outline', '2. Confirm scope & pay', 'Agree final details'],
+                ['checkmark-circle-outline', '3. Booking confirmed', 'Digital + print fulfilment'],
+              ] as [keyof typeof Ionicons.glyphMap, string, string][]
+            ).map(([ic, t1, t2]) => (
+              <View key={t1} style={styles.timelineStep}>
+                <View style={styles.timelineIconCircle}>
+                  <Ionicons name={ic} size={14} color={colors.primary} />
+                </View>
+                <Text style={styles.timelineStepTitle}>{tr(t1)}</Text>
+                <Text style={styles.timelineStepSub}>{tr(t2)}</Text>
+              </View>
+            ))}
+          </View>
         </View>
       </View>
     );
@@ -948,139 +2373,563 @@ export function BookingModeSelector({
     const failed = !result.invited || result.status === 'MATCHING_FAILED';
     body = (
       <View style={{ alignItems: 'center', gap: spacing.md, paddingTop: spacing.xl }}>
-        <View style={[styles.doneIcon, { backgroundColor: failed ? colors.warningBg : MODE_META.HYBRID.soft }]}>
-          <Ionicons name={failed ? 'alert' : 'radio-outline'} size={34} color={failed ? colors.pending : accent} />
+        <View
+          style={[
+            styles.doneIcon,
+            { backgroundColor: failed ? colors.warningBg : MODE_META.HYBRID.soft },
+          ]}
+        >
+          <Ionicons
+            name={failed ? 'alert' : 'paper-plane-outline'}
+            size={34}
+            color={failed ? colors.pending : accent}
+          />
         </View>
         <Text style={styles.doneTitle}>
           {failed
             ? tr('Saved, but nobody fits right now')
-            : language === 'fr'
-              ? `${result.invited} photographe${result.invited === 1 ? ' a été alerté' : 's ont été alertés'}`
-              : language === 'es'
-                ? `Se alertó a ${result.invited} fotógrafo${result.invited === 1 ? '' : 's'}`
-                : language === 'rw'
-                  ? `${result.invited === 1 ? 'Gafotozi 1 yamenyeshejwe' : `Abafotozi ${result.invited} bamenyeshejwe`}`
-                  : `${result.invited} photographer${result.invited === 1 ? ' was' : 's were'} alerted`}
+            : `${result.invited} photographer${result.invited === 1 ? ' was' : 's were'} alerted`}
         </Text>
         <Text style={[styles.hint, { textAlign: 'center' }]}>
           {failed
-            ? tr('Your event is saved privately. Post it again with a wider area or budget, or use Find a Photographer to book one yourself.')
-            : tr("We'll notify you each time a photographer says yes.")}
+            ? tr(
+                'Your event offer is saved privately. Publish it again with a wider budget or schedule, or use Find a Photographer to book directly.',
+              )
+            : tr("We'll notify you each time a photographer accepts or counters your offer.")}
         </Text>
       </View>
     );
   }
 
-  const headerTitle = step === 'select' ? tr('How would you like to book?') : step === 1 ? tr('Tell us about your event')
-    : step === 2 ? tr('Who should we look for?') : step === 3 ? tr('Review and post') : tr('Your event is posted');
-  const canPublish = !submitting && count !== 0 && options?.enabled !== false;
+  // ───────── Sheet Modal Options Resolver (with Custom Input support) ─────────
+  const sheetConfig = useMemo((): {
+    title: string;
+    items: string[];
+    selected: string;
+    allowCustomInput?: boolean;
+    numericOnly?: boolean;
+    customPlaceholder?: string;
+    onSelect: (val: string) => void;
+    onCustomApply?: (raw: string) => void;
+  } | null => {
+    if (!activeSheet) return null;
+    switch (activeSheet) {
+      case 'start':
+        return {
+          title: tr('Start time'),
+          items: slots,
+          selected: draft.startTime,
+          onSelect: (v) => updateDraft('startTime', v),
+        };
+      case 'end':
+        return {
+          title: tr('End time'),
+          items: slots.filter((s) => s !== draft.startTime),
+          selected: draft.endTime,
+          onSelect: (v) => updateDraft('endTime', v),
+        };
+      case 'city':
+        return {
+          title: tr('Select City'),
+          items: options?.cities.map((c) => c.name) ?? ['Kigali'],
+          selected: draft.city,
+          allowCustomInput: true,
+          customPlaceholder: tr('Type another city or town...'),
+          onSelect: (v) => updateDraft('city', v),
+          onCustomApply: (v) => updateDraft('city', v),
+        };
+      case 'photosCustom':
+        return {
+          title: tr('Edited photos: Custom quantity'),
+          items: PHOTO_CUSTOM_OPTIONS.map(String),
+          selected: String(draft.editedPhotos),
+          allowCustomInput: true,
+          numericOnly: true,
+          customPlaceholder: tr('Enter exact number of photos (e.g. 75)...'),
+          onSelect: (v) => updateDraft('editedPhotos', Number(v)),
+          onCustomApply: (v) => {
+            const n = parseInt(v.replace(/\D/g, ''), 10);
+            if (Number.isFinite(n) && n >= 0) updateDraft('editedPhotos', n);
+          },
+        };
+      case 'shortVideosCustom':
+        return {
+          title: tr('Short videos: Custom quantity'),
+          items: SHORT_VIDEO_CUSTOM_OPTIONS.map(String),
+          selected: String(draft.shortVideosQty),
+          allowCustomInput: true,
+          numericOnly: true,
+          customPlaceholder: tr('Enter exact number of short videos (e.g. 7)...'),
+          onSelect: (v) => updateDraft('shortVideosQty', Number(v)),
+          onCustomApply: (v) => {
+            const n = parseInt(v.replace(/\D/g, ''), 10);
+            if (Number.isFinite(n) && n >= 0) updateDraft('shortVideosQty', n);
+          },
+        };
+      case 'shortVideoDurationCustom':
+        return {
+          title: tr('Short video: Custom duration'),
+          items: ['15s', '30s', '45s', '60s', '90s', '2 min'],
+          selected: draft.shortVideosDuration,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom duration (e.g. 45s or 90s)...'),
+          onSelect: (v) => updateDraft('shortVideosDuration', v),
+          onCustomApply: (v) => updateDraft('shortVideosDuration', v),
+        };
+      case 'longVideosCustom':
+        return {
+          title: tr('Long videos: Custom quantity'),
+          items: LONG_VIDEO_CUSTOM_OPTIONS.map(String),
+          selected: String(draft.longVideosQty),
+          allowCustomInput: true,
+          numericOnly: true,
+          customPlaceholder: tr('Enter exact number of long videos (e.g. 4)...'),
+          onSelect: (v) => updateDraft('longVideosQty', Number(v)),
+          onCustomApply: (v) => {
+            const n = parseInt(v.replace(/\D/g, ''), 10);
+            if (Number.isFinite(n) && n >= 0) updateDraft('longVideosQty', n);
+          },
+        };
+      case 'longVideoDurationCustom':
+        return {
+          title: tr('Long video: Custom duration'),
+          items: ['5 min', '10 min', '15 min', '30 min', '45 min', '60 min', '90 min'],
+          selected: draft.longVideosDuration,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom duration (e.g. 45 min or 2 hours)...'),
+          onSelect: (v) => updateDraft('longVideosDuration', v),
+          onCustomApply: (v) => updateDraft('longVideosDuration', v),
+        };
+      case 'photoBooksCustom':
+        return {
+          title: tr('Photo books: Custom quantity'),
+          items: PRINT_QTY_CUSTOM_OPTIONS.map(String),
+          selected: String(draft.photoBooksQty),
+          allowCustomInput: true,
+          numericOnly: true,
+          customPlaceholder: tr('Enter exact number of photo books...'),
+          onSelect: (v) => updateDraft('photoBooksQty', Number(v)),
+          onCustomApply: (v) => {
+            const n = parseInt(v.replace(/\D/g, ''), 10);
+            if (Number.isFinite(n) && n >= 0) updateDraft('photoBooksQty', n);
+          },
+        };
+      case 'photoBookSize':
+        return {
+          title: tr('Photo book size'),
+          items: [...PHOTO_BOOK_SIZES],
+          selected: draft.photoBookSize,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom book size (e.g. 25 × 35 cm)...'),
+          onSelect: (v) => updateDraft('photoBookSize', v),
+          onCustomApply: (v) => updateDraft('photoBookSize', v),
+        };
+      case 'photoBookPages':
+        return {
+          title: tr('Photo book page count'),
+          items: [...PHOTO_BOOK_PAGES],
+          selected: draft.photoBookPages,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom page count (e.g. 50 pages)...'),
+          onSelect: (v) => updateDraft('photoBookPages', v),
+          onCustomApply: (v) => {
+            const clean = /^\d+$/.test(v.trim()) ? `${v.trim()} pages` : v.trim();
+            updateDraft('photoBookPages', clean);
+          },
+        };
+      case 'photoAlbumsCustom':
+        return {
+          title: tr('Photo albums: Custom quantity'),
+          items: PRINT_QTY_CUSTOM_OPTIONS.map(String),
+          selected: String(draft.photoAlbumsQty),
+          allowCustomInput: true,
+          numericOnly: true,
+          customPlaceholder: tr('Enter exact number of photo albums...'),
+          onSelect: (v) => updateDraft('photoAlbumsQty', Number(v)),
+          onCustomApply: (v) => {
+            const n = parseInt(v.replace(/\D/g, ''), 10);
+            if (Number.isFinite(n) && n >= 0) updateDraft('photoAlbumsQty', n);
+          },
+        };
+      case 'photoAlbumSize':
+        return {
+          title: tr('Photo album size'),
+          items: [...PHOTO_ALBUM_SIZES],
+          selected: draft.photoAlbumSize,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom album size (e.g. 35 × 35 cm)...'),
+          onSelect: (v) => updateDraft('photoAlbumSize', v),
+          onCustomApply: (v) => updateDraft('photoAlbumSize', v),
+        };
+      case 'photoAlbumPrints':
+        return {
+          title: tr('Photo album print count'),
+          items: [...PHOTO_ALBUM_PRINTS],
+          selected: draft.photoAlbumPrints,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom print count (e.g. 120 prints)...'),
+          onSelect: (v) => updateDraft('photoAlbumPrints', v),
+          onCustomApply: (v) => {
+            const clean = /^\d+$/.test(v.trim()) ? `${v.trim()} prints` : v.trim();
+            updateDraft('photoAlbumPrints', clean);
+          },
+        };
+      case 'wallPortraitsCustom':
+        return {
+          title: tr('Wall portraits: Custom quantity'),
+          items: PRINT_QTY_CUSTOM_OPTIONS.map(String),
+          selected: String(draft.wallPortraitsQty),
+          allowCustomInput: true,
+          numericOnly: true,
+          customPlaceholder: tr('Enter exact number of wall portraits...'),
+          onSelect: (v) => updateDraft('wallPortraitsQty', Number(v)),
+          onCustomApply: (v) => {
+            const n = parseInt(v.replace(/\D/g, ''), 10);
+            if (Number.isFinite(n) && n >= 0) updateDraft('wallPortraitsQty', n);
+          },
+        };
+      case 'wallPortraitSize':
+        return {
+          title: tr('Wall portrait size'),
+          items: [...WALL_PORTRAIT_SIZES],
+          selected: draft.wallPortraitSize,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom portrait size (e.g. 50 × 70 cm)...'),
+          onSelect: (v) => updateDraft('wallPortraitSize', v),
+          onCustomApply: (v) => updateDraft('wallPortraitSize', v),
+        };
+      case 'wallPortraitFrame':
+        return {
+          title: tr('Wall portrait frame'),
+          items: [...WALL_PORTRAIT_FRAMES],
+          selected: draft.wallPortraitFrame,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom frame style (e.g. Gold wood frame)...'),
+          onSelect: (v) => updateDraft('wallPortraitFrame', v),
+          onCustomApply: (v) => updateDraft('wallPortraitFrame', v),
+        };
+      case 'digitalDeadlineCustom':
+        return {
+          title: tr('Preferred digital deadline'),
+          items: [...DIGITAL_DEADLINE_CUSTOM_OPTIONS],
+          selected: draft.digitalDeadline,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom deadline (e.g. 3 days, 5 days, 10 days)...'),
+          onSelect: (v) => updateDraft('digitalDeadline', v),
+          onCustomApply: (v) => {
+            const clean = /^\d+$/.test(v.trim()) ? `${v.trim()} days` : v.trim();
+            updateDraft('digitalDeadline', clean);
+          },
+        };
+      case 'printProductionTime':
+        return {
+          title: tr('Print production time'),
+          items: [...PRINT_PRODUCTION_TIMES],
+          selected: draft.printProductionTime,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom production timeframe...'),
+          onSelect: (v) => updateDraft('printProductionTime', v),
+          onCustomApply: (v) => updateDraft('printProductionTime', v),
+        };
+      case 'printCollectionMethod':
+        return {
+          title: tr('Collection or shipping'),
+          items: [...PRINT_COLLECTION_METHODS],
+          selected: draft.printCollectionMethod,
+          allowCustomInput: true,
+          customPlaceholder: tr('Enter custom handover / shipping method...'),
+          onSelect: (v) => updateDraft('printCollectionMethod', v),
+          onCustomApply: (v) => updateDraft('printCollectionMethod', v),
+        };
+      default:
+        return null;
+    }
+  }, [activeSheet, draft, options, slots, tr, updateDraft]);
+
+  const activeStepMeta =
+    typeof step === 'number' ? WIZARD_STEPS.find((s) => s.n === step) : undefined;
+  const canPublish = !submitting && options?.enabled !== false;
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={step === 'done' ? finish : close}>
-      <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        {/* Native Sheet Grab Handle */}
+    <Modal
+      visible={visible}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={step === 'done' ? finish : close}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1, backgroundColor: colors.background }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        {/* Sheet Handle */}
         <View style={styles.sheetHandleContainer}>
           <View style={styles.sheetHandle} />
         </View>
 
-        <View style={[styles.header, { paddingTop: Platform.OS === 'android' ? insets.top + spacing.sm : spacing.xs }]}>
+        {/* Top Header */}
+        <View
+          style={[
+            styles.header,
+            { paddingTop: Platform.OS === 'android' ? insets.top + spacing.xs : spacing.xs },
+          ]}
+        >
           <View style={{ flex: 1, gap: 2 }}>
-            {typeof step === 'number' && (
-              <Text style={[styles.eyebrow, { color: accent }]}>
-                {language === 'fr' ? `ÉTAPE ${step} SUR 3` : language === 'es' ? `PASO ${step} DE 3` : language === 'rw' ? `INTAMBWE YA ${step} KURI 3` : `STEP ${step} OF 3`}
-              </Text>
-            )}
-            <Text style={styles.headerTitle} accessibilityRole="header">{headerTitle}</Text>
-            {step === 'select' && (
-              <Text style={styles.headerSubtitle}>{tr('Pick someone yourself, or let available photographers come to you.')}</Text>
-            )}
+            <Text style={[styles.eyebrow, { color: accent }]}>
+              {step === 'select'
+                ? 'BOOKING OPTIONS'
+                : '4 SHORT PAGES • DIGITAL COVERAGE + PRINT PRODUCTS'}
+            </Text>
+            <Text style={styles.headerTitle} accessibilityRole="header">
+              {step === 'select'
+                ? tr('How would you like to book?')
+                : step === 'done'
+                  ? tr('Your offer is published')
+                  : tr('CREATE YOUR EVENT OFFER')}
+            </Text>
           </View>
-          <Pressable onPress={step === 'done' ? finish : close} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close" style={styles.closeBtn}>
+          <Pressable
+            onPress={step === 'done' ? finish : close}
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            style={styles.closeBtn}
+          >
             <Ionicons name="close" size={18} color={colors.textSoft} />
           </Pressable>
         </View>
-        {typeof step === 'number' && (
-          <View style={styles.progress}>
-            <ProgressTrack
-              label="Posting your event"
-              steps={WIZARD_STEPS.map((s) => ({ key: s.label, label: s.label, state: step > s.n ? 'done' : step === s.n ? 'current' : 'todo' }))}
-            />
+
+        {/* Step Banner + 4-Segment Progress Bar */}
+        {typeof step === 'number' && activeStepMeta ? (
+          <View style={styles.stepHeaderBand}>
+            <View style={styles.stepTitleGroup}>
+              <View style={styles.stepNumberCircle}>
+                <Text style={styles.stepNumberText}>{step}</Text>
+              </View>
+              <Text style={styles.stepBannerTitle}>{tr(activeStepMeta.title)}</Text>
+            </View>
+            <View style={styles.stepProgressRight}>
+              <View style={styles.segmentTrackRow}>
+                {WIZARD_STEPS.map((s) => (
+                  <Pressable
+                    key={s.n}
+                    onPress={() => {
+                      if (s.n < step) {
+                        setStep(s.n);
+                        scrollToTop();
+                      }
+                    }}
+                    style={[
+                      styles.segmentBar,
+                      s.n <= step ? { backgroundColor: colors.primary } : { backgroundColor: colors.borderSoft },
+                    ]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.stepCounterText}>{`${step} of 4`}</Text>
+            </View>
           </View>
-        )}
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'], gap: spacing.md }} keyboardShouldPersistTaps="handled">
-          {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
+        ) : null}
+
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={{
+            padding: spacing.lg,
+            paddingBottom: spacing['3xl'],
+            gap: spacing.md,
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {error ? (
+            <Text style={styles.error} accessibilityRole="alert">
+              {error}
+            </Text>
+          ) : null}
           {body}
         </ScrollView>
-        {step !== 'select' && (
+
+        {/* Footer Navigation Bar */}
+        {step !== 'select' ? (
           <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
             {step === 'done' ? (
-              <Pressable onPress={finish} style={[styles.primaryBtn, { flex: 1, backgroundColor: colors.primary }]} accessibilityRole="button">
-                <Text style={styles.primaryText}>{result?.invited ? tr('Follow the answers') : tr('Done')}</Text>
+              <Pressable
+                onPress={finish}
+                style={[styles.primaryBtn, { flex: 1, backgroundColor: colors.primary }]}
+                accessibilityRole="button"
+              >
+                <Text style={styles.primaryText}>
+                  {result?.invited ? tr('Follow the answers') : tr('Done')}
+                </Text>
               </Pressable>
             ) : (
               <>
-                {!(existingEvent && step === 2) && (
-                  <Pressable onPress={back} style={styles.secondaryBtn} accessibilityRole="button" accessibilityLabel="Back">
-                    <Ionicons name="arrow-back" size={18} color={colors.textSoft} />
-                  </Pressable>
-                )}
-                {step !== 3 ? (
-                  <Pressable onPress={next} disabled={!options} style={[styles.primaryBtn, { flex: 1, backgroundColor: colors.primary }]} accessibilityRole="button">
-                    <Text style={styles.primaryText}>{tr('Continue')}</Text>
+                <Pressable
+                  onPress={back}
+                  style={styles.backBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel="Back"
+                >
+                  <Ionicons name="arrow-back" size={16} color={colors.text} />
+                  <Text style={styles.backBtnText}>{tr('Back')}</Text>
+                </Pressable>
+
+                {step !== 4 ? (
+                  <Pressable
+                    onPress={next}
+                    disabled={!options}
+                    style={[styles.primaryBtn, { flex: 1, backgroundColor: colors.primary }]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.primaryText}>
+                      {step === 3 ? tr('Review offer') : tr('Continue')}
+                    </Text>
+                    <Ionicons name="arrow-forward" size={16} color={onFill} />
                   </Pressable>
                 ) : (
-                  <Pressable onPress={publish} disabled={!canPublish} accessibilityRole="button" accessibilityState={{ disabled: !canPublish }}
-                    style={[styles.primaryBtn, { flex: 1, backgroundColor: canPublish ? accent : colors.surfaceMuted }]}>
-                    {submitting ? <ActivityIndicator color={onFill} /> : (
-                      <Text style={[styles.primaryText, !canPublish && { color: colors.textMuted }]}>
-                        {count === 0 ? tr('Widen your request first') : tr('Post and alert photographers')}
-                      </Text>
+                  <Pressable
+                    onPress={publish}
+                    disabled={!canPublish}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !canPublish }}
+                    style={[
+                      styles.primaryBtn,
+                      { flex: 1, backgroundColor: canPublish ? colors.primary : colors.surfaceMuted },
+                    ]}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color={onFill} />
+                    ) : (
+                      <>
+                        <Ionicons name="paper-plane-outline" size={16} color={onFill} />
+                        <Text style={[styles.primaryText, !canPublish && { color: colors.textMuted }]}>
+                          {tr('PUBLISH EVENT OFFER')}
+                        </Text>
+                      </>
                     )}
                   </Pressable>
                 )}
               </>
             )}
           </View>
-        )}
+        ) : null}
 
-        <DateTimePickerModal
-          isVisible={datePickerOpen}
-          mode="date"
-          minimumDate={new Date()}
-          date={date ? new Date(`${date}T12:00:00`) : new Date()}
-          onConfirm={(d) => { setDatePickerOpen(false); setDate(isoDate(d)); }}
-          onCancel={() => setDatePickerOpen(false)}
-        />
+        {Platform.OS !== 'web' ? (
+          <>
+            <DateTimePickerModal
+              isVisible={datePickerOpen}
+              mode="date"
+              minimumDate={new Date()}
+              date={draft.date ? new Date(`${draft.date}T12:00:00`) : new Date()}
+              onConfirm={(d) => {
+                setDatePickerOpen(false);
+                updateDraft('date', isoDate(d));
+              }}
+              onCancel={() => setDatePickerOpen(false)}
+            />
+            <DateTimePickerModal
+              isVisible={printDatePickerOpen}
+              mode="date"
+              minimumDate={draft.date ? new Date(`${draft.date}T12:00:00`) : new Date()}
+              date={
+                draft.printProposedDate
+                  ? new Date(`${draft.printProposedDate}T12:00:00`)
+                  : draft.date
+                    ? new Date(`${draft.date}T12:00:00`)
+                    : new Date()
+              }
+              onConfirm={(d) => {
+                setPrintDatePickerOpen(false);
+                updateDraft('printProposedDate', isoDate(d));
+              }}
+              onCancel={() => setPrintDatePickerOpen(false)}
+            />
+          </>
+        ) : null}
 
-        <Modal visible={listSheet !== null} transparent animationType="fade" onRequestClose={() => setListSheet(null)}>
-          <GlassScrim style={styles.scrim} onPress={() => setListSheet(null)}>
+        <Modal
+          visible={sheetConfig !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setActiveSheet(null)}
+        >
+          <GlassScrim style={styles.scrim} onPress={() => setActiveSheet(null)}>
             <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
-              <SheetCornerClose onPress={() => setListSheet(null)} />
-              <Text style={[styles.label, { marginBottom: spacing.sm }]}>
-                {listSheet === 'start' ? tr('Start time') : listSheet === 'end' ? tr('End time') : tr('City')}
+              <SheetCornerClose onPress={() => setActiveSheet(null)} />
+              <Text style={[styles.sectionTitle, { marginBottom: spacing.sm }]}>
+                {sheetConfig?.title}
               </Text>
+
+              {/* Custom value input row in case desired option is not in the list */}
+              {sheetConfig?.allowCustomInput ? (
+                <View style={styles.customSheetInputRow}>
+                  <TextInput
+                    value={customSheetText}
+                    onChangeText={(t) =>
+                      setCustomSheetText(sheetConfig.numericOnly ? t.replace(/\D/g, '') : t)
+                    }
+                    keyboardType={sheetConfig.numericOnly ? 'number-pad' : 'default'}
+                    placeholder={sheetConfig.customPlaceholder || tr('Type custom value...')}
+                    placeholderTextColor={colors.textMuted}
+                    style={styles.customSheetInput}
+                    returnKeyType="done"
+                    onSubmitEditing={() => {
+                      if (customSheetText.trim() && sheetConfig.onCustomApply) {
+                        sheetConfig.onCustomApply(customSheetText.trim());
+                        setActiveSheet(null);
+                      }
+                    }}
+                  />
+                  <Pressable
+                    onPress={() => {
+                      if (customSheetText.trim() && sheetConfig.onCustomApply) {
+                        sheetConfig.onCustomApply(customSheetText.trim());
+                        setActiveSheet(null);
+                      }
+                    }}
+                    disabled={!customSheetText.trim()}
+                    style={[
+                      styles.customSheetApplyBtn,
+                      !customSheetText.trim() && { opacity: 0.45 },
+                    ]}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.customSheetApplyText}>{tr('Apply')}</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+
               <FlatList
-                data={listSheet === 'city' ? (options?.cities.map((c) => c.name) ?? []) : listSheet === 'end' ? slots.filter((s) => s !== startTime) : slots}
+                data={sheetConfig?.items ?? []}
                 keyExtractor={(s) => s}
-                initialScrollIndex={undefined}
-                style={{ maxHeight: 380 }}
+                keyboardShouldPersistTaps="handled"
+                style={{ maxHeight: 340 }}
                 renderItem={({ item }) => {
-                  const on = (listSheet === 'start' && item === startTime) || (listSheet === 'end' && item === endTime) || (listSheet === 'city' && item === city);
-                  const extra = listSheet === 'end' ? ` · ${durationText(durationBetween(startTime, item))}${item <= startTime ? tr(' (next day)') : ''}` : '';
+                  const on = item === sheetConfig?.selected;
+                  const extra =
+                    activeSheet === 'end'
+                      ? ` · ${durationText(durationBetween(draft.startTime, item))}${
+                          item <= draft.startTime ? tr(' (next day)') : ''
+                        }`
+                      : '';
                   return (
                     <Pressable
                       onPress={() => {
-                        if (listSheet === 'start') setStartTime(item);
-                        else if (listSheet === 'end') setEndTime(item);
-                        else setCity(item);
-                        setListSheet(null);
+                        sheetConfig?.onSelect(item);
+                        setActiveSheet(null);
                       }}
                       accessibilityRole="radio"
                       accessibilityState={{ checked: on }}
                       style={[styles.listRow, on && { backgroundColor: colors.tint }]}
                     >
-                      <Text style={[styles.listText, on && { color: colors.primary, fontWeight: fontWeight.bold }]}>{item}{extra}</Text>
-                      {on && <Ionicons name="checkmark" size={18} color={colors.primary} />}
+                      <Text
+                        style={[
+                          styles.listText,
+                          on && { color: colors.primary, fontWeight: fontWeight.bold },
+                        ]}
+                      >
+                        {item}
+                        {extra}
+                      </Text>
+                      {on ? <Ionicons name="checkmark" size={18} color={colors.primary} /> : null}
                     </Pressable>
                   );
                 }}
@@ -1113,21 +2962,16 @@ const useStyles = makeStyles((c, e) => ({
     gap: spacing.md,
   },
   headerTitle: {
-    fontSize: 22,
+    fontSize: 20,
+    fontFamily: fonts.display,
     fontWeight: fontWeight.extrabold,
     color: c.text,
     letterSpacing: -0.4,
   },
-  headerSubtitle: {
-    fontSize: 13,
-    color: c.textMuted,
-    lineHeight: 18,
-    marginTop: 2,
-  },
   eyebrow: {
-    fontSize: 10.5,
+    fontSize: 10,
     fontWeight: fontWeight.bold,
-    letterSpacing: 0.9,
+    letterSpacing: 0.8,
     color: c.textMuted,
     textTransform: 'uppercase',
   },
@@ -1140,24 +2984,924 @@ const useStyles = makeStyles((c, e) => ({
     justifyContent: 'center',
     marginTop: 2,
   },
-  progress: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+  stepHeaderBand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+    gap: spacing.sm,
   },
-  progressBar: {
+  stepTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     flex: 1,
-    height: 3,
-    borderRadius: 1.5,
   },
-  subtitle: {
+  stepNumberCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumberText: {
+    color: onFill,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+  },
+  stepBannerTitle: {
     fontSize: fontSize.sm,
-    color: c.textMuted,
-    lineHeight: 19,
+    fontFamily: fonts.display,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+    letterSpacing: 0.2,
+    flexShrink: 1,
   },
-  label: {
+  stepProgressRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  segmentTrackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  segmentBar: {
+    width: 24,
+    height: 6,
+    borderRadius: 3,
+  },
+  stepCounterText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.textSoft,
+  },
+  pageCard: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    backgroundColor: c.card,
+    gap: spacing.lg,
+    ...e(1),
+  },
+  pageCardCompact: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    backgroundColor: c.card,
+    gap: spacing.md,
+    ...e(1),
+  },
+  sectionBlock: {
+    gap: spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  infoIconBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.surface,
+  },
+  infoIconBtnActive: {
+    backgroundColor: c.tint,
+  },
+  infoPopoverBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    borderRadius: radii.md,
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: c.primary,
+    marginTop: 2,
+  },
+  infoPopoverText: {
+    flex: 1,
+    fontSize: 11.5,
+    color: c.text,
+    lineHeight: 16,
+  },
+  segmentedRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  segmentCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 42,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
+  },
+  segmentCardActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  segmentCardText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  segmentCardTextActive: {
+    color: onFill,
+  },
+  eventTypeGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  eventTypeCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
+    minWidth: '30%',
+    flexGrow: 1,
+  },
+  eventTypeCardActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  eventTypeCardText: {
     fontSize: fontSize.sm,
     fontWeight: fontWeight.bold,
     color: c.text,
+  },
+  eventTypeCardTextActive: {
+    color: onFill,
+  },
+  dateAndTimeGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  selectBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
+    minHeight: 44,
+    backgroundColor: c.surface,
+  },
+  selectBoxText: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  venueInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    minHeight: 44,
+    backgroundColor: c.surface,
+  },
+  venueInput: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: c.text,
+    paddingVertical: 8,
+  },
+  homeAddressCard: {
+    marginTop: 4,
+    borderWidth: 1,
+    borderColor: c.primary,
+    borderRadius: radii.lg,
+    padding: spacing.sm,
+    backgroundColor: c.surface,
+    gap: spacing.xs,
+  },
+  durationPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: c.tint,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+  },
+  durationPillText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.primary,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  cardHeaderIconBox: {
+    width: 30,
+    height: 30,
+    borderRadius: radii.sm,
+    backgroundColor: c.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cardHeading: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  cardSubheading: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+  },
+  deliverableRow: {
+    gap: spacing.xs,
+    paddingBottom: spacing.sm,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+  },
+  deliverableLabelCol: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  deliverableTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  deliverableSubtitle: {
+    fontWeight: fontWeight.medium,
+    color: c.textMuted,
+  },
+  subDurationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: 4,
+  },
+  subDurationLabel: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: c.textMuted,
+  },
+  qtyPillRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  qtyPill: {
+    minWidth: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  qtyPillCustom: {
+    paddingHorizontal: 14,
+  },
+  qtyPillActive: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  qtyPillText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  qtyPillTextActive: {
+    color: onFill,
+  },
+  printProductCard: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    backgroundColor: c.surface,
+    gap: spacing.sm,
+  },
+  printProductTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  printIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: radii.sm,
+    backgroundColor: c.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  printProductTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+    letterSpacing: 0.3,
+  },
+  printProductSub: {
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  printDropdownsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  dropdownPill: {
+    flex: 1,
+    minWidth: 130,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: c.card,
+  },
+  dropdownPillText: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: c.text,
+  },
+  moreOptionsBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    backgroundColor: c.surface,
+  },
+  moreOptionsText: {
+    flex: 1,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  infoBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 8,
+    borderRadius: radii.md,
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  warningBanner: {
+    backgroundColor: c.warningBg,
+    borderColor: c.pending,
+  },
+  infoBannerText: {
+    flex: 1,
+    fontSize: 11,
+    color: c.textSoft,
+    lineHeight: 15,
+  },
+
+  // ───────── Polite Budget Range Input Styles ─────────
+  budgetRangeActiveBadge: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: '#38BDF8',
+  },
+  budgetRangeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  politeBudgetField: {
+    flex: 1,
+    gap: 4,
+  },
+  politeBudgetLabel: {
+    fontSize: 11,
+    fontWeight: fontWeight.semibold,
+    color: c.textSoft,
+  },
+  politeBudgetInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: 10,
+    minHeight: 42,
+    backgroundColor: c.surface,
+  },
+  currencyBadge: {
+    backgroundColor: c.tint,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: radii.sm,
+  },
+  currencyTag: {
+    fontSize: 10,
+    fontWeight: fontWeight.extrabold,
+    color: c.primary,
+  },
+  budgetInput: {
+    flex: 1,
+    fontSize: fontSize.sm,
+    color: c.text,
+    fontWeight: fontWeight.bold,
+    paddingVertical: 6,
+  },
+  budgetRangeDashWrap: {
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  budgetRangeDash: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: c.textMuted,
+  },
+
+  // ───────── Recommended Pricing & Package Comparison (Cool Vertical Display, Tightened Spacing) ─────────
+  recPricingContainer: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    backgroundColor: c.card,
+    gap: 8,
+    ...e(1),
+  },
+  recHeaderCenter: {
+    alignItems: 'center',
+    gap: 1,
+  },
+  recMainTitle: {
+    fontSize: 19,
+    fontFamily: fonts.display,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
+  recSubtitle: {
+    fontSize: fontSize.xs,
+    color: c.textSoft,
+    textAlign: 'center',
+  },
+  yourOfferCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    backgroundColor: c.surface,
+  },
+  yourOfferIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: c.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  yourOfferTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  yourOfferScopeText: {
+    fontSize: 11.5,
+    color: c.textSoft,
+    lineHeight: 15,
+  },
+  yourOfferBudgetRow: {
+    fontSize: fontSize.xs,
+    color: c.textSoft,
+    marginTop: 1,
+  },
+  yourOfferBudgetHighlight: {
+    fontWeight: fontWeight.extrabold,
+    color: '#38BDF8',
+  },
+  compareSectionTitle: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.display,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  pkgRowCard: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+    backgroundColor: c.surface,
+  },
+  pkgRowCardActive: {
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+  },
+  pkgLeftCol: {
+    flex: 1.2,
+    minWidth: 180,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  pkgRadioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: c.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pkgRadioOuterActive: {
+    borderColor: c.primary,
+  },
+  pkgRadioInner: {
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: c.primary,
+  },
+  pkgIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: c.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pkgBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 1.5,
+    borderRadius: radii.full,
+  },
+  pkgBadgeCyan: {
+    backgroundColor: 'rgba(56, 189, 248, 0.18)',
+  },
+  pkgBadgeCyanText: {
+    fontSize: 10,
+    fontWeight: fontWeight.extrabold,
+    color: '#38BDF8',
+  },
+  pkgBadgePurple: {
+    backgroundColor: c.primary,
+  },
+  pkgBadgePurpleText: {
+    fontSize: 10,
+    fontWeight: fontWeight.extrabold,
+    color: onFill,
+  },
+  pkgTitle: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  pkgScopeDesc: {
+    fontSize: 11,
+    color: c.textSoft,
+    lineHeight: 15,
+  },
+  pkgRightCol: {
+    flex: 1,
+    minWidth: 165,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: c.borderSoft,
+    paddingLeft: spacing.sm,
+    gap: 3,
+  },
+  pkgPriceText: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.display,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  pkgMetaLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  pkgMetaText: {
+    flex: 1,
+    fontSize: 11,
+    color: c.textSoft,
+    lineHeight: 14,
+  },
+  pkgDeltaAboveText: {
+    flex: 1,
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: c.accent,
+  },
+  useRecommendedBtn: {
+    minHeight: 44,
+    borderRadius: radii.md,
+    backgroundColor: c.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.md,
+  },
+  useRecommendedCheckCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: onFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  useRecommendedBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.extrabold,
+    color: onFill,
+  },
+  publishAnywayBtn: {
+    minHeight: 44,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: '#38BDF8',
+    backgroundColor: 'transparent',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.md,
+  },
+  publishAnywayBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  recFooterBottomRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  publishAnywayNote: {
+    flex: 1,
+    fontSize: 11,
+    color: c.textSoft,
+  },
+  viewPoliciesLink: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+    textDecorationLine: 'underline',
+  },
+  policiesBox: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    backgroundColor: c.surface,
+    gap: 3,
+  },
+  policiesBoxTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  policiesBoxText: {
+    fontSize: 11,
+    color: c.textSoft,
+    lineHeight: 16,
+  },
+
+  // ───────── Step 4: Clean Executive Review Styles ─────────
+  reviewHeroCard: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    backgroundColor: c.card,
+    gap: spacing.sm,
+    ...e(1),
+  },
+  reviewEventIdentityBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    paddingVertical: 4,
+  },
+  reviewHeroEventTitle: {
+    fontSize: fontSize.md,
+    fontFamily: fonts.display,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  reviewHeroMetaText: {
+    fontSize: 11.5,
+    color: c.textSoft,
+    fontWeight: fontWeight.semibold,
+  },
+  editChipBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  editChipText: {
+    fontSize: 11,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  editLink: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.primary,
+    textDecorationLine: 'underline',
+  },
+  receiverModeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.full,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  receiverModeBannerText: {
+    fontSize: 11.5,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  receiverClientOfferBox: {
+    borderWidth: 1.5,
+    borderColor: c.primary,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    backgroundColor: c.tint,
+    gap: 4,
+  },
+  receiverOfferEyebrow: {
+    fontSize: 10.5,
+    fontWeight: fontWeight.extrabold,
+    letterSpacing: 0.7,
+    color: c.textSoft,
+  },
+  receiverOfferAmount: {
+    fontSize: 20,
+    fontFamily: fonts.display,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  receiverOfferSub: {
+    fontSize: 11.5,
+    color: c.textSoft,
+  },
+  matchPreviewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    backgroundColor: c.card,
+  },
+  matchPreviewBadgeText: {
+    fontSize: 10.5,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  receiverGrid: {
+    gap: spacing.sm,
+  },
+  receiverDetailBox: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    backgroundColor: c.card,
+    gap: 7,
+    ...e(1),
+  },
+  receiverBoxHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  receiverBoxTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  receiverItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  receiverItemKey: {
+    fontSize: 11.5,
+    color: c.textMuted,
+    width: 115,
+  },
+  receiverItemVal: {
+    flex: 1,
+    fontSize: 11.5,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  timelineCard: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.xl,
+    padding: spacing.md,
+    backgroundColor: c.card,
+    gap: spacing.sm,
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.xs,
+  },
+  timelineStep: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 3,
+  },
+  timelineIconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: c.tint,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timelineStepTitle: {
+    fontSize: 10.5,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+    textAlign: 'center',
+  },
+  timelineStepSub: {
+    fontSize: 10,
+    color: c.textMuted,
+    textAlign: 'center',
   },
   hint: {
     fontSize: fontSize.xs,
@@ -1176,68 +3920,6 @@ const useStyles = makeStyles((c, e) => ({
     flexWrap: 'wrap',
     gap: spacing.sm,
   },
-  input: {
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    fontSize: fontSize.md,
-    color: c.text,
-    backgroundColor: c.card,
-  },
-  select: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    borderRadius: radii.lg,
-    paddingHorizontal: spacing.md,
-    minHeight: 48,
-    backgroundColor: c.card,
-  },
-  selectText: {
-    flex: 1,
-    fontSize: fontSize.md,
-    color: c.text,
-    fontWeight: fontWeight.semibold,
-  },
-  durationPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(242,12,143,0.10)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radii.full,
-  },
-  matchPanel: {
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.card,
-    borderRadius: radii.xl,
-    padding: spacing.lg,
-    ...e(1),
-  },
-  matchCount: {
-    fontSize: 34,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-    fontVariant: ['tabular-nums'],
-  },
-  matchTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.extrabold,
-    color: c.text,
-  },
-  breakdown: {
-    fontSize: fontSize.xs,
-    color: c.textSoft,
-  },
-
-  // Redesigned Mode Cards
   modeCard: {
     borderWidth: 1,
     borderColor: c.borderSoft,
@@ -1301,54 +3983,6 @@ const useStyles = makeStyles((c, e) => ({
     color: c.textMuted,
     lineHeight: 18.5,
   },
-  modeFeatureList: {
-    gap: 7,
-    paddingTop: spacing.sm,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.borderSoft,
-  },
-  modeFeatureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  modeFeatureText: {
-    fontSize: 12.5,
-    color: c.textSoft,
-  },
-
-  // Summary & Review
-  summary: {
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    borderRadius: radii.lg,
-    padding: spacing.md,
-    backgroundColor: c.card,
-  },
-  summaryKey: {
-    fontSize: 10,
-    fontWeight: fontWeight.bold,
-    color: c.textMuted,
-    letterSpacing: 0.6,
-  },
-  summaryVal: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: c.text,
-  },
-  nextIcon: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: c.surfaceMuted,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modeStep: {
-    fontSize: fontSize.sm,
-    color: c.textSoft,
-    lineHeight: 19,
-  },
   doneIcon: {
     width: 72,
     height: 72,
@@ -1372,26 +4006,34 @@ const useStyles = makeStyles((c, e) => ({
     ...glassTile(c),
   },
   primaryBtn: {
-    minHeight: 52,
-    borderRadius: radii.full,
+    minHeight: 50,
+    borderRadius: radii.md,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 8,
     paddingHorizontal: spacing.lg,
     ...e(1),
   },
   primaryText: {
     color: c.textOnPrimary,
-    fontSize: fontSize.md,
+    fontSize: fontSize.sm,
     fontWeight: fontWeight.extrabold,
   },
-  secondaryBtn: {
-    width: 52,
-    minHeight: 52,
-    borderRadius: radii.full,
-    borderWidth: 1,
+  backBtn: {
+    minHeight: 50,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
     ...glassTile(c),
+  },
+  backBtnText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: c.text,
   },
   scrim: {
     flex: 1,
@@ -1399,6 +4041,36 @@ const useStyles = makeStyles((c, e) => ({
   },
   sheet: {
     padding: spacing.lg,
+  },
+  customSheetInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  customSheetInput: {
+    flex: 1,
+    minHeight: 42,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    fontSize: fontSize.sm,
+    color: c.text,
+    backgroundColor: c.surface,
+  },
+  customSheetApplyBtn: {
+    minHeight: 42,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: c.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  customSheetApplyText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: onFill,
   },
   listRow: {
     flexDirection: 'row',
@@ -1414,5 +4086,4 @@ const useStyles = makeStyles((c, e) => ({
   },
 }));
 
-// Kept for older imports; amount formatting now lives in @/utils/amount.
 export { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';

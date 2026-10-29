@@ -46,6 +46,16 @@ export type MatchPreviewPayload = {
   photographerSpecialty?: string;
   locationCoverage?: LocationCoverage;
   eventId?: string;
+  /** Client deliverables & turnaround scope for internal package recommendation pricing. */
+  editedPhotos?: number;
+  shortVideosQty?: number;
+  longVideosQty?: number;
+  digitalDeliveryDays?: number;
+  hasLiveStream?: boolean;
+  allowWishInvites?: boolean;
+  photoBooksQty?: number;
+  photoAlbumsQty?: number;
+  wallPortraitsQty?: number;
 };
 
 export type MatchPreviewBreakdown = {
@@ -68,6 +78,10 @@ export type MatchPreviewResult = {
   firstBatchSize?: number;
   tierCounts?: Partial<Record<RecommendationTier, number>>;
   breakdown?: MatchPreviewBreakdown;
+  /** Advisory package price bands computed from active uploaded photographer packages. */
+  packagePriceLow?: number;
+  packagePriceRecommended?: number;
+  packagePricePriority?: number;
 };
 
 export type MatchRequestPayload = {
@@ -85,6 +99,14 @@ export type MatchRequestPayload = {
   venue?: string;
   latitude?: number;
   longitude?: number;
+  hasLiveStream?: boolean;
+  allowWishInvites?: boolean;
+  minimumPhotos?: number;
+  clientType?: string;
+  digitalDeliveryDays?: number;
+  printDeliveryMethod?: string;
+  printDeliveryAddress?: string;
+  printProposedDate?: string;
 };
 
 export type MatchRequestResult = {
@@ -140,6 +162,14 @@ export type PhotographerOpportunity = {
   candidateExpiresAt?: string;
   serverNow?: string;
   status?: OpportunityStatus;
+  /** Photographer's own closest uploaded package matched on the server. */
+  matchedPackageId?: string;
+  matchedPackageName?: string;
+  matchedPackagePrice?: number;
+  matchedPackageCurrency?: string;
+  hasLiveStream?: boolean;
+  allowWishInvites?: boolean;
+  minimumPhotos?: number;
 };
 
 export type CandidateInstagram = {
