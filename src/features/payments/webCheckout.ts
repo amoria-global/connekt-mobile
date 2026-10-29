@@ -29,7 +29,9 @@ export async function openWebCheckout(path: string): Promise<void> {
   const base = path.startsWith('http') ? path : `${env.webBaseUrl}${path}`;
   const lang = useLanguage.getState().language;
   const sep = base.includes('?') ? '&' : '?';
-  const url = /[?&](?:lang|locale)=/.test(base) ? base : `${base}${sep}lang=${encodeURIComponent(lang)}`;
+  const withLang = /[?&](?:lang|locale)=/.test(base) ? base : `${base}${sep}lang=${encodeURIComponent(lang)}`;
+  // This page is opened from inside the app, so the website's get-the-app prompt must not interrupt it.
+  const url = /[?&]noapp=/.test(withLang) ? withLang : `${withLang}${withLang.includes('?') ? '&' : '?'}noapp=1`;
   await WebBrowser.openBrowserAsync(url);
 }
 
