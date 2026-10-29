@@ -137,10 +137,10 @@ export function ClientEventsDashboard({
   );
   const { rows, hasMore } = visibleSlice(sorted, shown);
   const isList = layout === 'list';
-  const toneColor = { success: colors.success, warning: colors.warning, error: colors.error, info: colors.primary, neutral: colors.textMuted };
+  const toneColor = { success: colors.success, warning: colors.warning, error: colors.error, info: colors.primary, neutral: colors.textMuted, live: colors.live };
   const summary = useMemo<BreakdownSegment[]>(() => {
     const pickColor = (label: string, tone: keyof typeof toneColor): string => {
-      if (label === 'Ongoing') return colors.accent;
+      if (label === 'Ongoing') return colors.live;
       if (label === 'Published') return colors.success;
       if (label === 'Not published') return colors.warning;
       if (label === 'Completed') return colors.primary;

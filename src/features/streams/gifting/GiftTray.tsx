@@ -15,6 +15,7 @@
  * The button that opens this tray is policy-gated (digitalPurchasesEnabled),
  * so the tray itself never appears on Android.
  */
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -131,7 +132,7 @@ export function GiftTray({
                 style={[s.viewPill, currency === c && s.viewPillOn]}
                 hitSlop={6}
               >
-                <Text style={[s.viewPillText, currency === c && s.viewPillTextOn]}>{c}</Text>
+                <CurrencyLabel code={c} width={16} textStyle={[s.viewPillText, currency === c && s.viewPillTextOn]} />
               </Pressable>
             ))}
           </ScrollView>

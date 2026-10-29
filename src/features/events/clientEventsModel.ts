@@ -14,7 +14,7 @@ import { eventDay } from '@/features/photographer/schedule';
 
 export type EventFilter = 'all' | 'upcoming' | 'published' | 'past';
 export type EventSort = 'newest' | 'oldest' | 'date_asc' | 'title_asc';
-export type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral';
+export type Tone = 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live';
 
 export const FILTERS: readonly { key: EventFilter; label: string }[] = [
   { key: 'all', label: 'All' },
@@ -87,7 +87,7 @@ export function eventStatus(e: EventItem): { label: string; tone: Tone } {
     const ended = s === 'HYBRID_TIMEOUT' || s === 'MATCHING_FAILED';
     return { label: friendlyEventStatus(s), tone: ended ? 'warning' : 'info' };
   }
-  if (s === 'ONGOING' || s === 'IN_PROGRESS') return { label: 'Ongoing', tone: 'success' };
+  if (s === 'ONGOING' || s === 'IN_PROGRESS') return { label: 'Ongoing', tone: 'live' };
   if (s === 'COMPLETED' || s === 'DONE') return { label: 'Completed', tone: 'neutral' };
   if (s === 'CANCELLED' || s === 'CANCELED') return { label: 'Cancelled', tone: 'error' };
   if (s === 'PAUSED') return { label: 'Paused', tone: 'neutral' };

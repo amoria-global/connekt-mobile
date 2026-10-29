@@ -1,5 +1,5 @@
 /**
- * A compact event row: a date tile, the title, "Sun · 1:00 PM · Kabuga", and a chevron. Ongoing rows carry a cyan
+ * A compact event row: a date tile, the title, "Sun · 1:00 PM · Kabuga", and a chevron. Ongoing rows carry a red
  * ONGOING pill; a booking still waiting for the photographer's reply says so, so it is never lost among the upcoming.
  */
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -47,7 +47,7 @@ export function EventRow({ event, status, pending, onOpen, onLongPress, onAccept
           </View>
         ) : null}
       </View>
-      {live ? <StatusChip label="ONGOING" tone="active" /> : pending ? <StatusChip label="PENDING" tone="pending" /> : null}
+      {live ? <StatusChip label="ONGOING" tone="live" /> : pending ? <StatusChip label="PENDING" tone="pending" /> : null}
       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
     </Pressable>
   );
@@ -56,7 +56,7 @@ export function EventRow({ event, status, pending, onOpen, onLongPress, onAccept
 const useStyles = makeStyles((c) =>
   StyleSheet.create({
     row: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.sm, borderRadius: radii.lg, borderWidth: 1, borderColor: c.stroke, backgroundColor: c.surface },
-    live: { borderColor: alpha(c.active, 0.6) },
+    live: { borderColor: alpha(c.live, 0.6) },
     noDate: { width: 46, height: 46 },
     body: { flex: 1, gap: 2 },
     title: { color: c.text, fontFamily: fonts.bold, fontSize: fontSize.md },

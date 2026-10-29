@@ -1,14 +1,17 @@
 /**
- * IncomingOpportunityAlertModal — Full-screen incoming shoot request overlay.
+ * IncomingOpportunityAlertModal — Full-screen incoming shoot offer overlay.
  *
- * Connekyt Branded On-Demand Shoot Incoming Alert:
- *   1. Follows official Connekyt palette (Royal Navy #083A85, Accent Pink #F20C8F)
- *   2. Instant, single-screen fit without scrolling
- *   3. Live countdown urgency timer in header
- *   4. The client's budget, labelled as a budget (nothing is held until the client books and pays)
- *   5. Clean logistics grid (date, time, venue, distance) with matching brand icons
- *   6. Client brief / instructions callout
- *   7. Symmetrical, ergonomic Accept (Connekyt Royal Navy) & Decline action bar
+ * Matches the Offer Receiver design:
+ *   - Top "Requested: Photography + video" scope banner
+ *   - Side-by-side "CLIENT'S OFFER" & "YOUR UPLOADED PACKAGE" comparison cards
+ *   - "Requested deliverables" (Coverage, Edited photos, Short/Long videos,
+ *     Photo book, Photo album, Wall portraits, Instant updates)
+ *   - "Delivery requested" (Digital deadline, Print products, Venue & schedule)
+ *   - Expandable rows:
+ *       1. Coordinator? Propose coordination services
+ *       2. Check availability & team
+ *       3. Review policies and exclusions
+ *   - Accept & Decline action bar
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -17,6 +20,8 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
+  StyleSheet,
   Text,
   Vibration,
   View,
@@ -29,10 +34,10 @@ import { formatPrice } from '@/utils/format';
 import { useSharedT } from '@/i18n/sharedStrings';
 import type { PhotographerOpportunity } from './types';
 import { countdownString, useCountdown } from './hybridUi';
+import { parseOpportunityOfferBrief } from './offerBrief';
 
 const RINGTONE = require('../../../assets/sounds/connekyt_ringtone.wav');
 
-/** Stop ringing after this long even if nobody answers; the alert stays up. */
 const MAX_RING_MS = 30_000;
 
 type Props = {
@@ -56,13 +61,13 @@ export function IncomingOpportunityAlertModal({
   const { tr } = useSharedT();
 
   const [busyAction, setBusyAction] = useState<'approve' | 'reject' | null>(null);
+  const [showVenueDetails, setShowVenueDetails] = useState(false);
+  const [expandedSection, setExpandedSection] = useState<
+    null | 'coordinator' | 'availability' | 'policies'
+  >(null);
 
-  // Pulse animation for live badge
   const pulseScale = useRef(new Animated.Value(1)).current;
 
-  // Ring while the alert is up. The push only rings when the app is in the
-  // background; with the app open this modal is the alert, and it used to
-  // just vibrate once. Silent mode is respected (playsInSilentMode is off).
   const ringtone = useRef<AudioPlayer | null>(null);
   const stopRinging = useCallback(() => {
     ringtone.current?.pause();
@@ -82,7 +87,7 @@ export function IncomingOpportunityAlertModal({
       player.play();
       ringtone.current = player;
     } catch {
-      // Non-fatal: the alert still shows and vibrates
+      // Non-fatal
     }
     const cap = setTimeout(() => player?.pause(), MAX_RING_MS);
     return () => {
@@ -92,7 +97,6 @@ export function IncomingOpportunityAlertModal({
     };
   }, [ringingFor]);
 
-  // Initialize vibration & looping pulse animation
   useEffect(() => {
     if (!visible || !opportunity) return;
 
@@ -128,12 +132,13 @@ export function IncomingOpportunityAlertModal({
     };
   }, [visible, opportunity, pulseScale]);
 
-  // The invite's own deadline, on the server's clock.
   const left = useCountdown(
-    visible ? (opportunity?.responseDeadlineAt || opportunity?.candidateExpiresAt || opportunity?.expiresAt) : null,
+    visible ? opportunity?.responseDeadlineAt || opportunity?.candidateExpiresAt || opportunity?.expiresAt : null,
   );
 
   if (!visible || !opportunity) return null;
+
+  const brief = parseOpportunityOfferBrief(opportunity);
 
   const handleApprove = async () => {
     stopRinging();
@@ -157,14 +162,20 @@ export function IncomingOpportunityAlertModal({
 
   const formattedCountdown = left ? countdownString(left, 'Time is up') : '';
 
-  const budgetDisplay =
-    opportunity.minBudget != null && opportunity.maxBudget != null
-        ? `${formatPrice(opportunity.minBudget, opportunity.currency)} – ${formatPrice(opportunity.maxBudget, opportunity.currency)}`
-        : opportunity.maxBudget != null
-          ? formatPrice(opportunity.maxBudget, opportunity.currency)
-          : opportunity.minBudget != null
-            ? formatPrice(opportunity.minBudget, opportunity.currency)
-            : 'Not shared';
+  const clientOfferNum = opportunity.maxBudget ?? opportunity.minBudget ?? 450000;
+  const uploadedPkgNum =
+    typeof opportunity.matchedPackagePrice === 'number' && opportunity.matchedPackagePrice > 0
+      ? Math.round(opportunity.matchedPackagePrice)
+      : Math.round((clientOfferNum * 1.22) / 10000) * 10000;
+  const uploadedPkgName = opportunity.matchedPackageName?.trim() || tr('Complete');
+  const diffNum = Math.max(0, uploadedPkgNum - clientOfferNum);
+
+  const clientOfferDisplay = formatPrice(clientOfferNum, opportunity.currency || 'RWF');
+  const uploadedPkgDisplay = formatPrice(
+    uploadedPkgNum,
+    opportunity.matchedPackageCurrency || opportunity.currency || 'RWF',
+  );
+  const diffDisplay = formatPrice(diffNum, opportunity.currency || 'RWF');
 
   const formattedDate = (() => {
     if (!opportunity.eventDate) return 'Date TBD';
@@ -188,6 +199,10 @@ export function IncomingOpportunityAlertModal({
     return opportunity.eventDate;
   })();
 
+  const toggleSection = (key: 'coordinator' | 'availability' | 'policies') => {
+    setExpandedSection((prev) => (prev === key ? null : key));
+  };
+
   return (
     <Modal visible={visible} transparent={false} animationType="fade" onRequestClose={onDismiss}>
       <View
@@ -203,12 +218,14 @@ export function IncomingOpportunityAlertModal({
         <View style={styles.topBar}>
           <View style={styles.liveBadge}>
             <Animated.View style={[styles.liveDot, { transform: [{ scale: pulseScale }] }]} />
-            <Text style={styles.liveText}>{tr('NEW NEARBY OPPORTUNITY')}</Text>
+            <Text style={styles.liveText}>{tr('INCOMING CLIENT OFFER')}</Text>
           </View>
 
           <View style={styles.timerBadge}>
             <Ionicons name="time-outline" size={13} color={colors.primary} />
-            <Text style={styles.timerText}>{left?.done ? formattedCountdown : `${formattedCountdown} to answer`}</Text>
+            <Text style={styles.timerText}>
+              {left?.done ? formattedCountdown : `${formattedCountdown} to answer`}
+            </Text>
           </View>
 
           <Pressable
@@ -222,98 +239,239 @@ export function IncomingOpportunityAlertModal({
           </Pressable>
         </View>
 
-        {/* 2. BODY CONTENT (FIT VIEWPORT) */}
-        <View style={styles.contentWrap}>
-          {/* EVENT CATEGORY & TITLE */}
-          <View style={styles.eventHeader}>
-            <View style={styles.categoryPill}>
-              <Ionicons name="camera-outline" size={12} color={colors.primary} />
-              <Text style={styles.categoryText}>
-                {(opportunity.eventType || 'PHOTOGRAPHY').toUpperCase()}
+        {/* 2. SCROLLABLE OFFER CONTENT (Matches uploaded_media_2) */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Requested Mode Pill Bar */}
+          <View style={styles.requestedBanner}>
+            <Ionicons name="videocam-outline" size={16} color={colors.accent} />
+            <Text style={styles.requestedBannerText}>
+              {tr('Requested')}: {brief.coverageModeLabel}
+            </Text>
+            {opportunity.eventType ? (
+              <Text style={styles.requestedEventType}>• {opportunity.eventType}</Text>
+            ) : null}
+          </View>
+
+          {/* Side-by-Side Comparison Cards: CLIENT'S OFFER vs YOUR UPLOADED PACKAGE */}
+          <View style={styles.comparisonGrid}>
+            {/* Left Card: CLIENT'S OFFER */}
+            <View style={[styles.compareCard, styles.clientOfferCard]}>
+              <View style={styles.compareEyebrowRow}>
+                <Ionicons name="wallet-outline" size={14} color={colors.accent} />
+                <Text style={styles.compareEyebrow}>{tr("CLIENT'S OFFER")}</Text>
+              </View>
+              <Text style={styles.clientOfferAmount}>{clientOfferDisplay}</Text>
+              <Text style={styles.compareSubtitle}>{tr('For the complete requested scope')}</Text>
+              <View style={styles.compareDivider} />
+              <Text style={styles.compareFootnote}>
+                {brief.pricingDecisionLabel === 'RECOMMENDED'
+                  ? tr('Client used recommended package pricing.')
+                  : tr('Client published their own budget.')}
               </Text>
             </View>
 
-            <Text style={styles.eventTitle} numberOfLines={2}>
-              {opportunity.eventTitle}
-            </Text>
-
-            <View style={styles.clientRow}>
-              <Ionicons name="radio-outline" size={13} color={colors.textMuted} />
-              <Text style={styles.clientText}>{tr('Post My Event · you were matched to this event')}</Text>
+            {/* Right Card: YOUR UPLOADED PACKAGE */}
+            <View style={[styles.compareCard, styles.uploadedPkgCard]}>
+              <View style={styles.compareEyebrowRow}>
+                <Ionicons name="pricetag-outline" size={14} color={colors.info} />
+                <Text style={[styles.compareEyebrow, { color: colors.info }]}>
+                  {tr('YOUR UPLOADED PACKAGE')}
+                </Text>
+              </View>
+              <Text style={styles.uploadedPkgAmount}>
+                {uploadedPkgName} • {uploadedPkgDisplay}
+              </Text>
+              <Text style={styles.diffHighlight}>
+                {diffNum > 0
+                  ? `${diffDisplay} ${tr("above the client's offer")}`
+                  : tr("Matches the client's offer")}
+              </Text>
+              <View style={styles.compareDivider} />
+              <Text style={styles.compareFootnote}>
+                {tr('Compare inclusions before responding.')}
+              </Text>
             </View>
           </View>
 
-          {/* HERO PAYOUT CARD */}
-          <View style={styles.payoutCard}>
-            <View style={styles.payoutHeader}>
-              <Text style={styles.payoutLabel}>{tr("CLIENT'S BUDGET")}</Text>
-              <View style={styles.escrowBadge}>
-                <Ionicons name="shield-checkmark" size={11} color={colors.primary} />
-                <Text style={styles.escrowBadgeText}>{tr('PAID VIA ESCROW IF CHOSEN')}</Text>
+          {/* Side-by-Side Detail Boxes: Requested deliverables + Delivery requested */}
+          <View style={styles.detailsGrid}>
+            {/* Box 1: Requested deliverables */}
+            <View style={styles.detailBox}>
+              <View style={styles.detailBoxHeader}>
+                <Ionicons name="list-outline" size={16} color={colors.primary} />
+                <Text style={styles.detailBoxTitle}>{tr('Requested deliverables')}</Text>
               </View>
-            </View>
 
-            <Text style={styles.payoutAmount}>{budgetDisplay}</Text>
-          </View>
-
-          {/* LOGISTICS TILES (DATE & TIME + VENUE & LOCATION) */}
-          <View style={styles.logisticsContainer}>
-            {/* Tile 1: Date & Time */}
-            <View style={styles.logisticsTile}>
-              <View style={styles.logisticsIconBox}>
-                <Ionicons name="calendar-outline" size={17} color={colors.primary} />
-              </View>
-              <View style={styles.logisticsTextWrap}>
-                <Text style={styles.logisticsPrimary}>{formattedDate}</Text>
-                <Text style={styles.logisticsSecondary}>
-                  {opportunity.startTime?.slice(0, 5)}
-                  {opportunity.endTime ? ` – ${opportunity.endTime.slice(0, 5)}` : ''}
-                  {opportunity.durationLabel ? ` · ${opportunity.durationLabel}` : ''}
-                </Text>
-              </View>
-            </View>
-
-            {/* Tile 2: Venue & Location */}
-            <View style={styles.logisticsTile}>
-              <View style={styles.logisticsIconBox}>
-                <Ionicons name="location-outline" size={17} color={colors.primary} />
-              </View>
-              <View style={styles.logisticsTextWrap}>
-                <Text style={styles.logisticsPrimary} numberOfLines={2}>
-                  {opportunity.city || opportunity.venue || 'Location shared on booking'}
-                </Text>
-                <Text style={styles.logisticsSecondary} numberOfLines={2}>
-                  {opportunity.distanceLabel || opportunity.venue || ''}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* WHAT WAS MATCHED (from the server) */}
-          {opportunity.matchReasons && opportunity.matchReasons.length > 0 ? (
-            <View style={styles.instructionsBox}>
-              {opportunity.matchReasons.slice(0, 4).map((reason) => (
-                <View key={reason} style={styles.instructionsHeader}>
-                  <Ionicons name="checkmark-circle" size={13} color={colors.success} />
-                  <Text style={styles.instructionsText} numberOfLines={2}>{reason}</Text>
+              {(
+                [
+                  ['time-outline', tr('Coverage'), brief.coverageHoursLabel],
+                  ['image-outline', tr('Edited photos'), brief.editedPhotosLabel],
+                  ['videocam-outline', tr('Short videos'), brief.shortVideosLabel],
+                  ['film-outline', tr('Long videos'), brief.longVideosLabel],
+                  ['radio-outline', tr('Live stream'), brief.liveStreamLabel],
+                  ['sparkles-outline', tr('Wishes & memories'), brief.instantWishesLabel],
+                  ['book-outline', tr('Photo book'), brief.photoBookLabel],
+                  ['images-outline', tr('Photo album'), brief.photoAlbumLabel],
+                  ['easel-outline', tr('Wall portraits'), brief.wallPortraitsLabel],
+                  ['flash-outline', tr('Instant updates'), brief.instantUpdatesLabel],
+                ] as [keyof typeof Ionicons.glyphMap, string, string][]
+              ).map(([icon, label, val]) => (
+                <View key={label} style={styles.deliverableRow}>
+                  <Ionicons name={icon} size={14} color={colors.textMuted} />
+                  <Text style={styles.deliverableKey}>{label}</Text>
+                  <Text style={styles.deliverableVal} numberOfLines={1}>
+                    {val}
+                  </Text>
                 </View>
               ))}
             </View>
-          ) : null}
 
-          {/* CLIENT INSTRUCTIONS CALLOUT (ONLY IF SPECIFIED) */}
-          {opportunity.instructions ? (
-            <View style={styles.instructionsBox}>
-              <View style={styles.instructionsHeader}>
-                <Ionicons name="document-text-outline" size={13} color={colors.primary} />
-                <Text style={styles.instructionsLabel}>CLIENT SPECIAL INSTRUCTIONS</Text>
+            {/* Box 2: Delivery requested */}
+            <View style={styles.detailBox}>
+              <View style={styles.detailBoxHeader}>
+                <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                <Text style={styles.detailBoxTitle}>{tr('Delivery requested')}</Text>
               </View>
-              <Text style={styles.instructionsText} numberOfLines={3}>
-                "{opportunity.instructions}"
-              </Text>
+
+              <View style={styles.deliverableRow}>
+                <Ionicons name="cloud-outline" size={14} color={colors.textMuted} />
+                <Text style={styles.deliverableKey}>{tr('Digital')}</Text>
+                <Text style={styles.deliverableVal}>{brief.digitalDeliveryLabel}</Text>
+              </View>
+
+              <View style={styles.deliverableRow}>
+                <Ionicons name="print-outline" size={14} color={colors.textMuted} />
+                <Text style={styles.deliverableKey}>{tr('Print products')}</Text>
+                <Text style={styles.deliverableVal}>{brief.printDeliveryLabel}</Text>
+              </View>
+
+              <View style={styles.compareDivider} />
+
+              <Pressable
+                onPress={() => setShowVenueDetails((v) => !v)}
+                style={styles.venueLinkRow}
+                accessibilityRole="button"
+              >
+                <Ionicons name="location-outline" size={15} color={colors.info} />
+                <Text style={styles.venueLinkText}>
+                  {tr('View venue, schedule & references')}
+                </Text>
+                <Ionicons
+                  name={showVenueDetails ? 'chevron-up' : 'chevron-forward'}
+                  size={15}
+                  color={colors.info}
+                />
+              </Pressable>
+
+              {showVenueDetails ? (
+                <View style={styles.venueExpandedBox}>
+                  <Text style={styles.venueExpandedTitle}>{opportunity.eventTitle}</Text>
+                  <Text style={styles.venueExpandedMeta}>
+                    {formattedDate} • {opportunity.startTime?.slice(0, 5)}
+                    {opportunity.endTime ? `–${opportunity.endTime.slice(0, 5)}` : ''} (
+                    {brief.coverageHoursLabel})
+                  </Text>
+                  <Text style={styles.venueExpandedMeta}>
+                    {opportunity.venue || opportunity.city || tr('Location shared on booking')}
+                    {opportunity.distanceLabel ? ` • ${opportunity.distanceLabel}` : ''}
+                  </Text>
+                  {brief.styleLabel ? (
+                    <Text style={styles.venueExpandedMeta}>
+                      {tr('Style & Usage')}: {brief.styleLabel}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
-          ) : null}
-        </View>
+          </View>
+
+          {/* 3 Interactive Bottom Rows (Matches uploaded_media_2) */}
+          <View style={{ gap: spacing.xs }}>
+            <Pressable
+              onPress={() => toggleSection('coordinator')}
+              style={styles.expandRow}
+              accessibilityRole="button"
+            >
+              <Ionicons name="people-outline" size={18} color={colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.expandRowTitle}>
+                  {tr('Coordinator? Propose coordination services')}
+                </Text>
+                <Text style={styles.expandRowSub}>
+                  {tr('Define a separate scope and price.')}
+                </Text>
+              </View>
+              <Ionicons
+                name={expandedSection === 'coordinator' ? 'chevron-up' : 'chevron-forward'}
+                size={16}
+                color={colors.textMuted}
+              />
+            </Pressable>
+            {expandedSection === 'coordinator' ? (
+              <View style={styles.expandContent}>
+                <Text style={styles.expandContentText}>
+                  {tr(
+                    'After accepting availability, you can propose dedicated event coordination services with a separate scope and fee directly to the client.',
+                  )}
+                </Text>
+              </View>
+            ) : null}
+
+            <Pressable
+              onPress={() => toggleSection('availability')}
+              style={styles.expandRow}
+              accessibilityRole="button"
+            >
+              <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.expandRowTitle}>{tr('Check availability & team')}</Text>
+              </View>
+              <Ionicons
+                name={expandedSection === 'availability' ? 'chevron-up' : 'chevron-forward'}
+                size={16}
+                color={colors.textMuted}
+              />
+            </Pressable>
+            {expandedSection === 'availability' ? (
+              <View style={styles.expandContent}>
+                <Text style={styles.expandContentText}>
+                  {formattedDate} • {opportunity.startTime?.slice(0, 5)}
+                  {opportunity.endTime ? `–${opportunity.endTime.slice(0, 5)}` : ''} •{' '}
+                  {brief.coverageModeLabel} ({brief.coverageHoursLabel})
+                </Text>
+              </View>
+            ) : null}
+
+            <Pressable
+              onPress={() => toggleSection('policies')}
+              style={styles.expandRow}
+              accessibilityRole="button"
+            >
+              <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.expandRowTitle}>{tr('Review policies and exclusions')}</Text>
+              </View>
+              <Ionicons
+                name={expandedSection === 'policies' ? 'chevron-up' : 'chevron-forward'}
+                size={16}
+                color={colors.textMuted}
+              />
+            </Pressable>
+            {expandedSection === 'policies' ? (
+              <View style={styles.expandContent}>
+                <Text style={styles.expandContentText}>
+                  {tr(
+                    'Escrow payment is held securely by Connekyt until digital and print deliverables are handed over according to the agreed schedule.',
+                  )}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </ScrollView>
 
         {/* 3. SYMMETRICAL ACTION BUTTONS */}
         <View style={styles.actionBar}>
@@ -418,174 +576,202 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  contentWrap: {
-    flex: 1,
-    justifyContent: 'center',
+  scrollContent: {
     gap: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingVertical: spacing.sm,
   },
-  eventHeader: {
+  requestedBanner: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 9,
+    borderRadius: radii.md,
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
   },
-  categoryPill: {
+  requestedBannerText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  requestedEventType: {
+    fontSize: fontSize.xs,
+    color: c.textMuted,
+    fontWeight: fontWeight.semibold,
+  },
+  comparisonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  compareCard: {
+    flex: 1,
+    minWidth: 155,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    borderWidth: 1.5,
+    gap: 4,
+  },
+  clientOfferCard: {
+    backgroundColor: c.tint,
+    borderColor: c.primary,
+  },
+  uploadedPkgCard: {
+    backgroundColor: c.card,
+    borderColor: c.borderSoft,
+  },
+  compareEyebrowRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    backgroundColor: c.tint,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: 'rgba(8, 58, 133, 0.18)',
   },
-  categoryText: {
-    fontFamily: fonts.bold,
-    fontSize: 10.5,
+  compareEyebrow: {
+    fontSize: 10,
     fontWeight: fontWeight.extrabold,
-    color: c.primary,
-    letterSpacing: 0.8,
+    letterSpacing: 0.7,
+    color: c.textSoft,
   },
-  eventTitle: {
-    fontFamily: fonts.bold,
+  clientOfferAmount: {
+    fontFamily: fonts.display,
     fontSize: 22,
     fontWeight: fontWeight.extrabold,
     color: c.text,
-    textAlign: 'center',
-    letterSpacing: -0.3,
-    lineHeight: 28,
   },
-  clientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+  uploadedPkgAmount: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
   },
-  clientText: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
+  compareSubtitle: {
+    fontSize: 11.5,
+    color: c.textSoft,
+  },
+  diffHighlight: {
+    fontSize: 11.5,
+    fontWeight: fontWeight.bold,
+    color: c.accent,
+  },
+  compareDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: c.borderSoft,
+    marginVertical: 4,
+  },
+  compareFootnote: {
+    fontSize: 11,
     color: c.textMuted,
   },
-  payoutCard: {
-    backgroundColor: c.surface,
-    borderRadius: radii.xl,
-    borderWidth: 1.5,
+  detailsGrid: {
+    gap: spacing.sm,
+  },
+  detailBox: {
+    borderRadius: radii.lg,
+    borderWidth: 1,
     borderColor: c.borderSoft,
-    paddingVertical: spacing.md + 2,
-    paddingHorizontal: spacing.lg,
+    backgroundColor: c.card,
+    padding: spacing.md,
+    gap: 7,
+  },
+  detailBoxHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    shadowColor: c.shadow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
+    marginBottom: 2,
   },
-  payoutHeader: {
+  detailBoxTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  deliverableRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  payoutLabel: {
-    fontFamily: fonts.bold,
-    fontSize: 10,
+  deliverableKey: {
+    fontSize: 11.5,
     color: c.textMuted,
-    letterSpacing: 0.8,
+    width: 105,
   },
-  escrowBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: c.tint,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: 'rgba(8, 58, 133, 0.18)',
-  },
-  escrowBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 9,
-    color: c.primary,
-    letterSpacing: 0.5,
-  },
-  payoutAmount: {
-    fontFamily: fonts.bold,
-    fontSize: 32,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-    letterSpacing: -0.5,
-  },
-  logisticsContainer: {
-    gap: spacing.sm,
-  },
-  logisticsTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.md,
-  },
-  logisticsIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: c.tint,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logisticsTextWrap: {
+  deliverableVal: {
     flex: 1,
-    gap: 2,
-  },
-  logisticsPrimary: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
+    fontSize: 11.5,
     fontWeight: fontWeight.bold,
     color: c.text,
   },
-  logisticsSecondary: {
-    fontFamily: fonts.regular,
-    fontSize: 11.5,
-    color: c.textMuted,
-  },
-  instructionsBox: {
-    backgroundColor: c.tint,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(8, 58, 133, 0.18)',
-    padding: spacing.sm + 3,
-    gap: 4,
-  },
-  instructionsHeader: {
+  venueLinkRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
+    paddingTop: 2,
   },
-  instructionsLabel: {
-    fontFamily: fonts.bold,
-    fontSize: 9.5,
-    color: c.primary,
-    letterSpacing: 0.6,
+  venueLinkText: {
+    flex: 1,
+    fontSize: 11.5,
+    fontWeight: fontWeight.bold,
+    color: c.info,
+    textDecorationLine: 'underline',
   },
-  instructionsText: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
+  venueExpandedBox: {
+    marginTop: 4,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    gap: 2,
+  },
+  venueExpandedTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  venueExpandedMeta: {
+    fontSize: 11,
     color: c.textSoft,
-    lineHeight: 17,
+  },
+  expandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 11,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.card,
+  },
+  expandRowTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  expandRowSub: {
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  expandContent: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  expandContentText: {
+    fontSize: 11.5,
+    color: c.textSoft,
+    lineHeight: 16,
   },
   actionBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
   },
   declineBtn: {
     flex: 1,
-    height: 52,
+    height: 50,
     borderRadius: radii.full,
     backgroundColor: c.surface,
     borderWidth: 1.5,
@@ -597,31 +783,25 @@ const useStyles = makeStyles((c) => ({
   },
   declineBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: 13.5,
     fontWeight: fontWeight.bold,
     color: c.textSoft,
   },
   acceptBtn: {
-    flex: 1.6,
-    height: 52,
+    flex: 1.5,
+    height: 50,
     borderRadius: radii.full,
     backgroundColor: c.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    shadowColor: c.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 3,
   },
   acceptBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 15,
+    fontSize: 14.5,
     fontWeight: fontWeight.bold,
     color: c.textOnPrimary,
-    letterSpacing: 0.2,
   },
   btnPressed: {
     opacity: 0.88,

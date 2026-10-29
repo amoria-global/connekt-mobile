@@ -352,7 +352,7 @@ export default function PhotographerProfileScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
         <Text style={styles.muted}>{error}</Text>
-        <Pressable onPress={() => router.back()} style={{ marginTop: 20 }}>
+        <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/(app)/photographers' as never))} style={{ marginTop: 20 }}>
           <Text style={{ color: colors.primary }}>Go Back</Text>
         </Pressable>
       </View>
@@ -384,7 +384,7 @@ export default function PhotographerProfileScreen() {
 
           {/* Floating Top Nav */}
           <View style={[styles.topNav, { top: Math.max(insets.top, 20) }]}>
-            <IconButton icon="arrow-left" onPress={() => router.back()} />
+            <IconButton icon="arrow-left" onPress={() => (router.canGoBack() ? router.back() : router.replace('/(app)/photographers' as never))} />
             <View style={styles.topNavRight}>
               <IconButton
                 icon="message-circle"

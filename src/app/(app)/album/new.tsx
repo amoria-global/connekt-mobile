@@ -18,6 +18,7 @@
  *     an album shell and upload photos later).
  *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
  */
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -565,9 +566,7 @@ export default function NewAlbumScreen() {
                         onPress={() => setCurrencyId(c.id)}
                         style={[styles.chip, active && styles.chipActive]}
                       >
-                        <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                          {c.code}
-                        </Text>
+                        <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
                       </Pressable>
                     );
                   })}

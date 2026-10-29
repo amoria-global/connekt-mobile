@@ -50,7 +50,6 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
     attendanceMode: input.attendanceMode,
     eventOrganizer: input.organizer || 'Organizer',
     eventVisibility: input.eventVisibility || 'PUBLIC',
-    ...(typeof input.allowWishInvites === 'boolean' ? { allowWishInvites: input.allowWishInvites } : {}),
     eventTags: input.tags && input.tags.length ? input.tags.join(',') : input.category,
     price: input.price ?? 0,
     priceCurrency: input.currency || 'RWF',
@@ -61,8 +60,20 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
     maxGuests: input.maxGuests ?? 0,
     notes: '',
   };
+  if (typeof input.allowWishInvites === 'boolean') {
+    payload.allowWishInvites = input.allowWishInvites;
+  }
+  if (typeof input.hasLiveStream === 'boolean') {
+    payload.hasLiveStream = input.hasLiveStream;
+  }
+  if (typeof input.minimumPhotos === 'number' && Number.isFinite(input.minimumPhotos)) {
+    payload.minimumPhotos = input.minimumPhotos;
+  }
   if (input.eventCategoryId && UUID_RE.test(input.eventCategoryId)) {
     payload.eventCategoryId = input.eventCategoryId;
+  }
+  if (input.streamFeeCurrencyId && UUID_RE.test(input.streamFeeCurrencyId)) {
+    payload.streamFeeCurrencyId = input.streamFeeCurrencyId;
   }
   if (input.photographerId && UUID_RE.test(input.photographerId)) {
     payload.photographerId = input.photographerId;

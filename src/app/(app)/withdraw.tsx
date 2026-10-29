@@ -8,6 +8,7 @@
  *   done     the request is PENDING_APPROVAL; an admin approval pays it out
  *   failed   the backend's reason, with a way into KYC when that is it
  */
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,7 +34,9 @@ import {
   FALLBACK_CURRENCIES,
   floorTo,
   formatDisplay,
+  orderSources,
   parseAmount,
+  totalWithdrawable,
   usdToDisplay,
   verificationCopy,
   type Verification,
@@ -100,7 +103,8 @@ export default function WithdrawScreen() {
   // 0 when the backend gave no RWF rate: no donation presets are offered then.
   const rwfRate = currencyList.find((c) => c.code === 'RWF')?.rate ?? 0;
 
-  const sourceList = sources.data ?? [];
+  const sourceList = useMemo(() => orderSources(sources.data ?? []), [sources.data]);
+  const allWithdrawable = totalWithdrawable(sourceList);
   const source: WithdrawSource | null =
     sourceList.find((s) => s.source === sourceKey) ?? sourceList[0] ?? null;
 
@@ -426,6 +430,9 @@ export default function WithdrawScreen() {
               {sourceList.length > 1 ? (
                 <View style={styles.section}>
                   <Text style={styles.sectionLabel}>{tr('Withdraw from')}</Text>
+                  <Text style={styles.muted}>
+                    {tr('Available to withdraw')}: {formatDisplay(floorTo(usdToDisplay(allWithdrawable, currency), currency.decimals), currency)} {tr('across all sources')}
+                  </Text>
                   <View style={styles.chips}>
                     {sourceList.map((s) => (
                       <Chip
@@ -459,7 +466,7 @@ export default function WithdrawScreen() {
                         }}
                         style={[styles.toggleSeg, c.code === currency.code && styles.toggleSegActive]}
                       >
-                        <Text style={[styles.toggleText, c.code === currency.code && styles.toggleTextActive]}>{c.code}</Text>
+                        <CurrencyLabel code={c.code} width={16} textStyle={[styles.toggleText, c.code === currency.code && styles.toggleTextActive]} />
                       </Pressable>
                     ))}
                   </View>
