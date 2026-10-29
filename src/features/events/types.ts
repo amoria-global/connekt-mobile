@@ -2,7 +2,12 @@ import type { ID } from '@/types';
 import { getEventStatus } from './eventStatus';
 
 export type EventStatus = string;
-/** How guests attend: a physical event (ticket consumed outside the app) or stream only. */export type AttendanceMode = 'IN_PERSON' | 'HYBRID' | 'STREAM_ONLY';export function parseAttendanceMode(v: unknown): AttendanceMode | undefined {  const s = typeof v === 'string' ? v.trim().toUpperCase() : '';  return s === 'IN_PERSON' || s === 'HYBRID' || s === 'STREAM_ONLY' ? s : undefined;}
+/** How guests attend: a physical event (ticket consumed outside the app) or stream only. */
+export type AttendanceMode = 'IN_PERSON' | 'HYBRID' | 'STREAM_ONLY';
+export function parseAttendanceMode(v: unknown): AttendanceMode | undefined {
+  const s = typeof v === 'string' ? v.trim().toUpperCase() : '';
+  return s === 'IN_PERSON' || s === 'HYBRID' || s === 'STREAM_ONLY' ? s : undefined;
+}
 
 /** Payload for creating an event / booking a photographer. */
 export type CreateEventInput = {
@@ -31,6 +36,12 @@ export type CreateEventInput = {
   eventVisibility?: string;
   organizer?: string;
   tags?: string[];
+  /** Whether viewers can share a link or QR so others can send wishes & memories. */
+  allowWishInvites?: boolean;
+  /** Whether live streaming is requested for the event. */
+  hasLiveStream?: boolean;
+  /** Minimum edited photos requested for the event. */
+  minimumPhotos?: number;
   /** Optional booking context when created from a photographer's package. */
   photographerId?: string;
   packageId?: string;
@@ -103,6 +114,8 @@ export type EventItem = {
   organizer?: string;
   tags?: string[];
   eventVisibility?: string;
+  /** Whether viewers may invite others to send wishes. Undefined on a server that predates the setting (treated as on). */
+  allowWishInvites?: boolean;
   /** Client completion state, e.g. NOT_COMPLETED / COMPLETED / REQUIRE_CHANGES. */
   completionStatus?: string;
   /** True once the photographer has delivered the album. Gates completion. */
@@ -126,6 +139,7 @@ export type EventItem = {
  * unchanged. Used by the public (guest) flows in (public)/events/*.
  */
 export type PublicEventCreator = {
+  id?: string;
   firstName?: string;
   lastName?: string;
   profilePicture?: string;
@@ -169,6 +183,8 @@ export type PublicEvent = {
   streamFeeCurrencySymbol?: string | null;
   streamFeeCurrencyAbbreviation?: string | null;
   hasLiveStream?: boolean | null;
+  /** Whether viewers may invite others to send wishes. Undefined on a server that predates the setting (treated as on). */
+  allowWishInvites?: boolean;
   streamType?: 'entry_fee' | 'invite_token' | null;
   groupDiscountPercentage?: number | null;
   hasInviteCode?: boolean | null;

@@ -1,7 +1,22 @@
 import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
 import { useCurrency } from '@/store/currency';
-import { StyleSheet, View, Text, Pressable, Alert, Platform, Image, ActivityIndicator, Keyboard, InputAccessoryView } from 'react-native';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop, BottomSheetTextInput } from '@gorhom/bottom-sheet';
+import { StyleSheet, View, Text, TextInput, Pressable, Alert, Platform, Image, ActivityIndicator, Keyboard, InputAccessoryView } from 'react-native';
+import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop, BottomSheetTextInput as GorhomBottomSheetTextInput } from '@gorhom/bottom-sheet';
+
+if (
+  Platform.OS === 'web' &&
+  TextInput.State &&
+  typeof TextInput.State.currentlyFocusedInput !== 'function'
+) {
+  TextInput.State.currentlyFocusedInput = () =>
+    typeof TextInput.State.currentlyFocusedField === 'function'
+      ? (TextInput.State.currentlyFocusedField() as any)
+      : null;
+}
+
+const BottomSheetTextInput = (
+  Platform.OS === 'web' ? TextInput : GorhomBottomSheetTextInput
+) as typeof GorhomBottomSheetTextInput;
 import { Ionicons } from '@expo/vector-icons';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -511,7 +526,24 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
               <View style={styles.formGroup}>
                 <Text style={styles.label}>{tr('When is your event? *')}</Text>
-                <Pressable onPress={() => setShowDatePicker(true)} style={styles.pickerSelector}>
+                <Pressable onPress={() => setShowDatePicker(true)} style={[styles.pickerSelector, { position: 'relative' }]}>
+                  {Platform.OS === 'web' &&
+                    React.createElement('input', {
+                      type: 'date',
+                      min: new Date().toISOString().split('T')[0],
+                      value: date
+                        ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+                        : '',
+                      onClick: (e: any) => e.currentTarget?.showPicker?.(),
+                      onChange: (e: any) => {
+                        const val = e.target?.value;
+                        if (val) {
+                          const [y, m, d] = val.split('-').map(Number);
+                          setDate(new Date(y, m - 1, d, 12, 0, 0));
+                        }
+                      },
+                      style: { position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', zIndex: 2 },
+                    })}
                   <Ionicons name="calendar-outline" size={18} color={date ? colors.primary : colors.textMuted} />
                   <Text style={[styles.pickerSelectorText, !date && styles.pickerSelectorPlaceholder]}>
                     {date 
@@ -756,7 +788,25 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 <View style={[styles.formGroup, { flex: 1 }]}>
                   <Text style={styles.label}>{tr('Start Time *')}</Text>
-                  <Pressable onPress={() => setShowStartTimePicker(true)} style={styles.pickerSelector}>
+                  <Pressable onPress={() => setShowStartTimePicker(true)} style={[styles.pickerSelector, { position: 'relative' }]}>
+                    {Platform.OS === 'web' &&
+                      React.createElement('input', {
+                        type: 'time',
+                        value: startTime
+                          ? `${String(startTime.getHours()).padStart(2, '0')}:${String(startTime.getMinutes()).padStart(2, '0')}`
+                          : '',
+                        onClick: (e: any) => e.currentTarget?.showPicker?.(),
+                        onChange: (e: any) => {
+                          const val = e.target?.value;
+                          if (val) {
+                            const [h, m] = val.split(':').map(Number);
+                            const next = new Date();
+                            next.setHours(h || 0, m || 0, 0, 0);
+                            setStartTime(next);
+                          }
+                        },
+                        style: { position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', zIndex: 2 },
+                      })}
                     <Ionicons name="time-outline" size={18} color={startTime ? colors.primary : colors.textMuted} />
                     <Text style={[styles.pickerSelectorText, !startTime && styles.pickerSelectorPlaceholder]}>
                       {startTime ? startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : tr('Set start')}
@@ -782,7 +832,25 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
                 <View style={[styles.formGroup, { flex: 1 }]}>
                   <Text style={styles.label}>{tr('End Time (Optional)')}</Text>
-                  <Pressable onPress={() => setShowEndTimePicker(true)} style={styles.pickerSelector}>
+                  <Pressable onPress={() => setShowEndTimePicker(true)} style={[styles.pickerSelector, { position: 'relative' }]}>
+                    {Platform.OS === 'web' &&
+                      React.createElement('input', {
+                        type: 'time',
+                        value: endTime
+                          ? `${String(endTime.getHours()).padStart(2, '0')}:${String(endTime.getMinutes()).padStart(2, '0')}`
+                          : '',
+                        onClick: (e: any) => e.currentTarget?.showPicker?.(),
+                        onChange: (e: any) => {
+                          const val = e.target?.value;
+                          if (val) {
+                            const [h, m] = val.split(':').map(Number);
+                            const next = new Date();
+                            next.setHours(h || 0, m || 0, 0, 0);
+                            setEndTime(next);
+                          }
+                        },
+                        style: { position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer', zIndex: 2 },
+                      })}
                     <Ionicons name="time-outline" size={18} color={endTime ? colors.primary : colors.textMuted} />
                     <Text style={[styles.pickerSelectorText, !endTime && styles.pickerSelectorPlaceholder]}>
                       {endTime ? endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : tr('Set end')}

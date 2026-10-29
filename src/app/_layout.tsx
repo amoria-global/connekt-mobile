@@ -2,7 +2,18 @@ import { useEffect, useState } from 'react';
 import { Stack, useRootNavigationState, useRouter, useSegments, type Href } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
+
+if (
+  Platform.OS === 'web' &&
+  TextInput.State &&
+  typeof TextInput.State.currentlyFocusedInput !== 'function'
+) {
+  TextInput.State.currentlyFocusedInput = () =>
+    typeof TextInput.State.currentlyFocusedField === 'function'
+      ? (TextInput.State.currentlyFocusedField() as any)
+      : null;
+}
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
