@@ -44,13 +44,31 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * The BALANCE source is only the booking earnings. The wallet's "Available to withdraw" is the sum of every source, so a
+ * source called "Available balance" read $0.00 next to a stream revenue of $6.62 and looked like a contradiction.
+ */
+export const BOOKING_SOURCE_LABEL = 'Booking earnings';
+
 export function mapSource(r: Raw): WithdrawSource {
+  const source = String(r.source ?? 'BALANCE');
   return {
-    source: String(r.source ?? 'BALANCE'),
-    label: typeof r.label === 'string' && r.label ? r.label : 'Available balance',
+    source,
+    label: source === 'BALANCE' ? BOOKING_SOURCE_LABEL : typeof r.label === 'string' && r.label ? r.label : 'Available balance',
     availableBalance: num(r.availableBalance),
     isGiftWithdrawal: r.isGiftWithdrawal === true,
   };
+}
+
+/** Sources with money first. An empty source is dropped when another has money; if none has, the list is kept as is. */
+export function orderSources(list: readonly WithdrawSource[]): WithdrawSource[] {
+  const funded = list.filter((s) => s.availableBalance > 0);
+  return funded.length > 0 ? funded : [...list];
+}
+
+/** Everything withdrawable across sources, in USD: the figure the wallet calls "Available to withdraw". */
+export function totalWithdrawable(list: readonly WithdrawSource[]): number {
+  return list.reduce((sum, s) => sum + (s.availableBalance > 0 ? s.availableBalance : 0), 0);
 }
 
 /** A display currency: `rate` is units per USD (the backend's rateToUsd). */
