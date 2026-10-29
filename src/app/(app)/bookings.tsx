@@ -17,11 +17,10 @@
  *   POST /opportunities/{id}/reject        → decline hybrid lead
  *   POST /events/{id}/convert-to-hybrid    → direct decline rescue hook
  */
-import { useCallback, useState, useEffect, useMemo } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
-  ActivityIndicator,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -33,7 +32,7 @@ import {
 import { Alert } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/Button';
 import { ActionButton, Chip, EmptyNote, ErrorNotice, IconTile, SectionHeader, SegmentedTabs, SkeletonCard, StatusBadge } from '@/features/photographer/kit';
-import { StatusBreakdownCard, type BreakdownSegment } from '@/features/client/ClientCharts';
+import { StatusBreakdownCard } from '@/features/client/ClientCharts';
 import { Screen } from '@/components/ui/Screen';
 import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
 import { statusTone } from '@/features/payments/statusBucket';
@@ -45,11 +44,15 @@ import {
   approveOpportunity,
   rejectOpportunity,
   convertToHybridRescue,
+  serverNowMs,
 } from '@/features/hybrid/api';
-import type { PhotographerOpportunity } from '@/features/hybrid/types';
+import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from '@/features/hybrid/types';
 import { OpportunityCard } from '@/features/hybrid/OpportunityCard';
 import { opportunityFilterFor } from '@/features/hybrid/status';
-import { IncomingOpportunityAlertModal } from '@/features/hybrid/IncomingOpportunityAlertModal';
+import {
+  IncomingOpportunityAlertModal,
+  OPPORTUNITY_AVAILABILITY_WINDOW_MS,
+} from '@/features/hybrid/IncomingOpportunityAlertModal';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
@@ -61,6 +64,24 @@ import { useStackClearance } from '@/hooks/useScrollClearance';
 import { Sheet } from '@/components/ui/Sheet';
 
 type Tab = 'direct' | 'opportunities';
+
+function isWithinTwoHourAvailabilityWindow(opp: PhotographerOpportunity): boolean {
+  const now = serverNowMs();
+  const deadlineStr = opp.responseDeadlineAt || opp.candidateExpiresAt;
+  if (deadlineStr) {
+    const deadlineMs = Date.parse(deadlineStr);
+    if (Number.isFinite(deadlineMs)) {
+      return deadlineMs > now;
+    }
+  }
+  if (opp.invitedAt) {
+    const invitedMs = Date.parse(opp.invitedAt);
+    if (Number.isFinite(invitedMs)) {
+      return invitedMs + OPPORTUNITY_AVAILABILITY_WINDOW_MS > now;
+    }
+  }
+  return true;
+}
 
 export default function BookingsScreen() {
   useCurrency((s) => s.currency);
@@ -98,9 +119,13 @@ export default function BookingsScreen() {
     setLoadingOpp(true);
     try {
       const res = await listOpportunities(oppFilter);
-      setOpportunities(oppFilter === 'ALL'
-        ? res.filter((o) => o.status !== 'INVITED' && o.status !== 'APPROVED')
-        : res);
+      setOpportunities(
+        oppFilter === 'ALL'
+          ? res.filter((o) => o.status !== 'INVITED' && o.status !== 'APPROVED')
+          : oppFilter === 'PENDING_RESPONSE'
+            ? res.filter((o) => isWithinTwoHourAvailabilityWindow(o))
+            : res,
+      );
       setOppError(null);
     } catch (e) {
       setOppError(isApiError(e) ? e.message : 'Could not load opportunities.');
@@ -117,7 +142,9 @@ export default function BookingsScreen() {
     getOpportunity(String(candidate))
       .then((o) => {
         setOppFilter(opportunityFilterFor(o.status));
-        if (o.status === 'INVITED') setFullscreenOpp(o);
+        if (o.status === 'INVITED' && isWithinTwoHourAvailabilityWindow(o)) {
+          setFullscreenOpp(o);
+        }
       })
       .catch(() => {});
   }, [candidate, isPhotographer]);
@@ -179,13 +206,20 @@ export default function BookingsScreen() {
   };
 
   // Opportunity actions
-  const onApproveOpp = async (opp: PhotographerOpportunity) => {
+  const onApproveOpp = async (
+    opp: PhotographerOpportunity,
+    deliveryPolicy: OpportunityDeliveryPolicy = 'CLIENT',
+  ) => {
     setOppBusyId(opp.candidateId);
     try {
-      await approveOpportunity(opp.candidateId);
+      await approveOpportunity(opp.candidateId, { deliveryPolicy });
+      const policyNote =
+        deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+          ? 'with your package delivery policy (digital & print delivery will update to your package schedule once the client confirms you)'
+          : "with the client's requested delivery policy";
       Alert.alert(
-        'You said yes',
-        `The client now sees you for ${opp.eventTitle} and can choose you. We'll tell you the outcome either way.`,
+        'Offer accepted',
+        `You accepted ${opp.eventTitle} ${policyNote}. The client now sees you and can choose you.`,
       );
       fetchOpportunities();
     } catch (e) {
@@ -195,12 +229,8 @@ export default function BookingsScreen() {
     }
   };
 
-  const onRejectOpp = (opp: PhotographerOpportunity) => {
-    Alert.alert('Pass on this one?', `${opp.eventTitle} goes to the next photographer.`, [
-      { text: 'Keep it', style: 'cancel' },
-      { text: 'Already booked', onPress: () => sendReject(opp, 'Already booked') },
-      { text: 'Pass', style: 'destructive', onPress: () => sendReject(opp) },
-    ]);
+  const onRejectOpp = async (opp: PhotographerOpportunity) => {
+    await sendReject(opp);
   };
 
   const sendReject = async (opp: PhotographerOpportunity, why?: string) => {
@@ -208,6 +238,10 @@ export default function BookingsScreen() {
     try {
       await rejectOpportunity(opp.candidateId, why);
       setOpportunities((prev) => prev.filter((o) => o.candidateId !== opp.candidateId));
+      Alert.alert(
+        'Offer Rejected',
+        'You rejected this offer. It remains active for other available photographers.',
+      );
     } catch (e) {
       Alert.alert('Decline error', isApiError(e) ? e.message : 'Could not decline this opportunity.');
     } finally {
@@ -434,7 +468,7 @@ export default function BookingsScreen() {
           <View style={styles.oppExplainer}>
             <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
             <Text style={styles.oppExplainerText}>
-              Opportunities come from clients who used Post My Event: you were matched because you are free for the whole event and fit what they asked for. Say yes and the client sees you; they choose one photographer. Direct requests are sent to you by name.
+              Opportunities come from clients who used Post My Event: your phone rings for 47 seconds when invited, and each offer stays open for 2 hours. Tap any offer to review details and accept with the client's delivery schedule, accept with your package delivery policy, or reject.
             </Text>
           </View>
           <View style={styles.oppFilters}>
@@ -454,8 +488,8 @@ export default function BookingsScreen() {
                 icon="radio-outline"
                 title={oppFilter === 'PENDING_RESPONSE' ? 'No open opportunities right now' : oppFilter === 'APPROVED' ? 'Nothing waiting for a client' : 'No history yet'}
                 body={oppFilter === 'PENDING_RESPONSE'
-                  ? 'When a client posts an event that fits your profile and calendar, it appears here and your phone rings. Add your Instagram and city in Profile to be matched more often.'
-                  : oppFilter === 'APPROVED' ? 'Opportunities you said yes to wait here until the client chooses.' : 'Past opportunities and their outcomes appear here.'}
+                  ? 'When a client posts an event that fits your profile and calendar, it appears here and rings for 47 seconds (staying available for 2 hours).'
+                  : oppFilter === 'APPROVED' ? 'Opportunities you accepted wait here until the client chooses.' : 'Past opportunities and their outcomes appear here.'}
               />
             </View>
           ) : (
@@ -502,13 +536,14 @@ export default function BookingsScreen() {
           />
       </Sheet>
 
-      {/* Full-Screen Incoming Opportunity Alert (Uber / Ringing Call Style) */}
+      {/* Full-Screen Offer Details Modal */}
       <IncomingOpportunityAlertModal
         opportunity={fullscreenOpp}
         visible={fullscreenOpp !== null}
-        onApprove={async (opp) => {
+        initialStage="details"
+        onApprove={async (opp, deliveryPolicy) => {
           setFullscreenOpp(null);
-          await onApproveOpp(opp);
+          await onApproveOpp(opp, deliveryPolicy);
         }}
         onReject={async (opp) => {
           setFullscreenOpp(null);

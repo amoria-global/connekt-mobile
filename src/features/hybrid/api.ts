@@ -21,6 +21,7 @@ import type {
   MatchPreviewResult,
   MatchRequestPayload,
   MatchRequestResult,
+  OpportunityDeliveryPolicy,
   PhotographerOpportunity,
   RecommendationTier,
   SelectPhotographerPayload,
@@ -208,6 +209,9 @@ function mapCandidate(c: any): CandidateSummary {
     slug: str(c.slug),
     about: str(c.about),
     specialties: Array.isArray(c.specialties) ? c.specialties : [],
+    deliveryPolicy: c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'PHOTOGRAPHER_PACKAGE' : 'CLIENT',
+    packageDeliveryDays: num(c.packageDeliveryDays),
+    packageDeliveryDescription: str(c.packageDeliveryDescription),
   };
 }
 
@@ -339,6 +343,9 @@ function mapOpportunity(raw: any): PhotographerOpportunity {
     matchedPackageName: str(raw?.matchedPackageName),
     matchedPackagePrice: num(raw?.matchedPackagePrice),
     matchedPackageCurrency: str(raw?.matchedPackageCurrency),
+    matchedPackageDeliveryDays: num(raw?.matchedPackageDeliveryDays),
+    matchedPackageDescription: str(raw?.matchedPackageDescription),
+    deliveryPolicy: raw?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'PHOTOGRAPHER_PACKAGE' : 'CLIENT',
     hasLiveStream: typeof raw?.hasLiveStream === 'boolean' ? raw.hasLiveStream : undefined,
     allowWishInvites: typeof raw?.allowWishInvites === 'boolean' ? raw.allowWishInvites : undefined,
     minimumPhotos: num(raw?.minimumPhotos),
@@ -372,8 +379,18 @@ export async function getOpportunityCounts(): Promise<{ pending: number; awaitin
 }
 
 /** "I'm available". Throws 409 once the invite has closed or the calendar now overlaps. */
-export async function approveOpportunity(candidateId: string): Promise<void> {
-  const res = await api.post<{ action?: number; message?: string }>(`/opportunities/${encodeURIComponent(candidateId)}/approve`);
+export async function approveOpportunity(
+  candidateId: string,
+  options?: { deliveryPolicy?: OpportunityDeliveryPolicy },
+): Promise<void> {
+  const res = options?.deliveryPolicy
+    ? await api.post<{ action?: number; message?: string }>(
+        `/opportunities/${encodeURIComponent(candidateId)}/approve`,
+        { deliveryPolicy: options.deliveryPolicy },
+      )
+    : await api.post<{ action?: number; message?: string }>(
+        `/opportunities/${encodeURIComponent(candidateId)}/approve`,
+      );
   assertOk(res, 'Could not send your answer.');
 }
 
