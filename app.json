@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-29-shared-links",
+            "date": "2026-10-29",
+            "title": "Shared links now take you to the right page",
+            "items": [
+              {
+                "icon": "link-outline",
+                "title": "Your link survives the install",
+                "body": "If you open a Connekyt link or scan a QR code before you have the app, it now takes you to that page after you install and sign up."
+              },
+              {
+                "icon": "timer-outline",
+                "title": "Clearer countdown on offer calls",
+                "body": "The time left on an incoming offer is now shown as days, hours, minutes and seconds, so you can see exactly how long you have to answer."
+              }
+            ]
+          },
+          {
             "id": "2026-10-29-flags-and-fixes",
             "date": "2026-10-29",
             "title": "Currency flags, a clearer event page and a fixed Withdraw screen",
@@ -267,28 +284,6 @@
                 "icon": "people-outline",
                 "title": "Choose who can invite others to send wishes",
                 "body": "Every event now has a Wish invites setting. Enable it and viewers can share a link or QR so loved ones send their wishes too, or disable it to keep wishes to your own viewers. You can change it at any time, even while live."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-28-event-status",
-            "date": "2026-10-28",
-            "title": "Events show the right state, and hosts can unpublish",
-            "items": [
-              {
-                "icon": "calendar-outline",
-                "title": "Events sit in the right tab",
-                "body": "An event that has already ended no longer shows under Soon or Upcoming. Explore, your stories, the badges and My hosted events now agree on whether an event is upcoming, live or ended."
-              },
-              {
-                "icon": "eye-off-outline",
-                "title": "Unpublish and republish",
-                "body": "Hosts can hide an event, upcoming or ended, from Explore from the menu on its card, and republish it later. Unpublished events stay visible to you with an Unpublished badge."
-              },
-              {
-                "icon": "radio-outline",
-                "title": "Clearer Go live buttons",
-                "body": "Go live and My hosted events on Home now look like buttons, and hosted event cards show the date, a status badge and a red Go live button."
               }
             ]
           }
