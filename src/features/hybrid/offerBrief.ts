@@ -866,3 +866,41 @@ export function stripDraftStateFromDescription(description?: string | null): str
   const idx = description.indexOf('[DRAFT_STATE]');
   return (idx >= 0 ? description.slice(0, idx) : description).trim();
 }
+
+export function hasOfferScopeBrief(text?: string | null): boolean {
+  return typeof text === 'string' && text.includes('[OFFER_SCOPE]');
+}
+
+export function parseEventOfferBrief(
+  text?: string | null,
+  fallbackHours = '6 hours',
+): ParsedOfferBrief | null {
+  if (!hasOfferScopeBrief(text)) return null;
+  return parseOpportunityOfferBrief(({
+    candidateId: '',
+    eventId: '',
+    instructions: text ?? undefined,
+    durationLabel: fallbackHours,
+  }) as PhotographerOpportunity);
+}
+
+export function cleanEventDescription(description?: string | null): string {
+  const withoutDraft = stripDraftStateFromDescription(description);
+  if (!withoutDraft) return '';
+  if (!withoutDraft.includes('[OFFER_SCOPE]')) return withoutDraft;
+
+  const map: Record<string, string> = {};
+  const freeLines: string[] = [];
+  for (const segment of withoutDraft.split('|').map((s) => s.trim())) {
+    if (!segment || segment === '[OFFER_SCOPE]') continue;
+    const colonIdx = segment.indexOf(':');
+    if (colonIdx > 0) {
+      const k = segment.slice(0, colonIdx).trim();
+      const v = segment.slice(colonIdx + 1).trim();
+      map[k] = v;
+    } else {
+      freeLines.push(segment);
+    }
+  }
+  return (map.Notes || freeLines.join(' ')).trim();
+}

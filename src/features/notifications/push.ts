@@ -72,9 +72,34 @@ export function resetPushRegistration(): void {
  * Ensures Android channels are created with MAX importance, vibration, sound,
  * and PUBLIC lockscreen visibility so alerts wake the screen.
  */
+async function safeSetChannel(
+  channelId: string,
+  config: Notifications.NotificationChannelInput,
+): Promise<void> {
+  try {
+    await Notifications.setNotificationChannelAsync(channelId, config);
+  } catch {
+    try {
+      await Notifications.setNotificationChannelAsync(channelId, {
+        name: config.name,
+        description: config.description,
+        importance: config.importance,
+        vibrationPattern: config.vibrationPattern,
+        enableVibrate: config.enableVibrate,
+        showBadge: config.showBadge,
+        lockscreenVisibility: config.lockscreenVisibility,
+        bypassDnd: config.bypassDnd,
+        sound: 'default',
+      });
+    } catch {
+      // Non-fatal in Expo Go
+    }
+  }
+}
+
 export async function ensureAndroidChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
-  await Notifications.setNotificationChannelAsync('default', {
+  await safeSetChannel('default', {
     name: 'Amoria Connect Notifications',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
@@ -85,7 +110,7 @@ export async function ensureAndroidChannels(): Promise<void> {
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
 
-  await Notifications.setNotificationChannelAsync('booking_updates', {
+  await safeSetChannel('booking_updates', {
     name: 'Booking Updates',
     description: 'Accepted, declined and paid bookings, deposits and payment reminders',
     importance: Notifications.AndroidImportance.MAX,
@@ -97,7 +122,7 @@ export async function ensureAndroidChannels(): Promise<void> {
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
 
-  await Notifications.setNotificationChannelAsync('urgent_booking_alerts', {
+  await safeSetChannel('urgent_booking_alerts', {
     name: 'Urgent Booking & Opportunity Alerts',
     description: 'Rings for new booking requests and event opportunities',
     importance: Notifications.AndroidImportance.MAX,
@@ -119,7 +144,7 @@ export async function ensureNotificationCategories(): Promise<void> {
     await Notifications.setNotificationCategoryAsync('OPPORTUNITY_ALERT', [
       {
         identifier: 'ACTION_APPROVE',
-        buttonTitle: "I'm Available",
+        buttonTitle: 'Accept',
         options: {
           opensAppToForeground: true,
         },
@@ -128,7 +153,7 @@ export async function ensureNotificationCategories(): Promise<void> {
         identifier: 'ACTION_DECLINE',
         buttonTitle: 'Decline',
         options: {
-          opensAppToForeground: false,
+          opensAppToForeground: true,
           isDestructive: true,
         },
       },
@@ -190,9 +215,20 @@ export async function registerForPushNotifications(): Promise<string | null> {
       (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig?.projectId ??
       'd81fbfa6-f576-4450-97c6-c443332179be';
 
-    const { data: token } = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined,
-    );
+    let token: string | undefined;
+    try {
+      const res = await Notifications.getExpoPushTokenAsync(
+        projectId ? { projectId } : undefined,
+      );
+      token = res.data;
+    } catch {
+      try {
+        const fallbackRes = await Notifications.getExpoPushTokenAsync();
+        token = fallbackRes.data;
+      } catch (innerErr) {
+        console.warn('[push] getExpoPushTokenAsync fallback failed:', innerErr);
+      }
+    }
 
     if (!token) {
       console.warn('[push] Could not obtain Expo push token.');

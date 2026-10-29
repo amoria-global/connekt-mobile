@@ -68,3 +68,15 @@ export function useForegroundPolling(tick: () => Promise<unknown> | void, interv
     }, [enabled, intervalMs]),
   );
 }
+
+/**
+ * Keeps the previous value when a poll returns the same data, so a background refresh
+ * that found nothing new does not re-render the screen: `setX((prev) => keepIfSame(prev, next))`.
+ */
+export function keepIfSame<T>(prev: T, next: T): T {
+  try {
+    return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+  } catch {
+    return next;
+  }
+}

@@ -65,7 +65,7 @@ export default function PhotographerProfileScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
   const { tr } = useSharedT();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: string }>();
   const router = useRouter();
   const { isCoordinator } = useRole();
   const isBlocked = useModeration((st) => st.blockedIds.has(id));
@@ -232,7 +232,7 @@ export default function PhotographerProfileScreen() {
   const workImages = useMemo(() => portfolioImages(data ?? {}), [data]);
   const [headerWidth, setHeaderWidth] = useState(400);
 
-  const [activeTab, setActiveTab] = useState('Overview');
+  const [activeTab, setActiveTab] = useState(['Overview', 'Portfolio', 'Reviews', 'About'].includes(initialTab ?? '') ? (initialTab as string) : 'Overview');
   const tabs = [
     { id: 'Overview', icon: 'grid' as const },
     { id: 'Portfolio', icon: 'images' as const },

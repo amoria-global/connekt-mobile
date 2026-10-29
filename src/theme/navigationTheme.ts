@@ -42,5 +42,23 @@ export function navigationThemeFor(scheme: ColorSchemeName, c: Palette): Theme {
       /** Badge / notification dot. */
       notification: c.accent,
     },
+    fonts: {
+      regular: {
+        fontFamily: 'Inter_400Regular',
+        fontWeight: '400',
+      },
+      medium: {
+        fontFamily: 'Inter_500Medium',
+        fontWeight: '500',
+      },
+      bold: {
+        fontFamily: 'SpaceGrotesk_700Bold',
+        fontWeight: '700',
+      },
+      heavy: {
+        fontFamily: 'SpaceGrotesk_700Bold',
+        fontWeight: '700',
+      },
+    },
   };
 }
