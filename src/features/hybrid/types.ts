@@ -6,7 +6,8 @@
 
 export type PhotographerType = 'FREELANCER' | 'STUDIO' | 'ANY';
 export type LocationCoverage = 'SAME_CITY' | 'NEARBY_CITY' | 'ANY';
-export type RecommendationTier = 'HIGH' | 'MEDIUM' | 'LOW';
+export type SmartMatchTier = 'PREMIUM' | 'PREFERRED' | 'SUGGESTED' | 'ALTERNATIVE';
+export type RecommendationTier = 'HIGH' | 'MEDIUM' | 'LOW' | SmartMatchTier;
 export type OpportunityDeliveryPolicy = 'CLIENT' | 'PHOTOGRAPHER_PACKAGE';
 
 export type PackageBenchmarkStats = {
@@ -265,6 +266,10 @@ export type CandidateSummary = {
   city?: string;
   photographerType?: 'FREELANCER' | 'STUDIO';
   recommendationTier: RecommendationTier;
+  smartTier?: SmartMatchTier;
+  /** Smart Match score out of 100, relative to the others who accepted this event. */
+  matchScore?: number;
+  primarySpecialty?: string;
   rank?: number;
   distanceKm?: number;
   distanceLabel?: string;
@@ -277,9 +282,17 @@ export type CandidateSummary = {
   slug?: string;
   about?: string;
   specialties: string[];
+  approvedAt?: string;
   deliveryPolicy?: OpportunityDeliveryPolicy;
   packageDeliveryDays?: number;
   packageDeliveryDescription?: string;
+  matchedPackageId?: string;
+  matchedPackageName?: string;
+  matchedPackagePrice?: number;
+  matchedPackageCurrency?: string;
+  matchedPackagePhotos?: number;
+  matchedPackageVideos?: number;
+  matchedPackageHours?: number;
 };
 
 export type CandidatesResponse = {

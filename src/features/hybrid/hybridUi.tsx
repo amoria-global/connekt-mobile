@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill, midTones } from '@/theme';
 import { useLanguage } from '@/store/language';
 import { serverNowMs } from './api';
-import type { RecommendationTier } from './types';
+import type { RecommendationTier, SmartMatchTier } from './types';
 
 export const MODE_META = {
   DIRECT: {
@@ -91,9 +91,34 @@ export const TIER_META: Record<RecommendationTier, { label: string; hint: string
   HIGH: { label: 'Top match', hint: 'Closest fit to what you asked for', color: midTones.green, bg: 'rgba(16,185,129,0.12)', icon: 'sparkles' },
   MEDIUM: { label: 'Good match', hint: 'Fits most of your requirements', color: midTones.blue, bg: 'rgba(62,111,216,0.14)', icon: 'thumbs-up-outline' },
   LOW: { label: 'Possible match', hint: 'Available, with fewer requirements matched', color: midTones.orange, bg: 'rgba(234,88,12,0.10)', icon: 'checkmark' },
+  PREMIUM: { label: 'Premium choice', hint: 'Strongest all-round fit for your event', color: midTones.orange, bg: 'rgba(217,98,26,0.12)', icon: 'star' },
+  PREFERRED: { label: 'Preferred choice', hint: 'A very good fit for your event', color: midTones.magenta, bg: 'rgba(238,14,143,0.10)', icon: 'ribbon-outline' },
+  SUGGESTED: { label: 'Suggested choice', hint: 'A solid option worth a look', color: midTones.blue, bg: 'rgba(62,111,216,0.14)', icon: 'people-outline' },
+  ALTERNATIVE: { label: 'Alternative choice', hint: 'Available, with a looser fit', color: midTones.slate, bg: 'rgba(147,163,190,0.16)', icon: 'person-outline' },
 };
 
-const TIER_META_I18N: Record<'fr' | 'es' | 'rw' | 'sw', Record<RecommendationTier, { label: string; hint: string }>> = {
+/** Score range each Smart Match band covers, shown beside its name. */
+export const SMART_TIER_RANGE: Record<SmartMatchTier, string> = {
+  PREMIUM: '80–100',
+  PREFERRED: '65–79',
+  SUGGESTED: '50–64',
+  ALTERNATIVE: 'Below 50',
+};
+
+/** Client-facing order of the Smart Match bands. The points behind them stay on the server. */
+export const SMART_TIER_ORDER: SmartMatchTier[] = ['PREMIUM', 'PREFERRED', 'SUGGESTED', 'ALTERNATIVE'];
+
+/** Smart band for a candidate; an older server that sends only HIGH/MEDIUM/LOW maps onto the nearest band. */
+export function smartTierOf(c: { smartTier?: SmartMatchTier; recommendationTier: RecommendationTier }): SmartMatchTier {
+  if (c.smartTier) return c.smartTier;
+  const t = c.recommendationTier;
+  if (t === 'HIGH') return 'PREMIUM';
+  if (t === 'MEDIUM') return 'PREFERRED';
+  if (t === 'LOW') return 'SUGGESTED';
+  return t;
+}
+
+const TIER_META_I18N: Record<'fr' | 'es' | 'rw' | 'sw', Partial<Record<RecommendationTier, { label: string; hint: string }>>> = {
   fr: {
     HIGH: { label: 'Meilleure correspondance', hint: 'Le plus proche de ce que vous avez demandé' },
     MEDIUM: { label: 'Bonne correspondance', hint: 'Correspond à la plupart de vos critères' },
@@ -301,7 +326,7 @@ export function TierBadge({ tier }: { tier: RecommendationTier }) {
   const styles = useStyles();
   const { language } = useLanguage();
   const t = TIER_META[tier];
-  const loc = language === 'en' ? t : TIER_META_I18N[language][tier];
+  const loc = language === 'en' ? t : (TIER_META_I18N[language][tier] ?? t);
   return (
     <View style={[styles.badge, { backgroundColor: t.bg }]} accessibilityLabel={`${loc.label}. ${loc.hint}`}>
       <Ionicons name={t.icon} size={11} color={t.color} />

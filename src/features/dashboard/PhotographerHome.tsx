@@ -46,8 +46,7 @@ import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { GetHelpCard } from '@/features/support/GetHelpCard';
-import { MatchingProfilePrompt } from '@/features/hybrid/MatchingProfile';
-import { IncomingOpportunityAlertModal } from '@/features/hybrid/IncomingOpportunityAlertModal';
+import { showIncomingOpportunity } from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { listOpportunities, approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
 import type { PhotographerOpportunity } from '@/features/hybrid/types';
 import {
@@ -469,31 +468,60 @@ export function PhotographerHome() {
         ) : null}
 
         {/* 4. Needs your reply */}
-        {requests.length > 0 ? (
+        {(requests.length > 0 || openOppCount > 0) ? (
           <>
             <SectionHeader
               title="Needs your reply"
-              subtitle={`${requests.length} booking request${requests.length === 1 ? '' : 's'} waiting`}
+              subtitle={`${requests.length + openOppCount} booking request${requests.length + openOppCount === 1 ? '' : 's'} waiting`}
               actionLabel="See all"
-              onAction={() => open('/events')}
+              onAction={() => open(openOppCount > 0 ? '/bookings?tab=opportunities' : '/events')}
             />
             <HCarousel
               label="Booking requests waiting for your reply"
-              data={requests.slice(0, PREVIEW_LIMIT)}
-              keyOf={(e) => String(e.id)}
-              renderItem={(e) => (
-                <ShootCard
-                  shoot={{
-                    title: e.title || 'Booking request',
-                    cover: e.coverImage,
-                    status: SHOOT_STATUS.pending,
-                    when: whenText(e),
-                    location: e.location,
-                    client: e.clientName,
-                  }}
-                  actions={<ActionButton label="Review request" variant="primary" compact onPress={() => open(`/event/${e.id}`)} style={styles.flex} />}
-                />
-              )}
+              data={[
+                ...oppList
+                  .filter((o) => (o.status ?? 'INVITED') === 'INVITED')
+                  .map((o) => ({ kind: 'opportunity' as const, id: o.candidateId, opp: o })),
+                ...requests.map((e) => ({ kind: 'event' as const, id: String(e.id), event: e })),
+              ].slice(0, PREVIEW_LIMIT)}
+              keyOf={(item) => `${item.kind}-${item.id}`}
+              renderItem={(item) =>
+                item.kind === 'opportunity' ? (
+                  <ShootCard
+                    shoot={{
+                      title: item.opp.eventTitle || 'Incoming Shoot Offer',
+                      status: SHOOT_STATUS.pending,
+                      when: item.opp.eventDate ? formatDate(item.opp.eventDate) : 'Date to be confirmed',
+                      location: item.opp.venue || item.opp.city || 'Rwanda',
+                      client: item.opp.eventType || 'Open offer',
+                    }}
+                    actions={
+                      <ActionButton
+                        label="Review offer"
+                        variant="primary"
+                        compact
+                        onPress={() => {
+                          showIncomingOpportunity(item.opp.candidateId, 'details');
+                          open(`/bookings?tab=opportunities&candidate=${encodeURIComponent(item.opp.candidateId)}`);
+                        }}
+                        style={styles.flex}
+                      />
+                    }
+                  />
+                ) : (
+                  <ShootCard
+                    shoot={{
+                      title: item.event.title || 'Booking request',
+                      cover: item.event.coverImage,
+                      status: SHOOT_STATUS.pending,
+                      when: whenText(item.event),
+                      location: item.event.location,
+                      client: item.event.clientName,
+                    }}
+                    actions={<ActionButton label="Review request" variant="primary" compact onPress={() => open(`/event/${item.event.id}`)} style={styles.flex} />}
+                  />
+                )
+              }
             />
           </>
         ) : null}
@@ -657,16 +685,6 @@ export function PhotographerHome() {
       </ScrollView>
 
       <TopBar />
-      {env.hybridBookingEnabled ? <MatchingProfilePrompt /> : null}
-      <IncomingOpportunityAlertModal
-        opportunity={incomingOpportunity}
-        visible={!!incomingOpportunity}
-        onApprove={handleApprove}
-        onReject={handleReject}
-        onDismiss={() => {
-          if (incomingOpportunity) setDismissedOppIds((prev) => [...prev, incomingOpportunity.candidateId]);
-        }}
-      />
     </Screen>
   );
 }

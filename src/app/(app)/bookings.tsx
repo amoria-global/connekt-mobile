@@ -54,6 +54,7 @@ import {
   OPPORTUNITY_AVAILABILITY_WINDOW_MS,
 } from '@/features/hybrid/IncomingOpportunityAlertModal';
 import { useAsync } from '@/hooks/useAsync';
+import { keepIfSame, useForegroundPolling } from '@/hooks/useForegroundPolling';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
@@ -114,31 +115,29 @@ export default function BookingsScreen() {
   const [oppFilter, setOppFilter] = useState<'PENDING_RESPONSE' | 'APPROVED' | 'ALL'>('PENDING_RESPONSE');
   const [oppError, setOppError] = useState<string | null>(null);
 
-  const fetchOpportunities = useCallback(async () => {
-    if (!isPhotographer || !env.hybridBookingEnabled) return;
-    setLoadingOpp(true);
+  /** `silent` is the background poll: no spinner, and no re-render when nothing changed. */
+  const fetchOpportunities = useCallback(async (opts?: { silent?: boolean }) => {
+    if (!env.hybridBookingEnabled) return;
+    const silent = opts?.silent === true;
+    if (!silent) setLoadingOpp(true);
     try {
       const res = await listOpportunities(oppFilter);
-      setOpportunities(
-        oppFilter === 'ALL'
-          ? res.filter((o) => o.status !== 'INVITED' && o.status !== 'APPROVED')
-          : oppFilter === 'PENDING_RESPONSE'
-            ? res.filter((o) => isWithinTwoHourAvailabilityWindow(o))
-            : res,
-      );
+      const next = oppFilter === 'PENDING_RESPONSE' ? res.filter((o) => isWithinTwoHourAvailabilityWindow(o)) : res;
+      setOpportunities((prev) => keepIfSame(prev, next));
       setOppError(null);
     } catch (e) {
-      setOppError(isApiError(e) ? e.message : 'Could not load opportunities.');
+      // A failed background poll keeps what is on screen; only a user-started load shows the error.
+      if (!silent) setOppError(isApiError(e) ? e.message : 'Could not load opportunities.');
     } finally {
-      setLoadingOpp(false);
+      if (!silent) setLoadingOpp(false);
     }
-  }, [isPhotographer, oppFilter]);
+  }, [oppFilter]);
 
   // A notification for one opportunity opens it full screen when it is still
   // open, and otherwise shows the filter that lists it: selected, not
   // selected, expired and closed ones are under History, not New.
   useEffect(() => {
-    if (!candidate || !isPhotographer) return;
+    if (!candidate) return;
     getOpportunity(String(candidate))
       .then((o) => {
         setOppFilter(opportunityFilterFor(o.status));
@@ -147,14 +146,15 @@ export default function BookingsScreen() {
         }
       })
       .catch(() => {});
-  }, [candidate, isPhotographer]);
+  }, [candidate]);
 
   useEffect(() => {
-    if (!isPhotographer || !env.hybridBookingEnabled) return;
-    fetchOpportunities();
-    const timer = setInterval(fetchOpportunities, 6000);
-    return () => clearInterval(timer);
-  }, [isPhotographer, fetchOpportunities]);
+    if (!env.hybridBookingEnabled) return;
+    void fetchOpportunities();
+  }, [fetchOpportunities]);
+
+  // Quiet refresh while this screen is open and the app is in the foreground; nothing runs in the background.
+  useForegroundPolling(() => fetchOpportunities({ silent: true }), 6000, env.hybridBookingEnabled);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<Booking | null>(null);
@@ -276,8 +276,8 @@ export default function BookingsScreen() {
         }
       />
 
-      {/* Segmented Control for Photographer (Direct vs Opportunities) */}
-      {isPhotographer && env.hybridBookingEnabled && (
+      {/* Segmented Control (Direct vs Opportunities — open to all users) */}
+      {env.hybridBookingEnabled && (
         <View style={styles.segmentContainer}>
           <SegmentedTabs
             label="Booking sections"
@@ -460,7 +460,7 @@ export default function BookingsScreen() {
           refreshControl={
             <RefreshControl
               refreshing={loadingOpp}
-              onRefresh={fetchOpportunities}
+              onRefresh={() => void fetchOpportunities()}
               tintColor={colors.primary}
             />
           }
@@ -476,7 +476,7 @@ export default function BookingsScreen() {
               <Chip key={k} label={l} selected={oppFilter === k} onPress={() => setOppFilter(k)} />
             ))}
           </View>
-          {oppError ? <ErrorNotice message={oppError} onRetry={fetchOpportunities} compact /> : null}
+          {oppError ? <ErrorNotice message={oppError} onRetry={() => void fetchOpportunities()} compact /> : null}
           {loadingOpp && opportunities.length === 0 ? (
             <View style={styles.skeletonList}>
               <SkeletonCard height={140} />

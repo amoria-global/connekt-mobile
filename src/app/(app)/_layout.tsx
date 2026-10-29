@@ -4,7 +4,7 @@ import {
     registerForPushNotifications,
 } from '@/features/notifications/push';
 import { notificationTarget } from '@/features/notifications/routing';
-import { GlobalOpportunityCallNotifier } from '@/features/hybrid/GlobalOpportunityCallNotifier';
+import { GlobalOpportunityCallNotifier, showIncomingOpportunity } from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { InAppNotificationWatcher } from '@/features/notifications/InAppNotificationWatcher';
 import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCallNotifier';
 import { showIncomingRequest } from '@/features/bookings/incomingRequests';
@@ -66,23 +66,17 @@ export default function AppLayout() {
             ? data.referenceId
             : undefined;
 
-      // Interactive lock-screen 1-tap actions
-      if (actionIdentifier === 'ACTION_APPROVE' && candidateId) {
-        try {
-          await approveOpportunity(candidateId);
-        } catch (e) {
-          console.warn('[pushAction] Error approving opportunity from notification:', e);
-        }
-        router.push('/bookings?tab=opportunities');
-        return;
-      }
+      // Tapping Accept, Decline, or an Opportunity notification opens the photographer's incoming Offer Details page with the 3 response options
+      const isOpportunityPush =
+        actionIdentifier === 'ACTION_APPROVE' ||
+        actionIdentifier === 'ACTION_DECLINE' ||
+        data.type === 'OPPORTUNITY' ||
+        data.type === 'HYBRID_OPPORTUNITY' ||
+        (typeof data.link === 'string' && data.link.includes('/opportunities'));
 
-      if (actionIdentifier === 'ACTION_DECLINE' && candidateId) {
-        try {
-          await rejectOpportunity(candidateId);
-        } catch (e) {
-          console.warn('[pushAction] Error declining opportunity from notification:', e);
-        }
+      if (isOpportunityPush && candidateId) {
+        router.push(`/bookings?tab=opportunities&candidate=${encodeURIComponent(candidateId)}` as never);
+        showIncomingOpportunity(candidateId, 'details');
         return;
       }
 
