@@ -28,3 +28,11 @@ export async function listTvDevices(): Promise<TvDevice[]> {
 export async function removeTvDevice(id: string): Promise<void> {
   await api.delete(`/customer/tv-devices/${id}`);
 }
+
+/** Send to TV: asks the backend to open `eventId` on the paired TV `deviceId`. The TV picks it up within seconds. */
+export async function sendEventToTv(deviceId: string, eventId: string): Promise<void> {
+  const res = await api.post<{ action: number; message?: string }>(`/customer/tv-devices/${deviceId}/cast`, { eventId });
+  if (res.action !== 1) {
+    throw { status: 400, message: res.message || 'Could not send it to your TV.' } satisfies ApiError;
+  }
+}

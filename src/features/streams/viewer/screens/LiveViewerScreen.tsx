@@ -33,7 +33,7 @@ import { LiveOverlay } from '../components/LiveOverlay';
 import { LiveVideoSurface } from '../components/LiveVideoSurface';
 import { ReactionOverlay, ReactionRail } from '../components/ReactionOverlay';
 import { ShareSheet } from '../components/ShareSheet';
-import { EventHeader, EventInfo, EventTabs, LivePlayer, WishesPanel, AccessChip, LiveScrubber, type LiveTab } from '@/features/live/sections';
+import { EventHeader, EventInfo, EventTabs, LivePlayer, WishesPanel, WatchOnTv, AccessChip, LiveScrubber, type LiveTab } from '@/features/live/sections';
 import { useLiveEventInfo } from '@/features/live/liveEventInfo';
 import { StreamStateOverlay } from '../components/StreamStateOverlay';
 import { ViewerError, ViewerSkeleton } from '../components/ViewerStates';
@@ -339,6 +339,7 @@ export default function LiveViewerScreen() {
     />
   );
 
+  const watchOnTv = model.eventId ? <WatchOnTv eventId={model.eventId} title={model.title} /> : undefined;
   const info = (
     <EventInfo
       title={model.title}
@@ -361,7 +362,7 @@ export default function LiveViewerScreen() {
         <StatusBar style="light" />
         <View style={styles.wideRow}>
           <View style={styles.wideMain}>
-            <EventHeader title={model.title} onBack={goBack} onShare={openShare} topInset={insets.top} />
+            <EventHeader title={model.title} onBack={goBack} onShare={openShare} topInset={insets.top} extra={watchOnTv} />
             <LivePlayer>{video}</LivePlayer>
             {info}
             <EventTabs value={tab} onChange={setTab} />
@@ -389,7 +390,7 @@ export default function LiveViewerScreen() {
     >
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style="light" />
-      {keyboardUp ? null : <EventHeader title={model.title} onBack={goBack} onShare={openShare} topInset={insets.top} />}
+      {keyboardUp ? null : <EventHeader title={model.title} onBack={goBack} onShare={openShare} topInset={insets.top} extra={watchOnTv} />}
       <LivePlayer topInset={keyboardUp ? insets.top : 0}>{video}</LivePlayer>
       {keyboardUp ? null : (
         <>
