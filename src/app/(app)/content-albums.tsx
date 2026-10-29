@@ -27,6 +27,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { Chip, EmptyNote, ErrorNotice, SkeletonCard } from '@/features/photographer/kit';
 import { Screen } from '@/components/ui/Screen';
 import {
@@ -131,6 +132,7 @@ export default function ContentAlbumsScreen() {
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const clearance = useTabBarClearance();
   const { language } = useLanguage();
   const s = language === 'rw' ? CA_RW : language === 'sw' ? CA_SW : (CA_I18N as any)[language] ?? CA_I18N.en;
 
@@ -238,7 +240,7 @@ export default function ContentAlbumsScreen() {
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: insets.bottom + spacing.xl },
+          { paddingBottom: clearance },
         ]}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
@@ -330,7 +332,7 @@ export default function ContentAlbumsScreen() {
       <Pressable
         style={[
           styles.fab,
-          { bottom: Math.max(insets.bottom + 18, 28) },
+          { bottom: clearance },
         ]}
         onPress={() => router.push('/content-album/new' as Href)}
         android_ripple={{ color: 'rgba(255,255,255,0.25)' }}

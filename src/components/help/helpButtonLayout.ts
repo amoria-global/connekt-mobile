@@ -38,7 +38,7 @@ const HIDDEN_PAIRS: [string, string][] = [
 const HEADER_HELP_GROUPS = ['(app)', '(public)'];
 export const HEADERLESS: Record<string, string[]> = {
   '(app)': ['event/hybrid-wizard', 'stream/[id]', 'stream/control/[id]', 'notifications', 'find-my-photos', 'album/new', 'album/[id]', 'content-album/new', 'photobook/[id]', 'photobook/new', 'analytics', 'connect-to-tv', 'pay-on-tv', 'kyc'],
-  '(public)': ['explore-events', 'event/[id]', 'scan/[id]', 'workspace-invite/[id]', 'events/live-stream', 'donate', 'find-photos'],
+  '(public)': ['explore-events', 'event/[id]', 'wish/[id]', 'scan/[id]', 'workspace-invite/[id]', 'events/live-stream', 'donate', 'find-photos'],
 };
 
 /** Headerless screens whose own header carries Help (HeaderHelpButton), so the floating one steps aside there too. */
