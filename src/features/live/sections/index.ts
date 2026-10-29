@@ -11,6 +11,7 @@ export { EventInfo } from './EventInfo';
 export { EventTabs, type LiveTab } from './EventTabs';
 export { SendWishes } from './SendWishes';
 export { InviteOthers } from './InviteOthers';
+export { WatchOnTv } from './WatchOnTv';
 export { PrivacyNote, PRIVACY_NOTE_TEXT } from './PrivacyNote';
 export { WishesFeed, type FeedState } from './WishesFeed';
 export { ModerationQueue } from './ModerationQueue';
