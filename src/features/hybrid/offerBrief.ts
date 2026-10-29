@@ -767,7 +767,10 @@ export function parseOpportunityOfferBrief(opp: PhotographerOpportunity): Parsed
     pricingDecisionLabel: 'MY_OFFER_ANYWAY',
   };
 
-  const raw = opp.instructions?.trim();
+  const rawFull = opp.instructions?.trim();
+  if (!rawFull) return defaults;
+  const draftStateIdx = rawFull.indexOf('[DRAFT_STATE]');
+  const raw = (draftStateIdx >= 0 ? rawFull.slice(0, draftStateIdx) : rawFull).trim();
   if (!raw) return defaults;
 
   if (!raw.includes('[OFFER_SCOPE]')) {
@@ -806,4 +809,60 @@ export function parseOpportunityOfferBrief(opp: PhotographerOpportunity): Parsed
     pricingDecisionLabel: map.PricingDecision || defaults.pricingDecisionLabel,
     styleLabel: map.Style,
   };
+}
+
+/**
+ * Serializes both the readable `[OFFER_SCOPE]` brief and the full JSON draft state
+ * (including the wizard step) so drafts saved on the backend can be resumed losslessly.
+ */
+export function serializeDraftOfferDescription(
+  draft: HybridOfferDraft,
+  durationMinutes: number,
+  step: 1 | 2 | 3 | 4
+): string {
+  const brief = serializeOfferBrief(draft, durationMinutes);
+  const stateJson = JSON.stringify({ step, draft });
+  return `${brief}\n[DRAFT_STATE]${stateJson}`;
+}
+
+/**
+ * Restores a `HybridOfferDraft` and wizard step from an event description saved via
+ * `serializeDraftOfferDescription`.
+ */
+export function deserializeDraftOfferDescription(
+  description?: string | null
+): { step: 1 | 2 | 3 | 4; draft: HybridOfferDraft } | null {
+  if (!description) return null;
+  const idx = description.indexOf('[DRAFT_STATE]');
+  if (idx < 0) return null;
+  const jsonPart = description.slice(idx + '[DRAFT_STATE]'.length).trim();
+  if (!jsonPart) return null;
+  try {
+    const parsed = JSON.parse(jsonPart) as {
+      step?: number;
+      draft?: Partial<HybridOfferDraft>;
+    };
+    if (!parsed || typeof parsed !== 'object' || !parsed.draft) return null;
+    const rawStep = Number(parsed.step);
+    const step: 1 | 2 | 3 | 4 =
+      rawStep === 2 || rawStep === 3 || rawStep === 4 ? rawStep : 1;
+    return {
+      step,
+      draft: {
+        ...DEFAULT_OFFER_DRAFT,
+        ...parsed.draft,
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Strips any `[DRAFT_STATE]` suffix from an event description for clean display.
+ */
+export function stripDraftStateFromDescription(description?: string | null): string {
+  if (!description) return '';
+  const idx = description.indexOf('[DRAFT_STATE]');
+  return (idx >= 0 ? description.slice(0, idx) : description).trim();
 }
