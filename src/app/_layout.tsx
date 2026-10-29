@@ -22,6 +22,7 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-goog
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { useAuth } from '@/store/auth';
 import { takePendingScanEvent } from '@/features/events/scanIntent';
+import { resolveDeferredLink, takePendingDestination } from '@/features/links/deferredLink';
 import { isPhotographerType } from '@/features/auth/role';
 import { takePendingInviteHref } from '@/features/workspace/pendingInvite';
 import { useCurrency } from '@/store/currency';
@@ -127,6 +128,23 @@ function useProtectedRoute() {
   // the Root Layout component."
   const navigationState = useRootNavigationState();
 
+  // First launch after an install: ask for the page the visitor's shared link or QR was going to. It is kept on disk and
+  // delivered by goOr below once they are signed in; if they already are (a reinstall), take it straight away.
+  useEffect(() => {
+    if (!navigationState?.key) return;
+    let cancelled = false;
+    resolveDeferredLink().then((href) => {
+      if (cancelled || !href) return;
+      const { status: now } = useAuth.getState();
+      if (now === 'authenticated' && useOnboarding.getState().termsAccepted === true) {
+        takePendingDestination().then((h) => { if (h) router.replace(h as Href); }).catch(() => undefined);
+      }
+    });
+    return () => { cancelled = true; };
+    // Once per launch: the check itself remembers whether this install already asked.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigationState?.key]);
+
   useEffect(() => {
     if (!navigationState?.key) return;
     if (status === 'idle' || status === 'loading') return;
@@ -162,9 +180,18 @@ function useProtectedRoute() {
           router.replace(href as Href);
           return;
         }
-        takePendingScanEvent()
+        // The page a shared link or QR was going to before the app was installed (see features/links/deferredLink).
+        takePendingDestination()
           .catch(() => null)
-          .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}?src=qr` : fallback) as Href));
+          .then((href) => {
+            if (href) {
+              router.replace(href as Href);
+              return;
+            }
+            takePendingScanEvent()
+              .catch(() => null)
+              .then((eventId) => router.replace((eventId ? `/(public)/event/${eventId}?src=qr` : fallback) as Href));
+          });
       });
     };
 
