@@ -55,6 +55,7 @@ import {
   countByFilter,
   eventStatus,
   filterEvents,
+  isDraftEvent,
   sortEvents,
   visibleSlice,
   type EventFilter,
@@ -142,7 +143,7 @@ export function ClientEventsDashboard({
     const pickColor = (label: string, tone: keyof typeof toneColor): string => {
       if (label === 'Ongoing') return colors.live;
       if (label === 'Published') return colors.success;
-      if (label === 'Not published') return colors.warning;
+      if (label === 'Draft' || label === 'Not published') return colors.warning;
       if (label === 'Completed') return colors.primary;
       if (label === 'Paused') return colors.primaryLight;
       if (label === 'Cancelled') return colors.error;
@@ -194,12 +195,11 @@ export function ClientEventsDashboard({
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} accessibilityLabel="Filter events">
-        {/* A bucket with nothing in it is left out rather than shown as 0, unless it is the one selected. */}
-        {FILTERS.filter((f) => f.key === 'all' || f.key === filter || !counts || counts[f.key] > 0).map((f) => (
+        {/* Drafts filter and available count are always shown alongside All and non-empty filters. */}
+        {FILTERS.filter((f) => f.key === 'all' || f.key === 'drafts' || f.key === filter || !counts || counts[f.key] > 0).map((f) => (
           <Chip
             key={f.key}
             label={f.label}
-            // No count until the list has loaded, so nothing is shown as zero.
             count={counts ? counts[f.key] : undefined}
             selected={filter === f.key}
             onPress={() => {
@@ -291,7 +291,18 @@ export function ClientEventsDashboard({
             onQr={() => setQrTarget(item)}
             onCandidates={() => open(`/event/candidates?id=${item.id}`)}
             onPost={() => {
-              setPostExisting({ id: item.id, title: item.title, eventDate: item.eventDate, startTime: item.startTime, endTime: item.endTime, city: item.city, venue: item.location });
+              setPostExisting({
+                id: item.id,
+                title: item.title,
+                eventDate: item.eventDate,
+                startTime: item.startTime,
+                endTime: item.endTime,
+                city: item.city,
+                venue: item.location,
+                description: item.description,
+                minBudget: item.minBudget,
+                maxBudget: item.maxBudget,
+              });
               setBookingModeOpen(true);
             }}
           />
@@ -449,8 +460,16 @@ function EventRow({
   const { colors } = useTheme();
   const live = isLiveNow(event);
   const status = (event.status ?? '').toUpperCase();
+  const isDraft = isDraftEvent(event);
+  const isHybridDraft =
+    isDraft &&
+    (status === 'DRAFT' ||
+      (event.bookingStatus ?? '').toUpperCase() === 'DRAFT' ||
+      (event.description ?? '').includes('[DRAFT_STATE]') ||
+      modeOf(event.bookingMode) === 'HYBRID');
   const openHybrid = isOpenHybrid(event.bookingMode, status, !!event.photographerName);
   const canPost =
+    !isHybridDraft &&
     !event.photographerName &&
     modeOf(event.bookingMode) === 'DIRECT' &&
     !['COMPLETED', 'DONE', 'CANCELLED', 'CANCELED'].includes(status);
@@ -459,7 +478,7 @@ function EventRow({
     : ['HYBRID_TIMEOUT', 'MATCHING_FAILED'].includes(status)
       ? 'Matching ended'
       : 'See answers';
-  const photographerText = event.photographerName || (openHybrid ? friendlyEventStatus(status) : 'No photographer yet');
+  const photographerText = event.photographerName || (isHybridDraft ? 'Draft offer (not published)' : openHybrid ? friendlyEventStatus(status) : 'No photographer yet');
   const hasPhotographer = !!event.photographerName;
 
   return (
@@ -522,6 +541,9 @@ function EventRow({
           </View>
 
           <View style={styles.primaryActions}>
+            {isHybridDraft ? (
+              <ActionButton label="Continue draft" icon="create-outline" variant="accent" compact onPress={onPost} style={styles.flex} />
+            ) : null}
             {openHybrid ? (
               <ActionButton label={hybridLabel} icon="people-outline" variant="accent" compact onPress={onCandidates} style={styles.flex} />
             ) : null}
@@ -542,7 +564,7 @@ function EventRow({
           </View>
 
           <View style={styles.quickBar}>
-            <QuickActionButton label="Edit" icon="create-outline" onPress={onEdit} />
+            <QuickActionButton label={isHybridDraft ? 'Resume offer' : 'Edit'} icon="create-outline" onPress={isHybridDraft ? onPost : onEdit} />
             {event.published ? <QuickActionButton label="QR" icon="qr-code-outline" onPress={onQr} /> : null}
             {event.published ? <QuickActionButton label="Share" icon="share-social-outline" onPress={onShare} /> : null}
           </View>
