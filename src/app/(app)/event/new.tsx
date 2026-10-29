@@ -1178,7 +1178,9 @@ export default function NewEventScreen() {
               </View>
             ) : null}
 
-            {/* Visibility drives the whole model, so it's always visible. */}
+            {/* Visibility drives the whole model. A photographer is the one who covers, so the question is not theirs
+                (they go live from Host an event); it stays only on an old self-streamed event so it can still be edited. */}
+            {!isPhotographer || visibility === 'PRIVATE' ? (
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>{tr('b3_evnew_who_covers')}</Text>
               <Segmented
@@ -1203,6 +1205,7 @@ export default function NewEventScreen() {
                 </Text>
               </View>
             </View>
+            ) : null}
 
             {!isCoordinator && visibility === 'PRIVATE' ? (
               <Controller
