@@ -34,3 +34,14 @@ export function summarizePayments(rows: readonly SummaryRow[]): PaymentsSummary 
   }
   return { totals: [...byCurrency.values()].sort((a, b) => b.total - a.total), uncounted };
 }
+
+/** Adds amounts within each currency, so a RWF gift and a USD gift are never one figure. Largest first. */
+export function totalsByCurrency(rows: readonly { amount: number; currency: string }[]): { currency: string; total: number }[] {
+  const by = new Map<string, number>();
+  for (const r of rows) {
+    const currency = r.currency.trim().toUpperCase();
+    if (!currency || !Number.isFinite(r.amount)) continue;
+    by.set(currency, (by.get(currency) ?? 0) + r.amount);
+  }
+  return [...by.entries()].map(([currency, total]) => ({ currency, total })).sort((a, b) => b.total - a.total);
+}

@@ -138,6 +138,58 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-29-flags-and-fixes",
+            "date": "2026-10-29",
+            "title": "Currency flags, a clearer event page and a fixed Withdraw screen",
+            "items": [
+              {
+                "icon": "flag-outline",
+                "title": "Real flags on every currency",
+                "body": "Every place you pick a currency now shows its flag next to the code, so RWF, USD, EUR and the rest are easy to tell apart, even offline."
+              },
+              {
+                "icon": "timer-outline",
+                "title": "Countdown and date in one card",
+                "body": "The event page now shows the countdown, the date, the time and the venue together in a single card, counted to the event's own time zone."
+              },
+              {
+                "icon": "checkmark-done-outline",
+                "title": "Past events show as ended",
+                "body": "An event whose date has passed now says Ended on its own page, the same as in the list, instead of Upcoming with a Get notified button."
+              },
+              {
+                "icon": "radio-outline",
+                "title": "Ongoing events are red",
+                "body": "Ongoing events now use the same red as Go Live on the Events screen, the home screen and the event page, so live things stand out."
+              },
+              {
+                "icon": "wallet-outline",
+                "title": "Withdraw shows what you can really withdraw",
+                "body": "The booking balance is now called Booking earnings, empty balances are hidden, and the total you can withdraw is shown across all your sources."
+              },
+              {
+                "icon": "cash-outline",
+                "title": "Self-streamed events in your own currency",
+                "body": "When you stream an event yourself you can pick the fee currency, and coordinators follow the same rules and 100 minimum as clients."
+              },
+              {
+                "icon": "videocam-outline",
+                "title": "Photographers create events in one place",
+                "body": "Create event now opens Host an event for photographers, so there is a single, simpler way to start an event and go live."
+              },
+              {
+                "icon": "albums-outline",
+                "title": "No more Send to Client on paid albums",
+                "body": "Standalone paid albums no longer offer Send to Client, because they are published instead, so you will not hit an error."
+              },
+              {
+                "icon": "cash-outline",
+                "title": "Gift totals in the right currency",
+                "body": "The gift total on Payments is now added up per currency, and a gift priced in dollars is labelled in dollars."
+              }
+            ]
+          },
+          {
             "id": "2026-10-29-events-screen",
             "date": "2026-10-29",
             "title": "A faster, clearer Events screen for photographers",
@@ -237,28 +289,6 @@
                 "icon": "radio-outline",
                 "title": "Clearer Go live buttons",
                 "body": "Go live and My hosted events on Home now look like buttons, and hosted event cards show the date, a status badge and a red Go live button."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-28-live-wishes",
-            "date": "2026-10-28",
-            "title": "A new live event page, with wishes",
-            "items": [
-              {
-                "icon": "sparkles-outline",
-                "title": "Wishes & Memories",
-                "body": "Viewers can send a video wish of up to a minute or a short message, and choose whether it is public or private before sending. Public wishes appear in the event feed once the host approves them."
-              },
-              {
-                "icon": "qr-code-outline",
-                "title": "Invite with a link or QR",
-                "body": "Hosts and guests can share an event link or save its QR code as a picture, so friends can send wishes too."
-              },
-              {
-                "icon": "albums-outline",
-                "title": "A clearer live page",
-                "body": "The live page now shows the event name, host and location under the video, with Live and Wishes & Memories tabs. Hosts see the same layout on the Go live page, with their wishes waiting for approval."
               }
             ]
           }

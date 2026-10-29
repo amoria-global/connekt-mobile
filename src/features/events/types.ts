@@ -2,7 +2,12 @@ import type { ID } from '@/types';
 import { getEventStatus } from './eventStatus';
 
 export type EventStatus = string;
-/** How guests attend: a physical event (ticket consumed outside the app) or stream only. */export type AttendanceMode = 'IN_PERSON' | 'HYBRID' | 'STREAM_ONLY';export function parseAttendanceMode(v: unknown): AttendanceMode | undefined {  const s = typeof v === 'string' ? v.trim().toUpperCase() : '';  return s === 'IN_PERSON' || s === 'HYBRID' || s === 'STREAM_ONLY' ? s : undefined;}
+/** How guests attend: a physical event (ticket consumed outside the app) or stream only. */
+export type AttendanceMode = 'IN_PERSON' | 'HYBRID' | 'STREAM_ONLY';
+export function parseAttendanceMode(v: unknown): AttendanceMode | undefined {
+  const s = typeof v === 'string' ? v.trim().toUpperCase() : '';
+  return s === 'IN_PERSON' || s === 'HYBRID' || s === 'STREAM_ONLY' ? s : undefined;
+}
 
 /** Payload for creating an event / booking a photographer. */
 export type CreateEventInput = {
@@ -26,13 +31,19 @@ export type CreateEventInput = {
    * shows "Free" and never charges anyone.
    */
   streamFee?: number;
+  /** The currency the stream fee is charged in; without it the server defaults a paid stream to RWF. */
+  streamFeeCurrencyId?: string;
   currency?: string;
   maxGuests?: number;
   eventVisibility?: string;
-  /** Wish invites: required when creating, optional when editing. */
-  allowWishInvites?: boolean;
   organizer?: string;
   tags?: string[];
+  /** Whether viewers can share a link or QR so others can send wishes & memories. */
+  allowWishInvites?: boolean;
+  /** Whether live streaming is requested for the event. */
+  hasLiveStream?: boolean;
+  /** Minimum edited photos requested for the event. */
+  minimumPhotos?: number;
   /** Optional booking context when created from a photographer's package. */
   photographerId?: string;
   packageId?: string;

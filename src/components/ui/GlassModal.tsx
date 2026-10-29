@@ -38,22 +38,22 @@ export function GlassScrim({
   const styles = useStyles();
   const { isDark } = useTheme();
   return (
-    <Pressable
-      style={[styles.fill, style]}
-      onPress={onPress}
-      accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={onPress ? accessibilityLabel : undefined}
-      {...rest}
-    >
+    <View style={[styles.fill, style]}>
       <BlurView
         intensity={Platform.OS === 'ios' ? 30 : 50}
         tint={isDark ? 'dark' : 'light'}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
-      <Pressable pointerEvents="none" style={[StyleSheet.absoluteFill, styles.dim]} />
+      <Pressable
+        style={[StyleSheet.absoluteFill, styles.dim]}
+        onPress={onPress}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? accessibilityLabel : undefined}
+        {...rest}
+      />
       {children}
-    </Pressable>
+    </View>
   );
 }
 

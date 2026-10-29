@@ -1,5 +1,6 @@
 import { useState } from 'react';
 
+import { CurrencyFlag } from '@/features/currency/CurrencyFlag';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -10,7 +11,6 @@ import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/th
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { glassTile } from '@/components/ui/GlassCard';
 
-const flagUri = (flag: string) => `https://flagcdn.com/w40/${flag}.png`;
 
 interface CurrencySelectorSheetProps {
   visible: boolean;
@@ -96,11 +96,9 @@ export function CurrencySelectorSheet({
                     pressed && styles.pressed,
                   ]}
                 >
-                  <Image
-                    source={{ uri: flagUri(c.flag) }}
-                    style={styles.rowFlag}
-                    contentFit="cover"
-                  />
+                  <View style={styles.rowFlag}>
+                    <CurrencyFlag code={c.code} width={26} />
+                  </View>
                   <Text style={[styles.rowCode, selected && styles.rowCodeSelected]}>
                     {c.code}
                   </Text>
@@ -215,7 +213,6 @@ const useStyles = makeStyles((c, e) => ({
   rowFlag: {
     width: 26,
     height: 18,
-    borderRadius: 3,
   },
   rowCode: {
     fontSize: fontSize.md,

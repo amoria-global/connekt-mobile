@@ -859,8 +859,8 @@ export default function AlbumDetailScreen() {
                 </Pressable>
               ) : null}
 
-              {/* Send to Client (Photographer) */}
-              {isPhotographer && !isContent ? (
+              {/* Send to Client (Photographer). A standalone paid album is published instead, so it is not offered. */}
+              {isPhotographer && !isContent && !(data?.isStandalone && !data.isFreeAlbum) ? (
                 <Pressable
                   style={[styles.sheetItem, busy === 'send' && styles.btnDisabled]}
                   onPress={onSendToClient}

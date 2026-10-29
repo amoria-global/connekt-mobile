@@ -86,6 +86,8 @@ export type AlbumDetail = GalleryItem & {
   inviteCode?: string;
   accessCode?: string;
   isFreeAlbum?: boolean;
+  /** An album that belongs to no event. A paid one is published, never sent to a client (the server refuses it). */
+  isStandalone?: boolean;
   faceRecognitionEnabled?: boolean;
 };
 
@@ -202,6 +204,7 @@ export async function getAlbum(id: string, role?: string | boolean): Promise<Alb
     inviteCode: str(d.inviteCode),
     accessCode: str(d.accessCode),
     isFreeAlbum: d.freeAlbum === true || d.isFreeAlbum === true || d.albumType === 'free',
+    isStandalone: d.albumType === 'standalone' || d.standalone === true || d.isStandalone === true,
     faceRecognitionEnabled: d.faceRecognitionEnabled === true,
     images: rawImages
       .map((i) => {

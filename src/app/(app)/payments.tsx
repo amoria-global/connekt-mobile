@@ -47,7 +47,7 @@ import { formatDate, formatMoney, formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
 import { canUsePaymentsScreen } from '@/features/payments/access';
 import { paymentBucket } from '@/features/payments/statusBucket';
-import { summarizePayments } from '@/features/payments/summary';
+import { summarizePayments, totalsByCurrency } from '@/features/payments/summary';
 import { useStackClearance } from '@/hooks/useScrollClearance';
 import { useSharedT } from '@/i18n/sharedStrings';
 
@@ -163,10 +163,11 @@ function PaymentsContent() {
   const totalStreamingRevenue = streamingData?.totalStreamingRevenue ?? 0;
 
   const giftPayments: GiftPayment[] = giftsData ?? [];
-  const totalGiftRevenue = useMemo(
-    () => giftPayments.filter((g) => g.status === 'completed').reduce((sum, g) => sum + g.netAmount, 0),
-    [giftPayments],
-  );
+  // Each gift's net is in its own currency, so the total is kept per currency and never labelled with one.
+  const giftRevenueLabel = useMemo(() => {
+    const totals = totalsByCurrency(giftPayments.filter((g) => g.status === 'completed').map((g) => ({ amount: g.netAmount, currency: g.currency })));
+    return totals.length ? totals.map((t) => formatPrice(t.total, t.currency)).join(' + ') : formatPrice(0, 'RWF');
+  }, [giftPayments]);
 
   const onRefresh = () => {
     if (section === 'events') refreshPayments();
@@ -326,7 +327,7 @@ function PaymentsContent() {
             <View style={styles.streamCardBottom}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.streamBottomLabel}>{tr('Total Gift Revenue')}</Text>
-                <Text style={styles.giftBottomValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{formatPrice(totalGiftRevenue, 'RWF')}</Text>
+                <Text style={styles.giftBottomValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>{giftRevenueLabel}</Text>
               </View>
               <ActionButton compact variant="primary" icon="cash-outline" label="Withdraw" onPress={() => router.push('/withdraw' as Href)} />
             </View>

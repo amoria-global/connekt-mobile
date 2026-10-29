@@ -110,6 +110,9 @@ export async function getMatchPreview(payload: MatchPreviewPayload): Promise<Mat
     firstBatchSize: num(raw.firstBatchSize),
     tierCounts: (raw.tierCounts as MatchPreviewResult['tierCounts']) || undefined,
     breakdown: raw.breakdown as MatchPreviewResult['breakdown'],
+    packagePriceLow: num(raw.packagePriceLow),
+    packagePriceRecommended: num(raw.packagePriceRecommended),
+    packagePricePriority: num(raw.packagePricePriority),
   };
 }
 
@@ -270,6 +273,13 @@ function mapOpportunity(raw: any): PhotographerOpportunity {
     candidateExpiresAt: str(raw?.candidateExpiresAt) ?? str(raw?.responseDeadlineAt),
     serverNow: str(raw?.serverNow),
     status: raw?.status ?? 'INVITED',
+    matchedPackageId: str(raw?.matchedPackageId),
+    matchedPackageName: str(raw?.matchedPackageName),
+    matchedPackagePrice: num(raw?.matchedPackagePrice),
+    matchedPackageCurrency: str(raw?.matchedPackageCurrency),
+    hasLiveStream: typeof raw?.hasLiveStream === 'boolean' ? raw.hasLiveStream : undefined,
+    allowWishInvites: typeof raw?.allowWishInvites === 'boolean' ? raw.allowWishInvites : undefined,
+    minimumPhotos: num(raw?.minimumPhotos),
   };
 }
 
