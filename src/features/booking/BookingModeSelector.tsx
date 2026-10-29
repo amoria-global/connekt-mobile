@@ -2061,7 +2061,7 @@ export function BookingModeSelector({
                     {active ? <View style={styles.pkgRadioInner} /> : null}
                   </View>
                   <View style={styles.pkgIconCircle}>
-                    <Ionicons name="flash" size={18} color="#38BDF8" />
+                    <Ionicons name="flash" size={18} color={colors.link} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
                     <View style={[styles.pkgBadge, styles.pkgBadgeCyan]}>
@@ -2115,7 +2115,7 @@ export function BookingModeSelector({
               accessibilityRole="button"
               accessibilityLabel={tr('Publish my offer anyway')}
             >
-              <Ionicons name="arrow-forward" size={16} color="#38BDF8" />
+              <Ionicons name="arrow-forward" size={16} color={colors.link} />
               <Text style={styles.publishAnywayBtnText}>{tr('Publish my offer anyway')}</Text>
             </Pressable>
 
@@ -3400,7 +3400,7 @@ const useStyles = makeStyles((c, e) => ({
   budgetRangeActiveBadge: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.extrabold,
-    color: '#38BDF8',
+    color: c.link,
   },
   budgetRangeRow: {
     flexDirection: 'row',
@@ -3519,7 +3519,7 @@ const useStyles = makeStyles((c, e) => ({
   },
   yourOfferBudgetHighlight: {
     fontWeight: fontWeight.extrabold,
-    color: '#38BDF8',
+    color: c.link,
   },
   compareSectionTitle: {
     fontSize: fontSize.md,
@@ -3589,7 +3589,7 @@ const useStyles = makeStyles((c, e) => ({
   pkgBadgeCyanText: {
     fontSize: 10,
     fontWeight: fontWeight.extrabold,
-    color: '#38BDF8',
+    color: c.link,
   },
   pkgBadgePurple: {
     backgroundColor: c.primary,
@@ -3667,7 +3667,7 @@ const useStyles = makeStyles((c, e) => ({
     minHeight: 44,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: '#38BDF8',
+    borderColor: c.link,
     backgroundColor: 'transparent',
     flexDirection: 'row',
     alignItems: 'center',
