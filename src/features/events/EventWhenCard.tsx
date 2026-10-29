@@ -1,5 +1,5 @@
 /**
- * Date and time as one card: "Fri, 27 Nov 2026" over "4:11 PM · Kigali time (CAT)", with an Add to calendar button.
+ * Date and time as one card (with the "Starts in" countdown as its top section while the event is upcoming): "Fri, 27 Nov 2026" over "4:11 PM · Kigali time (CAT)", with an Add to calendar button.
  * Extra rows (venue, capacity) the event page already showed sit under them in the same card.
  */
 import type { ReactNode } from 'react';
@@ -7,15 +7,17 @@ import { Linking, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { fontSize, fontWeight, makeStyles, onFill, radii, spacing } from '@/theme';
+import { EventCountdown } from './EventCountdown';
 import { calendarUrl, eventWhen, type WhenInput } from './eventWhen';
 
-export function EventWhenCard({ event, title, location, children }: { event: WhenInput; title: string; location?: string | null; children?: ReactNode }) {
+export function EventWhenCard({ event, title, location, countdown = false, children }: { event: WhenInput; title: string; location?: string | null; countdown?: boolean; children?: ReactNode }) {
   const styles = useStyles();
   const when = eventWhen(event);
   const url = calendarUrl({ ...event, title, location });
   if (!when.date && !when.time) return children ? <View style={styles.card}>{children}</View> : null;
   return (
     <View style={styles.card}>
+      {countdown ? <EventCountdown event={event} /> : null}
       <View style={styles.row}>
         <View style={styles.icon}>
           <Ionicons name="calendar-outline" size={18} color={onFill} />

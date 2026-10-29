@@ -220,79 +220,6 @@ function buildCta(
   return null;
 }
 
-// ── Countdown helpers ────────────────────────────────────────────────────────
-
-function parseEventStart(dateStr?: string, timeStr?: string): Date | null {
-  if (!dateStr) return null;
-  try {
-    const [y, m, d] = dateStr.split('-').map(Number);
-    if (timeStr) {
-      const [hh, mm] = timeStr.split(':').map(Number);
-      return new Date(y, m - 1, d, hh, mm);
-    }
-    return new Date(y, m - 1, d);
-  } catch {
-    return null;
-  }
-}
-
-function msToCountdown(ms: number) {
-  const totalSec = Math.max(0, Math.floor(ms / 1000));
-  const days = Math.floor(totalSec / 86400);
-  const hours = Math.floor((totalSec % 86400) / 3600);
-  const minutes = Math.floor((totalSec % 3600) / 60);
-  const seconds = totalSec % 60;
-  return { days, hours, minutes, seconds };
-}
-
-const pad = (n: number) => String(n).padStart(2, '0');
-
-/**
- * The "Starts in" card. It owns the one-second clock, so only this card re-renders each second
- * and not the whole event screen above it.
- */
-function EventCountdown({ start }: { start: Date | null }) {
-  const { t } = useLanguage();
-  const { colors } = useTheme();
-  const styles = useStyles();
-  const startMs = start ? start.getTime() : null;
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (startMs === null) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, [startMs]);
-  if (startMs === null || startMs - now <= 0) return null;
-  const countdown = msToCountdown(startMs - now);
-  return (
-    <View style={styles.countdownCard}>
-      <Text style={styles.countdownEyebrow}>
-        <Ionicons name="hourglass-outline" size={12} color={colors.primary} /> {t('b4_startsIn')}
-      </Text>
-      <View style={styles.countdownGrid}>
-        {countdown.days > 0 ? (
-          <View style={styles.countdownCell}>
-            <Text style={styles.countdownNum}>{pad(countdown.days)}</Text>
-            <Text style={styles.countdownUnit}>{countdown.days === 1 ? t('b4_daySingular') : t('b4_dayPlural')}</Text>
-          </View>
-        ) : null}
-        <View style={styles.countdownCell}>
-          <Text style={styles.countdownNum}>{pad(countdown.hours)}</Text>
-          <Text style={styles.countdownUnit}>{t('b4_hr')}</Text>
-        </View>
-        <View style={styles.countdownCell}>
-          <Text style={styles.countdownNum}>{pad(countdown.minutes)}</Text>
-          <Text style={styles.countdownUnit}>{t('b4_min')}</Text>
-        </View>
-        <View style={styles.countdownCell}>
-          <Text style={styles.countdownNum}>{pad(countdown.seconds)}</Text>
-          <Text style={styles.countdownUnit}>{t('b4_sec')}</Text>
-        </View>
-      </View>
-    </View>
-  );
-}
-
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function PublicEventDetailScreen() {
@@ -814,12 +741,9 @@ export default function PublicEventDetailScreen() {
             </View>
           ) : null}
 
-          {/* Countdown card (web `.ve-countdown-card`) */}
-          {status.isUpcoming ? <EventCountdown start={parseEventStart(data.eventDate, data.startTime)} /> : null}
-
-          {/* Date and time in one card; venue and capacity stay inside it */}
+          {/* Countdown, date and time in one card; venue and capacity stay inside it */}
           {!status.isCompleted ? (
-            <EventWhenCard event={data} title={data.title} location={data.location}>
+            <EventWhenCard event={data} title={data.title} location={data.location} countdown={status.isUpcoming}>
               {data.location ? <Row icon="location-outline" text={data.location} /> : null}
               {data.maxGuests ? <Row icon="people-outline" text={t('b4_upToGuests', { count: data.maxGuests.toLocaleString() })} /> : null}
             </EventWhenCard>
@@ -1253,31 +1177,6 @@ const useStyles = makeStyles((c, e) => ({
     borderColor: c.borderSoft,
   },
   tagText: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold },
-
-  // Countdown
-  countdownCard: {
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.primary,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
-  countdownEyebrow: {
-    color: c.primary,
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    letterSpacing: 0.5,
-  },
-  countdownGrid: { flexDirection: 'row', gap: spacing.md },
-  countdownCell: { alignItems: 'center', minWidth: 48 },
-  countdownNum: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.extrabold,
-    color: c.text,
-    fontVariant: ['tabular-nums'],
-  },
-  countdownUnit: { fontSize: 11, color: c.textMuted, fontWeight: fontWeight.semibold },
 
   // Info card
   infoCard: {
