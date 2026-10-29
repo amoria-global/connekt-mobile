@@ -12,7 +12,7 @@ import { dateChipLabel, STATUS_LABEL, type Counts, type DateFilter, type StatusF
 
 export type EventsLayout = 'list' | 'calendar';
 const ORDER: StatusFilter[] = ['all', 'upcoming', 'ongoing', 'completed'];
-const TONE: Record<StatusFilter, ChipTone> = { all: 'primary', upcoming: 'primary', ongoing: 'active', completed: 'success' };
+const TONE: Record<StatusFilter, ChipTone> = { all: 'primary', upcoming: 'primary', ongoing: 'live', completed: 'success' };
 
 export function EventsToolbar({
   counts,

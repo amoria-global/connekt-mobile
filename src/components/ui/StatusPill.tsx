@@ -27,9 +27,9 @@ const STATUS_TRANSLATIONS: Record<string, { fr: string; es: string; rw: string; 
   PARTIALLY_PAID: { fr: 'Partiellement payé', es: 'Parcialmente pagado', rw: 'Byishyuwe igice', sw: 'Imelipwa kiasi' },
 };
 
-/** On air right now takes the broadcast red; in progress takes the active cyan. */
-const LIVE = new Set(['LIVE', 'STREAMING']);
-const ACTIVE = new Set(['ONGOING', 'IN_PROGRESS']);
+/** On air or ongoing takes the broadcast red; other in-progress work takes the active cyan. */
+const LIVE = new Set(['LIVE', 'STREAMING', 'ONGOING']);
+const ACTIVE = new Set(['IN_PROGRESS']);
 
 /** Maps a free-form status string to a chip tone (blue action, amber pending, cyan live). */
 export function statusChipTone(status?: string): ChipTone {
