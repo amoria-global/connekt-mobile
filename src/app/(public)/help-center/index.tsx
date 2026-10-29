@@ -1,141 +1,123 @@
-import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View, TextInput, TouchableOpacity } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
-import { useLanguage } from '@/hooks/useLanguage';
-import { spacing, fontSize, makeStyles, useTheme } from '@/theme';
+import { HELP_ARTICLE_COUNT, HELP_CATEGORIES, searchHelp } from '@/content/helpCenter';
+import { helpTone } from '@/features/support/helpTone';
+import { alpha, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
 export default function HelpCenterScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
-  const { t } = useLanguage();
-  const [searchTerm, setSearchTerm] = useState('');
+  const [query, setQuery] = useState('');
+  const hits = useMemo(() => searchHelp(query), [query]);
+  const searching = query.trim().length > 0;
 
-  const categories = [
-    {
-      id: 'my-account',
-      name: t('b4_hcCatMyAccountName'),
-      icon: 'person-outline',
-      articles: 12,
-      description: t('b4_hcCatMyAccountDesc'),
-      color: colors.primary,
-    },
-    {
-      id: 'payment',
-      name: t('b4_hcCatPaymentName'),
-      articles: 8,
-      description: t('b4_hcCatPaymentDesc'),
-      color: colors.success,
-    },
-    {
-      id: 'security',
-      name: t('b4_hcCatSecurityName'),
-      articles: 6,
-      description: t('b4_hcCatSecurityDesc'),
-      color: colors.error,
-    },
-    {
-      id: 'payment-methods',
-      name: t('b4_hcCatPaymentMethodsName'),
-      articles: 5,
-      description: t('b4_hcCatPaymentMethodsDesc'),
-      color: colors.pending,
-    },
-    {
-      id: 'booking',
-      name: t('b4_hcCatBookingName'),
-      articles: 10,
-      description: t('b4_hcCatBookingDesc'),
-      color: colors.accent,
-    },
-    {
-      id: 'technical-support',
-      name: t('b4_hcCatTechSupportName'),
-      articles: 7,
-      description: t('b4_hcCatTechSupportDesc'),
-      color: colors.primaryLight,
-    },
-  ];
-
-  const handleCategoryPress = (id: string) => {
-    router.push(`/help-center/${id}` as unknown as any);
-  };
+  const openCategory = (id: string, article?: string) =>
+    router.push({ pathname: '/help-center/[category]', params: article ? { category: id, article } : { category: id } } as unknown as any);
 
   return (
     <Screen padded={false}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.hero}>
-          <Text style={styles.title}>{t('b4_hcHeroTitle')}</Text>
+          <Text style={styles.title} accessibilityRole="header">How can we help?</Text>
           <Text style={styles.subtitle}>
-            {t('b4_hcHeroSubtitle')}
+            {HELP_ARTICLE_COUNT} guides covering every part of the app. Search, or pick a topic.
           </Text>
-
-          <View style={styles.searchContainer}>
+          <View style={styles.search}>
+            <Ionicons name="search" size={18} color={colors.textMuted} />
             <TextInput
               style={styles.searchInput}
-              placeholder={t('b4_hcSearchPlaceholder')}
+              placeholder="Search, for example withdraw or go live"
               placeholderTextColor={colors.textMuted}
-              value={searchTerm}
-              onChangeText={setSearchTerm}
+              value={query}
+              onChangeText={setQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+              accessibilityLabel="Search the Help Center"
             />
+            {searching ? (
+              <Pressable onPress={() => setQuery('')} hitSlop={12} accessibilityRole="button" accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
           </View>
         </View>
 
-        <View style={styles.statsStrip}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>48+</Text>
-            <Text style={styles.statLabel}>{t('b4_hcStatArticles')}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>24/7</Text>
-            <Text style={styles.statLabel}>{t('b4_hcStatSupport')}</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNum}>&lt;2h</Text>
-            <Text style={styles.statLabel}>{t('b4_hcStatResponse')}</Text>
-          </View>
-        </View>
-
-        <View style={styles.grid}>
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              style={[styles.card, { borderColor: cat.color + '33' }]}
-              onPress={() => handleCategoryPress(cat.id)}
-            >
-              <View style={[styles.iconContainer, { backgroundColor: cat.color + '1A' }]}>
-                <View style={[styles.iconPlaceholder, { backgroundColor: cat.color }]} />
+        {searching ? (
+          <View style={styles.results}>
+            {hits.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>Nothing matches &quot;{query.trim()}&quot;</Text>
+                <Text style={styles.emptyText}>Try fewer or different words, or browse the topics below.</Text>
               </View>
-              <Text style={styles.cardTitle}>{cat.name}</Text>
-              <Text style={styles.cardDesc}>{cat.description}</Text>
-              <View style={styles.cardFooter}>
-                <Text style={[styles.articleCount, { color: cat.color }]}>
-                  {t('b4_hcArticleCount').replace('{count}', String(cat.articles))}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+            ) : (
+              hits.map(({ category, article }) => (
+                <Pressable
+                  key={`${category.id}/${article.id}`}
+                  style={styles.hit}
+                  onPress={() => openCategory(category.id, article.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${article.title}, in ${category.title}`}
+                >
+                  <View style={styles.flex}>
+                    <Text style={styles.hitCat}>{category.title}</Text>
+                    <Text style={styles.hitTitle}>{article.title}</Text>
+                    <Text style={styles.hitSummary}>{article.summary}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </Pressable>
+              ))
+            )}
+          </View>
+        ) : (
+          <View style={styles.grid}>
+            {HELP_CATEGORIES.map((cat) => {
+              const tone = helpTone(cat.tone, colors);
+              return (
+                <Pressable
+                  key={cat.id}
+                  style={({ pressed }) => [styles.card, { borderColor: alpha(tone, 0.3) }, pressed && styles.pressed]}
+                  onPress={() => openCategory(cat.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${cat.title}. ${cat.articles.length} guides`}
+                >
+                  <View style={[styles.iconTile, { backgroundColor: alpha(tone, 0.16) }]}>
+                    <Ionicons name={cat.icon} size={22} color={tone} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={styles.cardTitle}>{cat.title}</Text>
+                    <Text style={styles.cardDesc}>{cat.blurb}</Text>
+                    <Text style={[styles.count, { color: tone }]}>
+                      {cat.articles.length} {cat.articles.length === 1 ? 'guide' : 'guides'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
-        {/* Still need help? — contact / feedback (web parity). */}
-        <View style={styles.helpFooter}>
-          <Text style={styles.helpFooterTitle}>{t('b4_hcStillNeedHelpTitle')}</Text>
-          <Text style={styles.helpFooterText}>
-            {t('b4_hcStillNeedHelpText')}
-          </Text>
-          <View style={styles.helpFooterRow}>
-            <TouchableOpacity
-              style={[styles.helpFooterBtn, styles.helpFooterBtnPrimary]}
+        <View style={styles.footer}>
+          <Text style={styles.footerTitle}>Still need help?</Text>
+          <Text style={styles.footerText}>Send us a message with what you were doing and any reference number, and we will get back to you in the app and by email.</Text>
+          <View style={styles.footerRow}>
+            <Pressable
+              style={[styles.btn, styles.btnPrimary]}
               onPress={() => router.push('/contact_us' as unknown as any)}
+              accessibilityRole="button"
             >
-              <Text style={styles.helpFooterBtnPrimaryText}>{t('b4_hcContactUsBtn')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.helpFooterBtn}
+              <Text style={styles.btnPrimaryText}>Contact us</Text>
+            </Pressable>
+            <Pressable
+              style={styles.btn}
               onPress={() => router.push('/feedback' as unknown as any)}
+              accessibilityRole="button"
             >
-              <Text style={styles.helpFooterBtnText}>{t('b4_hcSendFeedbackBtn')}</Text>
-            </TouchableOpacity>
+              <Text style={styles.btnText}>Send feedback</Text>
+            </Pressable>
           </View>
         </View>
       </ScrollView>
@@ -143,10 +125,10 @@ export default function HelpCenterScreen() {
   );
 }
 
-const useStyles = makeStyles((c, e) => ({
-  container: {
-    paddingBottom: spacing.xxxl,
-  },
+const useStyles = makeStyles((c) => ({
+  flex: { flex: 1 },
+  pressed: { opacity: 0.85 },
+  container: { paddingBottom: spacing.xxxl },
   hero: {
     backgroundColor: c.primary,
     padding: spacing.xl,
@@ -154,128 +136,76 @@ const useStyles = makeStyles((c, e) => ({
     paddingBottom: spacing.xxl,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    gap: spacing.sm,
+  },
+  title: { fontSize: fontSize.xxl, fontWeight: fontWeight.extrabold, color: c.textOnPrimary },
+  subtitle: { fontSize: fontSize.md, lineHeight: 22, color: alpha(c.textOnPrimary, 0.85), marginBottom: spacing.md },
+  search: {
+    flexDirection: 'row',
     alignItems: 'center',
-  },
-  title: {
-    fontSize: fontSize.xxl,
-    fontWeight: '800',
-    color: c.textOnPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: fontSize.md,
-    color: c.textOnPrimary + 'CC',
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  searchContainer: {
-    width: '100%',
+    gap: spacing.sm,
     backgroundColor: c.background,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    minHeight: 48,
+  },
+  searchInput: { flex: 1, fontSize: fontSize.md, color: c.text, paddingVertical: spacing.sm },
+
+  grid: { padding: spacing.lg, gap: spacing.md },
+  card: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: fontSize.md,
-    color: c.text,
-    paddingVertical: spacing.xs,
-  },
-  statsStrip: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    padding: spacing.md,
-    marginHorizontal: spacing.md,
-    marginTop: -spacing.xl,
-    backgroundColor: c.card,
-    borderRadius: 16,
-    ...e(2),
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statNum: {
-    fontSize: fontSize.lg,
-    fontWeight: '800',
-    color: c.primary,
-  },
-  statLabel: {
-    fontSize: fontSize.xs,
-    color: c.textMuted,
-    textTransform: 'uppercase',
-    marginTop: 2,
-    fontWeight: '600',
-  },
-  grid: {
-    padding: spacing.md,
     gap: spacing.md,
-    marginTop: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    backgroundColor: c.card,
   },
-  helpFooter: {
-    margin: spacing.md,
-    marginTop: spacing.sm,
+  iconTile: { width: 44, height: 44, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text },
+  cardDesc: { fontSize: fontSize.sm, lineHeight: 19, color: c.textMuted, marginTop: 2 },
+  count: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, marginTop: spacing.xs },
+
+  results: { padding: spacing.lg, gap: spacing.sm },
+  hit: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.card,
+  },
+  hitCat: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.primary, textTransform: 'uppercase' },
+  hitTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text, marginTop: 2 },
+  hitSummary: { fontSize: fontSize.sm, color: c.textMuted, marginTop: 2, lineHeight: 19 },
+  empty: { alignItems: 'center', gap: spacing.xs, padding: spacing.xl },
+  emptyTitle: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.text, textAlign: 'center' },
+  emptyText: { fontSize: fontSize.sm, color: c.textMuted, textAlign: 'center' },
+
+  footer: {
+    margin: spacing.lg,
     padding: spacing.xl,
     backgroundColor: c.card,
-    borderRadius: 16,
+    borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: c.border,
     gap: spacing.sm,
   },
-  helpFooterTitle: { fontSize: fontSize.lg, fontWeight: '800', color: c.text },
-  helpFooterText: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
-  helpFooterRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
-  helpFooterBtn: {
+  footerTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  footerText: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
+  footerRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.sm },
+  btn: {
     flex: 1,
-    paddingVertical: spacing.md,
-    borderRadius: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.border,
     alignItems: 'center',
   },
-  helpFooterBtnText: { fontSize: fontSize.sm, fontWeight: '700', color: c.text },
-  helpFooterBtnPrimary: { backgroundColor: c.primary, borderColor: c.primary },
-  helpFooterBtnPrimaryText: { fontSize: fontSize.sm, fontWeight: '700', color: c.textOnPrimary },
-  card: {
-    backgroundColor: c.card,
-    borderRadius: 16,
-    padding: spacing.md,
-    borderWidth: 1,
-    ...e(1),
-  },
-  iconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  iconPlaceholder: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-  },
-  cardTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: '700',
-    color: c.text,
-    marginBottom: spacing.xs,
-  },
-  cardDesc: {
-    fontSize: fontSize.sm,
-    color: c.textMuted,
-    marginBottom: spacing.md,
-  },
-  cardFooter: {
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.border,
-    paddingTop: spacing.sm,
-  },
-  articleCount: {
-    fontSize: fontSize.xs,
-    fontWeight: '700',
-  },
+  btnText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
+  btnPrimary: { backgroundColor: c.primary, borderColor: c.primary },
+  btnPrimaryText: { fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.textOnPrimary },
 }));
