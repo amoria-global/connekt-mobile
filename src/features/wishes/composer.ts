@@ -2,13 +2,12 @@
  * The rules of the wish composer, apart from any screen: who is sending, what is missing before Send is allowed,
  * and the wording of the counters. Visibility has no default: the sender picks public or private before sending.
  */
-import { isEmail, type Identity } from '@/features/events/guestIdentity';
+import type { Identity } from '@/features/events/guestIdentity';
 import { MAX_WISH_TEXT, MAX_WISH_VIDEO_SECONDS, type WishVisibility } from './types';
 
 export type ComposerDraft = {
   kind: 'text' | 'video';
   name: string;
-  email: string;
   message: string;
   visibility: WishVisibility | null;
   /** Video only: the clip's length in seconds, null while unknown, and whether a clip is attached. */
@@ -16,14 +15,13 @@ export type ComposerDraft = {
   hasVideo: boolean;
 };
 
-export type ComposerErrors = Partial<Record<'name' | 'email' | 'message' | 'visibility' | 'video', string>>;
+export type ComposerErrors = Partial<Record<'name' | 'message' | 'visibility' | 'video', string>>;
 
-/** `account` is set for a signed-in person, who is never asked for a name or email. */
+/** `account` is set for a signed-in person, who is never asked for a name. A wish needs a name and no email. */
 export function validateDraft(draft: ComposerDraft, account: Identity | null): ComposerErrors {
   const errors: ComposerErrors = {};
   if (!account) {
     if (!draft.name.trim()) errors.name = 'Please enter your name.';
-    if (!isEmail(draft.email)) errors.email = 'Please enter a valid email.';
   }
   if (draft.kind === 'text') {
     if (!draft.message.trim()) errors.message = 'Please write your message.';
