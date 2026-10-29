@@ -200,7 +200,7 @@ export function StatStrip({ value, label, note, noteDot, accessibilityLabel }: {
       {note ? <View style={st.stripDivider} /> : null}
       {note ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-          {noteDot ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.active }} /> : null}
+          {noteDot ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.live }} /> : null}
           <Text style={st.stripNote} numberOfLines={1}>
             {note}
           </Text>

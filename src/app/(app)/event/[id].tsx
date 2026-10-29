@@ -925,7 +925,7 @@ function heroStatus(s: string, published?: boolean): { label: string; tone: Swat
   switch (s) {
     case 'ONGOING':
     case 'IN_PROGRESS':
-      return { label: 'ONGOING', tone: 'info' as const };
+      return { label: 'ONGOING', tone: 'live' as const };
     case 'COMPLETED':
     case 'DONE':
       return { label: 'COMPLETED', tone: 'success' as const };
