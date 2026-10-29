@@ -35,6 +35,19 @@ export async function loadGuestIdentity(): Promise<Partial<Identity>> {
   }
 }
 
+/**
+ * Remember the name a guest typed on a wish, leaving the email they gave elsewhere (the event reminder) untouched: a wish
+ * asks for a name only, and saving just that must not wipe an email another form saved under the same key.
+ */
+export async function saveGuestName(name: string): Promise<void> {
+  const before = await loadGuestIdentity();
+  try {
+    await storage.set(KEY, JSON.stringify({ ...before, name }));
+  } catch {
+    /* remembering is a convenience */
+  }
+}
+
 export async function saveGuestIdentity(id: Identity): Promise<void> {
   try {
     await storage.set(KEY, JSON.stringify(id));
