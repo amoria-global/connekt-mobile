@@ -33,7 +33,9 @@ import {
   FALLBACK_CURRENCIES,
   floorTo,
   formatDisplay,
+  orderSources,
   parseAmount,
+  totalWithdrawable,
   usdToDisplay,
   verificationCopy,
   type Verification,
@@ -100,7 +102,8 @@ export default function WithdrawScreen() {
   // 0 when the backend gave no RWF rate: no donation presets are offered then.
   const rwfRate = currencyList.find((c) => c.code === 'RWF')?.rate ?? 0;
 
-  const sourceList = sources.data ?? [];
+  const sourceList = useMemo(() => orderSources(sources.data ?? []), [sources.data]);
+  const allWithdrawable = totalWithdrawable(sourceList);
   const source: WithdrawSource | null =
     sourceList.find((s) => s.source === sourceKey) ?? sourceList[0] ?? null;
 
@@ -426,6 +429,9 @@ export default function WithdrawScreen() {
               {sourceList.length > 1 ? (
                 <View style={styles.section}>
                   <Text style={styles.sectionLabel}>{tr('Withdraw from')}</Text>
+                  <Text style={styles.muted}>
+                    {tr('Available to withdraw')}: {formatDisplay(floorTo(usdToDisplay(allWithdrawable, currency), currency.decimals), currency)} {tr('across all sources')}
+                  </Text>
                   <View style={styles.chips}>
                     {sourceList.map((s) => (
                       <Chip

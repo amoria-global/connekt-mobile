@@ -67,7 +67,7 @@ describe('amountError', () => {
   });
 
   it('refuses more than the balance, zero and garbage', () => {
-    expect(amountError('14700', balance, RWF)).toMatch(/more than your available balance of RF 14,600/);
+    expect(amountError('14700', balance, RWF)).toMatch(/more than your booking earnings of RF 14,600/);
     expect(amountError('10.02', balance, USD)).toMatch(/more than/);
     expect(amountError('0', balance, RWF)).toMatch(/greater than zero/);
     expect(amountError('abc', balance, RWF)).toMatch(/greater than zero/);
@@ -132,5 +132,25 @@ describe('readVerify', () => {
       message: 'Invalid OTP code',
       remainingAttempts: 2,
     });
+  });
+});
+
+import { orderSources, totalWithdrawable } from './model';
+
+describe('withdraw sources', () => {
+  const src = (source: string, availableBalance: number) => ({ source, label: source, availableBalance, isGiftWithdrawal: false });
+
+  it('calls the BALANCE source booking earnings, not the available balance', () => {
+    expect(mapSource({ source: 'BALANCE', label: 'Available balance', availableBalance: 0 }).label).toBe('Booking earnings');
+    expect(mapSource({ source: 'STREAM_FEES', label: 'Stream revenue', availableBalance: 6.62 }).label).toBe('Stream revenue');
+  });
+
+  it('drops an empty source when another has money, and keeps the list when none does', () => {
+    expect(orderSources([src('BALANCE', 0), src('STREAM_FEES', 6.62)]).map((s) => s.source)).toEqual(['STREAM_FEES']);
+    expect(orderSources([src('BALANCE', 0)]).map((s) => s.source)).toEqual(['BALANCE']);
+  });
+
+  it('totals every source, the figure the wallet calls available to withdraw', () => {
+    expect(totalWithdrawable([src('BALANCE', 0), src('STREAM_FEES', 6.62), src('TIPS', 1)])).toBeCloseTo(7.62);
   });
 });
