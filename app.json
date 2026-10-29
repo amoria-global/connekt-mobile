@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-29-help-and-signin",
+            "date": "2026-10-29",
+            "title": "A fuller Help Center and a roomier sign-in",
+            "items": [
+              {
+                "icon": "help-circle-outline",
+                "title": "Help for every part of the app",
+                "body": "The Help Center now has step by step guides for accounts, bookings, events, live streams, wishes, photos, payments, your wallet, security and fixing problems, with search that finds the right guide."
+              },
+              {
+                "icon": "phone-portrait-outline",
+                "title": "Sign-in fits better",
+                "body": "The sign-in form is more compact, so Find My Photos and Explore Events get more room at the top of the screen."
+              }
+            ]
+          },
+          {
             "id": "2026-10-29-wish-name-only",
             "date": "2026-10-29",
             "title": "Sending a wish is simpler",
@@ -242,33 +259,6 @@
                 "icon": "hand-left-outline",
                 "title": "Quick actions on press and hold",
                 "body": "Each event row is more compact. Press and hold it for stream, album, QR code and remove, while Accept and Deny stay on pending requests."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-29-album-share",
-            "date": "2026-10-29",
-            "title": "Share your albums with a link or QR code",
-            "items": [
-              {
-                "icon": "qr-code-outline",
-                "title": "Link and QR for Find My Photos",
-                "body": "When an album is live on Find My Photos, open it and tap Share to get a QR code and a link. Attendees scan or open it, take a selfie and find their photos."
-              },
-              {
-                "icon": "scan-outline",
-                "title": "Paid albums go live on their own",
-                "body": "A paid personal album is now published to Find My Photos as soon as its photos are uploaded, with the price you set, and the share sheet opens right away."
-              },
-              {
-                "icon": "pricetag-outline",
-                "title": "Set a price before publishing an event album",
-                "body": "The first time you publish an event album, you choose the price per photo and its currency, the same as on the web dashboard."
-              },
-              {
-                "icon": "image-outline",
-                "title": "The Connekyt logo in every QR code",
-                "body": "Every QR code in the app, and the ones you save, now carries the Connekyt logo in the middle and still scans."
               }
             ]
           }
