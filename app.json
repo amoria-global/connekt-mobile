@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-30-watch-on-tv",
+            "date": "2026-10-30",
+            "title": "Watch live streams on your TV",
+            "items": [
+              {
+                "icon": "tv-outline",
+                "title": "Send a stream to your TV",
+                "body": "On a live event, tap the TV icon at the top, pick one of your connected TVs and the stream opens on it in the Connekyt TV app. If you have no TV connected yet, the same screen takes you to connect one."
+              }
+            ]
+          },
+          {
             "id": "2026-10-29-help-and-signin",
             "date": "2026-10-29",
             "title": "A fuller Help Center and a roomier sign-in",
@@ -232,33 +244,6 @@
                 "icon": "cash-outline",
                 "title": "Gift totals in the right currency",
                 "body": "The gift total on Payments is now added up per currency, and a gift priced in dollars is labelled in dollars."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-29-events-screen",
-            "date": "2026-10-29",
-            "title": "A faster, clearer Events screen for photographers",
-            "items": [
-              {
-                "icon": "albums-outline",
-                "title": "Tabs that fit your work",
-                "body": "Your events, bookings and opportunities now sit in four equal tabs along the top, so you can reach each one with a single tap."
-              },
-              {
-                "icon": "funnel-outline",
-                "title": "Filter by status",
-                "body": "Narrow the list to upcoming, live or ended events, or to the ones waiting for your answer, and see a helpful message when nothing matches."
-              },
-              {
-                "icon": "calendar-outline",
-                "title": "An optional calendar",
-                "body": "Switch to a month, week or agenda view when you want to plan by date. Pick a day to filter the list, and remove the date with one tap."
-              },
-              {
-                "icon": "hand-left-outline",
-                "title": "Quick actions on press and hold",
-                "body": "Each event row is more compact. Press and hold it for stream, album, QR code and remove, while Accept and Deny stay on pending requests."
               }
             ]
           }
