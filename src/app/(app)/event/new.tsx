@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -825,9 +826,7 @@ export default function NewEventScreen() {
                             accessibilityRole="button"
                             accessibilityState={{ selected: active }}
                           >
-                            <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                              {c.code}
-                            </Text>
+                            <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
                           </Pressable>
                         );
                       })}
@@ -1082,9 +1081,7 @@ export default function NewEventScreen() {
                                 accessibilityRole="button"
                                 accessibilityState={{ selected: active }}
                               >
-                                <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                                  {c.code}
-                                </Text>
+                                <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
                               </Pressable>
                             );
                           })}

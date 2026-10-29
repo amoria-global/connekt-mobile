@@ -2,6 +2,7 @@
  * Asks for the price per photo and its currency before an event album goes live on Find My Photos, as the dashboard does:
  * an event album has no price of its own until it is published, and buyers cannot pay for a photo with none.
  */
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,7 +82,7 @@ export function PublishPriceSheet({
                     accessibilityState={{ selected: active }}
                     style={[styles.chip, { borderColor: active ? lightPalette.primary : colors.stroke, backgroundColor: active ? lightPalette.primary : 'transparent' }]}
                   >
-                    <Text style={{ color: active ? onFill : colors.text, fontWeight: fontWeight.bold, fontSize: fontSize.sm }}>{c.code}</Text>
+                    <CurrencyLabel code={c.code} textStyle={{ color: active ? onFill : colors.text, fontWeight: fontWeight.bold, fontSize: fontSize.sm }} />
                   </Pressable>
                 );
               })}
