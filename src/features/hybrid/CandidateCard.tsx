@@ -23,6 +23,8 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
   const { colors } = useTheme();
   const styles = useStyles();
   const { tr } = useSharedT();
+  const isPackagePolicy = c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE';
+
   return (
     <View style={styles.card}>
       <View style={{ flexDirection: 'row', gap: spacing.md }}>
@@ -44,6 +46,17 @@ export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting
         ) : <Meta icon="star-outline" text={tr('No reviews yet')} muted />}
         {c.typicalPriceRange ? <Meta icon="pricetag-outline" text={c.typicalPriceRange} /> : null}
         {c.instagram?.handle ? <Meta icon="logo-instagram" text={`@${c.instagram.handle}`} /> : null}
+        <Meta
+          icon={isPackagePolicy ? 'cube-outline' : 'checkmark-circle-outline'}
+          iconColor={isPackagePolicy ? colors.info : colors.success}
+          text={
+            isPackagePolicy
+              ? `${tr("Accepted with photographer's package delivery policy")}${
+                  c.packageDeliveryDays ? ` (${c.packageDeliveryDays}d digital & package print handover)` : ''
+                }`
+              : tr('Accepted with your requested delivery schedule')
+          }
+        />
       </View>
 
       {c.specialties.length > 0 ? (

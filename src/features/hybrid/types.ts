@@ -7,6 +7,7 @@
 export type PhotographerType = 'FREELANCER' | 'STUDIO' | 'ANY';
 export type LocationCoverage = 'SAME_CITY' | 'NEARBY_CITY' | 'ANY';
 export type RecommendationTier = 'HIGH' | 'MEDIUM' | 'LOW';
+export type OpportunityDeliveryPolicy = 'CLIENT' | 'PHOTOGRAPHER_PACKAGE';
 
 export type PackageBenchmarkStats = {
   packageCount?: number;
@@ -243,6 +244,9 @@ export type PhotographerOpportunity = {
   matchedPackageName?: string;
   matchedPackagePrice?: number;
   matchedPackageCurrency?: string;
+  matchedPackageDeliveryDays?: number;
+  matchedPackageDescription?: string;
+  deliveryPolicy?: OpportunityDeliveryPolicy;
   hasLiveStream?: boolean;
   allowWishInvites?: boolean;
   minimumPhotos?: number;
@@ -273,6 +277,9 @@ export type CandidateSummary = {
   slug?: string;
   about?: string;
   specialties: string[];
+  deliveryPolicy?: OpportunityDeliveryPolicy;
+  packageDeliveryDays?: number;
+  packageDeliveryDescription?: string;
 };
 
 export type CandidatesResponse = {
