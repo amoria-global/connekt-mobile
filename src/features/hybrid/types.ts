@@ -8,6 +8,20 @@ export type PhotographerType = 'FREELANCER' | 'STUDIO' | 'ANY';
 export type LocationCoverage = 'SAME_CITY' | 'NEARBY_CITY' | 'ANY';
 export type RecommendationTier = 'HIGH' | 'MEDIUM' | 'LOW';
 
+export type PackageBenchmarkStats = {
+  packageCount?: number;
+  avgPrice?: number;
+  avgHourlyRate?: number;
+  avgDurationHours?: number;
+  avgIncludedPhotos?: number;
+  avgIncludedVideos?: number;
+  avgExtraPhotoPrice?: number;
+  avgExtraVideoPrice?: number;
+  avgDeliveryDays?: number;
+  avgLiveStreamSupplement?: number;
+  avgPhotobookSupplement?: number;
+};
+
 /** The wizard's choices, the same lists the web dashboard shows. */
 export type HybridOptions = {
   enabled: boolean;
@@ -27,6 +41,7 @@ export type HybridOptions = {
   firstBatchSize: number;
   escrowOptions: number[];
   instagramRequired: boolean;
+  packageBenchmarks?: PackageBenchmarkStats;
 };
 
 export type MatchPreviewPayload = {
@@ -47,15 +62,31 @@ export type MatchPreviewPayload = {
   locationCoverage?: LocationCoverage;
   eventId?: string;
   /** Client deliverables & turnaround scope for internal package recommendation pricing. */
+  coverageMode?: string;
+  clientType?: string;
   editedPhotos?: number;
   shortVideosQty?: number;
+  shortVideosDuration?: string;
   longVideosQty?: number;
+  longVideosDuration?: string;
+  instantUpdates?: boolean;
   digitalDeliveryDays?: number;
   hasLiveStream?: boolean;
   allowWishInvites?: boolean;
   photoBooksQty?: number;
+  photoBookSize?: string;
+  photoBookPages?: string;
   photoAlbumsQty?: number;
+  photoAlbumSize?: string;
+  photoAlbumPrints?: string;
   wallPortraitsQty?: number;
+  wallPortraitSize?: string;
+  wallPortraitFrame?: string;
+  printProductionTime?: string;
+  printProposedDate?: string;
+  printCollectionMethod?: string;
+  editingStyle?: string;
+  usageRights?: string;
 };
 
 export type MatchPreviewBreakdown = {
