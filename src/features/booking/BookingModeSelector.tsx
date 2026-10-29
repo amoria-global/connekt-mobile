@@ -878,10 +878,6 @@ export function BookingModeSelector({
             <View style={{ flex: 1, gap: 2 }}>
               <View style={styles.modeTitleRow}>
                 <Text style={styles.modeCardTitle}>{tr('Create Your Event Offer')}</Text>
-                <View style={[styles.modeTypePill, styles.modeTypePillFeatured]}>
-                  <Ionicons name="flash" size={8} color={colors.accent} />
-                  <Text style={[styles.modeTypePillText, { color: colors.accent }]}>{tr('4 short pages')}</Text>
-                </View>
               </View>
               <Text style={styles.modeCardDesc}>
                 {tr('Select event details, digital coverage, print products & delivery schedule. Available photographers accept or counter.')}
@@ -2674,11 +2670,9 @@ export function BookingModeSelector({
           ]}
         >
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={[styles.eyebrow, { color: accent }]}>
-              {step === 'select'
-                ? 'BOOKING OPTIONS'
-                : '4 SHORT PAGES • DIGITAL COVERAGE + PRINT PRODUCTS'}
-            </Text>
+            {step === 'select' ? (
+              <Text style={[styles.eyebrow, { color: accent }]}>BOOKING OPTIONS</Text>
+            ) : null}
             <Text style={styles.headerTitle} accessibilityRole="header">
               {step === 'select'
                 ? tr('How would you like to book?')
