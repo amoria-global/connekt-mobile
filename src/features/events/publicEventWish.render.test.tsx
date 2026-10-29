@@ -143,24 +143,20 @@ describe('opened from a scanned QR code', () => {
 });
 
 describe('wishes on an upcoming event', () => {
-  it('a guest gives a name and an email once, and the text wish goes out with them', async () => {
+  it('a guest gives a name once, and the text wish goes out with it and no email', async () => {
     const r = await mount();
     await type(r, /name/i, 'Aline');
-    await type(r, /email/i, 'aline@example.test');
     await type(r, /message|wish/i, 'Congratulations!');
     await press(r, 'Send wish');
-    expect(mockSendWish).toHaveBeenCalledWith('e1', { name: 'Aline', email: 'aline@example.test', message: 'Congratulations!' });
+    expect(mockSendWish).toHaveBeenCalledWith('e1', { name: 'Aline', message: 'Congratulations!' });
   });
 
-  it('refuses a wish with no name or a bad email, and says which', async () => {
+  it('refuses a wish with no name, and never asks for an email', async () => {
     const r = await mount();
+    expect(r.root.findAll((n) => /email/i.test(String(n.props?.accessibilityLabel ?? n.props?.placeholder ?? ''))).length).toBe(0);
     await type(r, /message|wish/i, 'Hi');
     await press(r, 'Send wish');
     expect(flat(r.root)).toContain('Please enter your name.');
-    await type(r, /name/i, 'Aline');
-    await type(r, /email/i, 'not-an-email');
-    await press(r, 'Send wish');
-    expect(flat(r.root)).toContain('Please enter a valid email.');
     expect(mockSendWish).not.toHaveBeenCalled();
   });
 
@@ -170,10 +166,9 @@ describe('wishes on an upcoming event', () => {
     const r = await mount();
     expect(flat(r.root)).toContain('Video · 1 min');
     await type(r, /name/i, 'Aline');
-    await type(r, /email/i, 'aline@example.test');
     await type(r, /message|wish/i, 'Best wishes');
     await press(r, 'Record a 1 minute video wish');
-    expect(mockSendVideoWish).toHaveBeenCalledWith('e1', { name: 'Aline', email: 'aline@example.test', message: 'Best wishes', video });
+    expect(mockSendVideoWish).toHaveBeenCalledWith('e1', { name: 'Aline', message: 'Best wishes', video });
     expect(flat(r.root)).toContain('Your video wish was sent to the event organizer!');
   });
 
@@ -181,7 +176,6 @@ describe('wishes on an upcoming event', () => {
     mockPick.mockResolvedValue(null);
     const r = await mount();
     await type(r, /name/i, 'Aline');
-    await type(r, /email/i, 'aline@example.test');
     await press(r, 'Record a 1 minute video wish');
     expect(mockSendVideoWish).not.toHaveBeenCalled();
   });
@@ -191,7 +185,6 @@ describe('wishes on an upcoming event', () => {
     mockSendVideoWish.mockRejectedValue({ status: 400, message: 'The event is now live. Please join the stream to send messages.' });
     const r = await mount();
     await type(r, /name/i, 'Aline');
-    await type(r, /email/i, 'aline@example.test');
     await press(r, 'Record a 1 minute video wish');
     expect(flat(r.root)).toContain('The event is now live.');
     expect(flat(r.root)).not.toContain('Your video wish was sent');
@@ -199,14 +192,14 @@ describe('wishes on an upcoming event', () => {
 });
 
 describe('a signed-in user', () => {
-  it('is sent as their account: no name or email fields, and the wish carries the account identity', async () => {
+  it('is sent as their account: no name field, and the wish carries the account name only', async () => {
     mockUser = { firstName: 'Joseph', lastName: 'Maranatha', email: 'joseph@example.test', customerId: 'c1' };
     const r = await mount();
-    expect(flat(r.root)).toContain('Sending as Joseph Maranatha (joseph@example.test)');
+    expect(flat(r.root)).toContain('Sending as Joseph Maranatha');
     expect(r.root.findAll((n) => /your name|name/i.test(String(n.props?.placeholder ?? '')) && typeof n.props.onChangeText === 'function')).toHaveLength(0);
     await type(r, /message|wish/i, 'Congratulations!');
     await press(r, 'Send wish');
-    expect(mockSendWish).toHaveBeenCalledWith('e1', { name: 'Joseph Maranatha', email: 'joseph@example.test', message: 'Congratulations!' });
+    expect(mockSendWish).toHaveBeenCalledWith('e1', { name: 'Joseph Maranatha', message: 'Congratulations!' });
   });
 
   it('can send a video wish without typing anything about themselves', async () => {
@@ -215,7 +208,7 @@ describe('a signed-in user', () => {
     mockPick.mockResolvedValue(video);
     const r = await mount();
     await press(r, 'Record a 1 minute video wish');
-    expect(mockSendVideoWish).toHaveBeenCalledWith('e1', { name: 'Joseph Maranatha', email: 'joseph@example.test', message: '', video });
+    expect(mockSendVideoWish).toHaveBeenCalledWith('e1', { name: 'Joseph Maranatha', message: '', video });
   });
 });
 
@@ -246,7 +239,6 @@ describe('Wish invites on the event page', () => {
     mockEventExtra = { allowWishInvites: false };
     const r = await mount();
     await type(r, /name/i, 'Aline');
-    await type(r, /email/i, 'aline@example.test');
     await type(r, /message|wish/i, 'Best wishes');
     await press(r, 'Send wish');
     expect(mockSendWish).toHaveBeenCalledTimes(1);
