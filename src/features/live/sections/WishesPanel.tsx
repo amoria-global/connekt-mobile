@@ -8,6 +8,7 @@ import { useAuth } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useWishFeed } from '@/features/wishes/useWishFeed';
+import { invitesOn } from '@/features/wishes/wishInvites';
 import type { Wish } from '@/features/wishes/types';
 import { WishVideoModal } from './WishVideoModal';
 import { InviteOthers } from './InviteOthers';
@@ -21,6 +22,7 @@ export const WishesPanel = memo(function WishesPanel({
   title,
   closed,
   viewerId,
+  invites,
   bottomInset = 0,
 }: {
   eventId: string;
@@ -28,6 +30,8 @@ export const WishesPanel = memo(function WishesPanel({
   closed?: boolean;
   /** The anonymous viewer id the live chat already holds; lets a guest report a wish. */
   viewerId?: string | null;
+  /** The setting from the event; the wishes feed's newer answer wins. Undefined (older server) means on. */
+  invites?: boolean;
   bottomInset?: number;
 }) {
   const feed = useWishFeed(eventId);
@@ -37,6 +41,7 @@ export const WishesPanel = memo(function WishesPanel({
   const [report, setReport] = useState<Wish | null>(null);
   const [playing, setPlaying] = useState<Wish | null>(null);
   const canReport = signedIn || !!viewerId;
+  const invitesEnabled = invitesOn(feed.allowInvites ?? invites);
 
   const doHide = async (w: Wish) => {
     setMenu(null);
@@ -50,7 +55,7 @@ export const WishesPanel = memo(function WishesPanel({
   return (
     <ScrollView contentContainerStyle={[s.body, { paddingBottom: bottomInset + 16 }]} keyboardShouldPersistTaps="handled">
       <SendWishes eventId={eventId} closed={closed} onSent={feed.reload} />
-      <InviteOthers eventId={eventId} title={title} />
+      {invitesEnabled ? <InviteOthers eventId={eventId} title={title} /> : null}
       <PrivacyNote />
       <WishesFeed
         state={feed.state}

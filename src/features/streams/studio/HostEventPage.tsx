@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraPublisher, type CameraErrorKind } from '@/features/streams/CameraPublisher';
 import { HlsPlayer } from '@/features/streams/HlsPlayer';
+import { HostWishInvitesRow } from '@/features/wishes/HostWishInvitesRow';
 import { EventHeader, EventInfo, EventTabs, InviteOthers, LivePlayer, ModerationQueue, type LiveTab } from '@/features/live/sections';
 import { PillButton, SectionCard } from '@/features/live/sections/shared';
 import { useHostWishes } from '@/features/wishes/useWishFeed';
@@ -238,6 +239,7 @@ export function HostEventPage({ cameraRef, ...p }: StreamerLiveScreenProps & { e
   const content =
     tab === 'live' ? (
       <View style={[s.stack, s.padH]}>
+        <HostWishInvitesRow eventId={p.eventId} />
         <InviteOthers eventId={p.eventId} title={p.eventTitle} prominent />
         <SectionCard title="Live chat" subtitle={p.chats.length ? `${p.chats.length} messages` : undefined}>
           {p.chats.length === 0 ? (

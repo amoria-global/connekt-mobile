@@ -287,12 +287,13 @@ export default function NewAlbumScreen() {
           [
             {
               text: 'View Album',
-              onPress: () => router.replace(`/album/${result.id}` as Href),
+              onPress: () => router.replace(`/album/${result.id}?share=1` as Href),
             },
           ],
         );
       } else {
-        router.replace(`/album/${result.id}` as Href);
+        // A paid album is live on Find My Photos by now: open it with the link and QR ready to share.
+        router.replace((result.published ? `/album/${result.id}?share=1` : `/album/${result.id}`) as Href);
       }
     } catch (e) {
       setError(isApiError(e) ? e.message : 'Could not create the album. Please try again.');

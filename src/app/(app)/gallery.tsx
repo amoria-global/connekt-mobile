@@ -32,6 +32,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
 import { listAlbums, type GalleryItem } from '@/features/gallery/api';
@@ -53,6 +54,7 @@ export default function GalleryScreen() {
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const clearance = useTabBarClearance();
   const { role, isPhotographer } = useRole();
   const accent = !isPhotographer;
 
@@ -321,7 +323,7 @@ export default function GalleryScreen() {
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: insets.bottom + spacing.xl },
+          { paddingBottom: clearance },
         ]}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />

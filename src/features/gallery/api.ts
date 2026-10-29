@@ -82,6 +82,11 @@ export type AlbumDetail = GalleryItem & {
   /** Reviewer's note when the content album was rejected / needs changes. */
   approvalComment?: string;
   categoryLabel?: string;
+  /** Find My Photos sharing: the code behind the share link and whether the album is live there (photographer reads only). */
+  inviteCode?: string;
+  accessCode?: string;
+  isFreeAlbum?: boolean;
+  faceRecognitionEnabled?: boolean;
 };
 
 type Raw = Record<string, unknown>;
@@ -194,6 +199,10 @@ export async function getAlbum(id: string, role?: string | boolean): Promise<Alb
     approvalStatus: str(d.contentApprovalStatus) as ContentApprovalStatus | undefined,
     approvalComment: str(d.contentApprovalComment),
     categoryLabel: str(d.contentCategoryLabel) ?? str(d.contentCategory) ?? str(d.category),
+    inviteCode: str(d.inviteCode),
+    accessCode: str(d.accessCode),
+    isFreeAlbum: d.freeAlbum === true || d.isFreeAlbum === true || d.albumType === 'free',
+    faceRecognitionEnabled: d.faceRecognitionEnabled === true,
     images: rawImages
       .map((i) => {
         const rawThumb = str(i.thumbnailUrl) ?? str(i.thumbnail) ?? str(i.previewUrl);
@@ -277,7 +286,7 @@ export async function createContentAlbum(input: CreateAlbumInput): Promise<void>
 //                    then POST /photographer/albums/{id}/send-free
 // In every case photos are uploaded afterwards via addAlbumImages().
 
-export type AlbumCreateResult = { id: string; accessCode?: string; inviteCode?: string };
+export type AlbumCreateResult = { id: string; accessCode?: string; inviteCode?: string; /** Paid personal albums are published to Find My Photos on creation, as on the web. */ published?: boolean };
 
 async function postAlbum(path: string, fields: Record<string, string | undefined>): Promise<AlbumCreateResult> {
   const form = new FormData();
@@ -335,7 +344,14 @@ export async function createPaidAlbum(input: {
   if (input.images && input.images.length > 0) {
     await addAlbumImages(res.id, input.images);
   }
-  return res;
+  // The web publishes a paid personal album to Find My Photos as soon as its photos are up, so buyers can search it.
+  // Best effort: the album exists either way, and the photographer can retry from its options.
+  try {
+    const pub = await publishAlbumToFaceSearch(res.id, { pricePerImage: input.pricePerImage, currencyId: input.currencyId });
+    return { ...res, inviteCode: pub.inviteCode ?? res.inviteCode, published: true };
+  } catch {
+    return res;
+  }
 }
 
 export async function createFreeAlbum(input: {
@@ -426,17 +442,36 @@ export async function sendAlbumToClient(albumId: string): Promise<void> {
   }
 }
 
-export async function publishAlbumToFaceSearch(albumId: string): Promise<void> {
-  const res = await api.post<ApiEnvelope<Raw>>(
-    `/photographer/albums/${encodeURIComponent(albumId)}/publish`,
-    {},
-  );
+/** Publishes to Find My Photos and returns the invite code the share link and QR are built from. */
+export async function publishAlbumToFaceSearch(
+  albumId: string,
+  opts?: { pricePerImage?: string; currencyId?: string },
+): Promise<{ inviteCode?: string }> {
+  const body: Record<string, unknown> = {};
+  const price = opts?.pricePerImage ? parseFloat(opts.pricePerImage) : 0;
+  if (price > 0 && opts?.currencyId) {
+    body.pricePerImage = price;
+    body.currencyId = opts.currencyId;
+  }
+  const res = await api.post<ApiEnvelope<Raw>>(`/photographer/albums/${encodeURIComponent(albumId)}/publish`, body);
   if (res?.action !== 1) {
     throw {
       status: 400,
       message: res?.message || 'Could not publish the album.',
     } satisfies ApiError;
   }
+  const d = (res?.data ?? {}) as Raw;
+  return { inviteCode: str(d.inviteCode) };
+}
+
+/** Makes sure an album has an invite code to share (the web asks for one before opening Face AI). */
+export async function ensureAlbumInviteCode(albumId: string): Promise<string | undefined> {
+  const res = await api.post<ApiEnvelope<Raw>>(`/photographer/albums/${encodeURIComponent(albumId)}/invite-code`, {});
+  if (res?.action !== 1) return undefined;
+  const d = res?.data as unknown;
+  if (typeof d === 'string') return d || undefined;
+  const o = (d ?? {}) as Raw;
+  return str(o.inviteCode) ?? str(o.code);
 }
 
 export async function submitContentAlbum(albumId: string): Promise<void> {
