@@ -67,7 +67,7 @@ describe('status words', () => {
   it('terminal states keep their meaning', () => {
     expect(eventStatus(ev({ status: 'COMPLETED' })).label).toBe('Completed');
     expect(eventStatus(ev({ status: 'CANCELLED' })).tone).toBe('error');
-    expect(eventStatus(ev({ status: 'ONGOING' })).tone).toBe('success');
+    expect(eventStatus(ev({ status: 'ONGOING' })).tone).toBe('live');
   });
 });
 
