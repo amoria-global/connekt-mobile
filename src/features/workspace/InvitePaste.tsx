@@ -57,7 +57,7 @@ export function InvitePaste({ onAdopt }: { onAdopt: (text: string) => boolean })
 }
 
 const useStyles = makeStyles(() => ({
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, minHeight: 44 },
+  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, minHeight: 36 },
   rowText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: onFill },
   box: { gap: spacing.md },
   actions: { flexDirection: 'row', gap: spacing.md },
