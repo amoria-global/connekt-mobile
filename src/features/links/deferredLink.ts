@@ -63,6 +63,18 @@ export function webPathToAppHref(path: string): string | null {
     if (!ID.test(id)) return null;
     return `/(public)/event/${id}${url.searchParams.get('src') === 'qr' ? '?src=qr' : ''}`;
   }
+  if (p === '/user/events/live-stream' || p === '/pay-to-watch') {
+    const id = url.searchParams.get('eventId') ?? url.searchParams.get('id') ?? '';
+    return ID.test(id) ? `/(public)/event/${id}` : null;
+  }
+  const photobook = p.match(/^\/user\/events\/photobooks\/([^/]+)$/);
+  if (photobook && ID.test(photobook[1])) return `/(app)/photobook/${photobook[1]}`;
+  if (p === '/user/gallery/album') {
+    const id = url.searchParams.get('id') ?? '';
+    return ID.test(id) ? `/(app)/album/${id}` : null;
+  }
+  const join = p.match(/^\/user\/photographer\/collaborate\/join\/([^/]+)$/);
+  if (join && ID.test(join[1])) return `/(app)/collaborate/join/${join[1]}`;
   if (p === '/user/find-my-photos') return '/(public)/find-photos';
   if (p.startsWith('/user/browse-photos/')) return '/(public)/browse-photos';
   return null;

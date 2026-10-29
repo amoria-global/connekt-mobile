@@ -36,11 +36,17 @@ describe('which screen a saved link opens', () => {
     ['/user/events/view-event?id=e1', '/(public)/event/e1'],
     ['/user/find-my-photos?code=A1', '/(public)/find-photos'],
     ['/user/browse-photos/an-album', '/(public)/browse-photos'],
+    ['/user/events/live-stream?eventId=e1&id=e1', '/(public)/event/e1'],
+    ['/pay-to-watch?eventId=e1&device=tv1', '/(public)/event/e1'],
+    ['/user/events/photobooks/b1', '/(app)/photobook/b1'],
+    ['/user/gallery/album?id=a1', '/(app)/album/a1'],
+    ['/user/photographer/collaborate/join/tok123', '/(app)/collaborate/join/tok123'],
   ])('%s opens %s', (path, href) => expect(webPathToAppHref(path)).toBe(href));
 
   it.each([
     'https://evil.example/wish/abc', '//evil.example/wish/abc', '/user/auth/login', '/wish/a/b', '/wish/a b', '/user/events/view-event',
-    '/user/events/view-event?id=../../x', '/user/events/some-slug', '',
+    '/user/events/view-event?id=../../x', '/user/events/some-slug', '', '/user/gallery/album?id=a b', '/user/events/live-stream',
+    '/user/photographer/collaborate/join/a/b',
   ])('refuses %s', (path) => expect(webPathToAppHref(path)).toBeNull());
 
   it('keeps a long inviter name short and encoded', () => {
