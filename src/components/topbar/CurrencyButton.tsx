@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import { CurrencyFlag } from '@/features/currency/CurrencyFlag';
 import { Image } from 'expo-image';
 import { Pressable, Text } from 'react-native';
 import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { useCurrency } from '@/store/currency';
 import { fonts, fontSize, fontWeight, makeStyles, radii, spacing } from '@/theme';
 
-const flagUri = (flag: string) => `https://flagcdn.com/w40/${flag}.png`;
 
 /**
  * Display-currency selector button. A compact flag + code chip opens the
@@ -31,13 +31,7 @@ export function CurrencyButton({ compact, bar, inPill }: { compact?: boolean; ba
           pressed && styles.pressed,
         ]}
       >
-        {current && !inPill ? (
-          <Image
-            source={{ uri: flagUri(current.flag) }}
-            style={styles.flag}
-            contentFit="cover"
-          />
-        ) : null}
+        {current && !inPill ? <CurrencyFlag code={current.code} width={18} /> : null}
         <Text style={[styles.code, inPill && styles.codePill]}>{currency}</Text>
       </Pressable>
 

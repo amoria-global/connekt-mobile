@@ -1,4 +1,5 @@
 import React, { forwardRef, useMemo, useState, useEffect, useRef } from 'react';
+import { CurrencyFlag, CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCurrency } from '@/store/currency';
 import { StyleSheet, View, Text, TextInput, Pressable, Alert, Platform, Image, ActivityIndicator, Keyboard, InputAccessoryView } from 'react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop, BottomSheetTextInput as GorhomBottomSheetTextInput } from '@gorhom/bottom-sheet';
@@ -1051,7 +1052,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                             onPress={() => setShowCurrencyDropdown(!showCurrencyDropdown)}
                             style={styles.currencySelectorPill}
                           >
-                            <Text style={styles.currencySelectorPillText}>{displayCurrency}</Text>
+                            <CurrencyLabel code={displayCurrency} textStyle={styles.currencySelectorPillText} width={16} />
                             <Ionicons name={showCurrencyDropdown ? 'chevron-up' : 'chevron-down'} size={14} color={colors.text} />
                           </Pressable>
 
@@ -1064,7 +1065,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                                   onPress={() => { setDisplayCurrency(c.code as any); setShowCurrencyDropdown(false); }}
                                 >
                                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                    <Text style={{ fontSize: 16 }}>{c.flag}</Text>
+                                    <CurrencyFlag code={c.code} width={24} />
                                     <Text style={styles.currencyCodeText}>{c.code}</Text>
                                     <Text style={styles.currencyNameText}>{c.name}</Text>
                                   </View>

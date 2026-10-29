@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
@@ -165,7 +166,7 @@ export default function NewPackageScreen() {
                 const active = currencyId === c.id;
                 return (
                   <Pressable key={c.id} onPress={() => setCurrencyId(c.id)} style={[styles.chip, active && styles.chipActive]}>
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.code}</Text>
+                    <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
                   </Pressable>
                 );
               })}

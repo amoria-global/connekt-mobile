@@ -9,6 +9,8 @@
  *   5. Seamless USSD push prompt and gateway polling (GET /public/payments/xentripay/status/{refid}).
  *   6. Celebration receipt with instant feedback.
  */
+import { CurrencyFlag } from '@/features/currency/CurrencyFlag';
+import { flagCountryFor } from '@/features/currency/flagCountry';
 import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -931,9 +933,13 @@ export default function PublicDonateScreen() {
                   style={[styles.countryRow, currencyCode === c.code && styles.countryRowActive]}
                   onPress={() => onSelectCurrency(c.code)}
                 >
-                  <View style={styles.currencySymbolBadge}>
-                    <Text style={styles.currencySymbolBadgeText}>{c.symbol || c.code}</Text>
-                  </View>
+                  {flagCountryFor(c.code) ? (
+                    <CurrencyFlag code={c.code} width={34} />
+                  ) : (
+                    <View style={styles.currencySymbolBadge}>
+                      <Text style={styles.currencySymbolBadgeText}>{c.symbol || c.code}</Text>
+                    </View>
+                  )}
                   <View style={{ flex: 1 }}>
                     <Text style={styles.countryRowName}>{c.name}</Text>
                     <Text style={styles.currencySubCode}>{c.code}</Text>
