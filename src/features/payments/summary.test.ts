@@ -49,3 +49,18 @@ describe('summarizePayments', () => {
     expect(summarizePayments([{ amount: 0, currency: 'USD', bucket: 'paid' }]).totals).toEqual([{ currency: 'USD', total: 0, paid: 0, pending: 0 }]);
   });
 });
+
+import { totalsByCurrency } from './summary';
+
+describe('totalsByCurrency', () => {
+  it('never adds two currencies into one figure', () => {
+    expect(totalsByCurrency([
+      { amount: 1000, currency: 'rwf' },
+      { amount: 5, currency: 'USD' },
+      { amount: 500, currency: 'RWF' },
+    ])).toEqual([{ currency: 'RWF', total: 1500 }, { currency: 'USD', total: 5 }]);
+  });
+  it('is empty when there is nothing to add', () => {
+    expect(totalsByCurrency([])).toEqual([]);
+  });
+});
