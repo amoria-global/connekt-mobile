@@ -1,20 +1,20 @@
 /**
  * One Post My Event opportunity for a photographer.
  * Renders the structured 4-step offer summary (Event details, Coverage & print
- * products, Delivery & budget) and opens the full comparison sheet on tap.
+ * products, Delivery & budget) and opens the full Offer details page on tap or button click.
  */
 import React from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage, type TranslationKey } from '@/store/language';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill, type Palette } from '@/theme';
-import type { PhotographerOpportunity } from './types';
+import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
 import { countdownString, EventStartClock, MODE_META, useCountdown } from './hybridUi';
 import { parseOpportunityOfferBrief } from './offerBrief';
 
 type Props = {
   opportunity: PhotographerOpportunity;
-  onApprove: (item: PhotographerOpportunity) => void;
+  onApprove: (item: PhotographerOpportunity, deliveryPolicy?: OpportunityDeliveryPolicy) => void;
   onReject: (item: PhotographerOpportunity) => void;
   onPress?: (item: PhotographerOpportunity) => void;
   busy?: boolean;
@@ -54,6 +54,22 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
   const dateStr = o.eventDate ? prettyDate(o.eventDate, language) : t('oppDateTbc');
   const locStr = o.venue ? `${o.venue}${o.city ? ` • ${o.city}` : ''}` : o.city || t('oppLocationSharedOnBooking');
   const eventTypeLabel = o.eventType || o.eventTitle || 'Event';
+
+  const handleOpenOrApprove = () => {
+    if (onPress) {
+      onPress(o);
+    } else {
+      onApprove(o, 'CLIENT');
+    }
+  };
+
+  const handleOpenOrReject = () => {
+    if (onPress) {
+      onPress(o);
+    } else {
+      onReject(o);
+    }
+  };
 
   return (
     <Pressable
@@ -95,13 +111,13 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
         </View>
         {onPress ? (
           <View style={styles.compareChip}>
-            <Text style={styles.compareChipText}>Compare package</Text>
+            <Text style={styles.compareChipText}>Offer details</Text>
             <Ionicons name="chevron-forward" size={13} color={colors.primary} />
           </View>
         ) : null}
       </View>
 
-      {/* 2-Column Compact Offer Summary Strip (matching uploaded_media_1) */}
+      {/* 2-Column Compact Offer Summary Strip */}
       <View style={styles.summaryStrip}>
         <View style={styles.summaryCol}>
           <SummaryLine
@@ -125,6 +141,21 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
         </View>
       </View>
 
+      {o.status === 'APPROVED' && o.deliveryPolicy ? (
+        <View style={styles.policyPill}>
+          <Ionicons
+            name={o.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'cube-outline' : 'checkmark-circle-outline'}
+            size={13}
+            color={colors.primary}
+          />
+          <Text style={styles.policyPillText}>
+            {o.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+              ? 'Accepted with your package delivery policy'
+              : "Accepted with client's delivery schedule"}
+          </Text>
+        </View>
+      ) : null}
+
       {o.matchReasons && o.matchReasons.length > 0 ? (
         <View style={styles.reasons}>
           {o.matchReasons.map((r) => (
@@ -141,16 +172,16 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
       {open ? (
         <View style={styles.actions}>
           <Pressable
-            onPress={() => onReject(o)}
+            onPress={handleOpenOrReject}
             disabled={busy || expired}
             style={[styles.secondary, (busy || expired) && styles.disabled]}
             accessibilityRole="button"
             accessibilityLabel={t('oppNotThisTime')}
           >
-            <Text style={styles.secondaryText}>{t('oppNotThisTime')}</Text>
+            <Text style={styles.secondaryText}>Decline</Text>
           </Pressable>
           <Pressable
-            onPress={() => onApprove(o)}
+            onPress={handleOpenOrApprove}
             disabled={busy || expired}
             style={[styles.primary, (busy || expired) && styles.disabled]}
             accessibilityRole="button"
@@ -159,7 +190,7 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
             {busy ? <ActivityIndicator color={onFill} /> : (
               <>
                 <Ionicons name="checkmark" size={18} color={onFill} />
-                <Text style={styles.primaryText}>{expired ? t('oppTimeIsUp') : t('oppYesAvailable')}</Text>
+                <Text style={styles.primaryText}>{expired ? t('oppTimeIsUp') : 'Accept'}</Text>
               </>
             )}
           </Pressable>
@@ -243,6 +274,20 @@ const useStyles = makeStyles((c) => ({
   summaryDivider: { width: 1, backgroundColor: c.border },
   summaryLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   summaryText: { fontSize: 11, color: c.textSoft, flex: 1, lineHeight: 15 },
+  policyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radii.md,
+    backgroundColor: c.tint,
+  },
+  policyPillText: {
+    fontSize: 11.5,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
   reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   reason: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.successBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full },
   reasonText: { fontSize: 11, color: c.text },
