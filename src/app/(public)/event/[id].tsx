@@ -43,6 +43,7 @@ import { Screen } from '@/components/ui/Screen';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { canBuyEventTicket, canShowDigitalPrice, isInPersonEvent } from '@/features/payments/policy';
 import type { PublicEvent } from '@/features/events/types';
+import { getEventStatus } from '@/features/events/eventStatus';
 import {
   checkAnonymousAccessStatus,
   redeemGroupCode,
@@ -140,8 +141,9 @@ function deriveStatus(e: PublicEvent) {
   const rawStatus = (e.eventStatus || '').toUpperCase();
   const streamEnded = e.streamStatus === 'ended';
   const isLive = rawStatus === 'ONGOING' && !streamEnded;
-  const isCompleted = rawStatus === 'COMPLETED' || streamEnded;
   const isCancelled = rawStatus === 'CANCELLED';
+  // The server leaves past events on PUBLISHED, so the date decides too, the same rule the Explore cards use.
+  const isCompleted = rawStatus === 'COMPLETED' || streamEnded || (!isLive && !isCancelled && getEventStatus(e) === 'ENDED');
   const isUpcoming = !isLive && !isCompleted && !isCancelled;
   const streamFee = e.streamFee || 0;
   const isPaid = streamFee > 0 || (e.price || 0) > 0;
