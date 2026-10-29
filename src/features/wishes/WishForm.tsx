@@ -9,7 +9,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
-import { accountIdentity, isEmail, loadGuestIdentity, saveGuestIdentity } from '@/features/events/guestIdentity';
+import { accountIdentity, loadGuestIdentity, saveGuestName } from '@/features/events/guestIdentity';
 import { sendEventVideoWish, sendEventWish } from '@/features/streams/api';
 import { pickShortVideo } from '@/features/streams/pickShortVideo';
 import { isApiError, useAuth } from '@/store/auth';
@@ -22,7 +22,6 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
   const styles = useStyles();
   const currentUser = useAuth((s) => s.user);
   const [wishName, setWishName] = useState('');
-  const [wishEmail, setWishEmail] = useState('');
   const [wishMessage, setWishMessage] = useState('');
   const [wishBusy, setWishBusy] = useState(false);
   const [wishVideoBusy, setWishVideoBusy] = useState(false);
@@ -33,22 +32,17 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
     if (account) return;
     loadGuestIdentity().then((g) => {
       if (g.name) setWishName((n) => n || g.name!);
-      if (g.email) setWishEmail((e) => e || g.email!);
     });
   }, [account]);
 
   /** Who the wish comes from, or null with the reason shown. */
-  const wishIdentity = (): { name: string; email: string } | null => {
-    const who = account ?? { name: wishName.trim(), email: wishEmail.trim() };
-    if (!who.name) {
+  const wishIdentity = (): { name: string } | null => {
+    const name = (account?.name ?? wishName).trim();
+    if (!name) {
       setWishError('Please enter your name.');
       return null;
     }
-    if (!isEmail(who.email)) {
-      setWishError('Please enter a valid email.');
-      return null;
-    }
-    return who;
+    return { name };
   };
   const onSendWish = async () => {
     const who = wishIdentity();
@@ -64,7 +58,7 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
       await sendEventWish(eventId, { ...who, message: wishMessage.trim(), ...(variant === 'page' ? { via: 'invite' as const } : {}) });
       setWishSuccess(t('b4_wishSentSuccess'));
       setWishMessage('');
-      if (!account) void saveGuestIdentity(who);
+      if (!account) void saveGuestName(who.name);
     } catch (e) {
       setWishError(isApiError(e) ? e.message : t('b4_wishSendError'));
     } finally {
@@ -83,7 +77,7 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
       await sendEventVideoWish(eventId, { ...who, message: wishMessage, video, ...(variant === 'page' ? { via: 'invite' as const } : {}) });
       setWishSuccess('Your video wish was sent to the event organizer!');
       setWishMessage('');
-      if (!account) void saveGuestIdentity(who);
+      if (!account) void saveGuestName(who.name);
     } catch (e) {
       setWishError(isApiError(e) ? e.message : 'Could not send your video wish. Please try again.');
     } finally {
@@ -122,7 +116,7 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
   return (
     <View style={styles.form}>
       {account ? (
-        <Text style={styles.note}>{`Sending as ${account.name} (${account.email})`}</Text>
+        <Text style={styles.note}>{`Sending as ${account.name}`}</Text>
       ) : (
         <View style={page ? styles.col : styles.row}>
           <View style={styles.flex}>
@@ -135,19 +129,6 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
                 setWishError(null);
               }}
               autoCapitalize="words"
-            />
-          </View>
-          <View style={styles.flex}>
-            <Input
-              placeholder={t('b4_emailPlaceholder')}
-              accessibilityLabel="Your email"
-              value={wishEmail}
-              onChangeText={(v) => {
-                setWishEmail(v);
-                setWishError(null);
-              }}
-              autoCapitalize="none"
-              keyboardType="email-address"
             />
           </View>
         </View>

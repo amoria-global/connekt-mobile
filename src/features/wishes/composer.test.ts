@@ -1,6 +1,6 @@
 import { canSend, formatClock, remainingChars, sentNotice, validateDraft, type ComposerDraft } from './composer';
 
-const base: ComposerDraft = { kind: 'text', name: 'Aline', email: 'a@b.co', message: 'Congratulations', visibility: 'public', durationSeconds: null, hasVideo: false };
+const base: ComposerDraft = { kind: 'text', name: 'Aline', message: 'Congratulations', visibility: 'public', durationSeconds: null, hasVideo: false };
 const account = { name: 'Aline M', email: 'a@b.co' };
 
 describe('validateDraft', () => {
@@ -12,11 +12,15 @@ describe('validateDraft', () => {
     expect(validateDraft({ ...base, visibility: null }, null).visibility).toBeDefined();
   });
 
-  it('asks a guest for name and email, but never a signed-in person', () => {
-    const e = validateDraft({ ...base, name: ' ', email: 'nope' }, null);
+  it('asks a guest for a name only, and never a signed-in person', () => {
+    const e = validateDraft({ ...base, name: ' ' }, null);
     expect(e.name).toBeDefined();
-    expect(e.email).toBeDefined();
-    expect(canSend(validateDraft({ ...base, name: '', email: '' }, account))).toBe(true);
+    expect(Object.keys(e)).toEqual(['name']);
+    expect(canSend(validateDraft({ ...base, name: '' }, account))).toBe(true);
+  });
+
+  it('needs no email: a guest with a name and a message can send', () => {
+    expect(canSend(validateDraft({ ...base, name: 'Aline' }, null))).toBe(true);
   });
 
   it('requires a message under the limit for a text wish', () => {

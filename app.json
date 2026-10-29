@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-29-wish-name-only",
+            "date": "2026-10-29",
+            "title": "Sending a wish is simpler",
+            "items": [
+              {
+                "icon": "heart-outline",
+                "title": "No email needed for a wish",
+                "body": "When you send a wish or a video wish, you now only enter your name. The event owner sees who it is from, and we no longer ask for an email we never used."
+              }
+            ]
+          },
+          {
             "id": "2026-10-29-shared-links",
             "date": "2026-10-29",
             "title": "Shared links now take you to the right page",
@@ -257,33 +269,6 @@
                 "icon": "image-outline",
                 "title": "The Connekyt logo in every QR code",
                 "body": "Every QR code in the app, and the ones you save, now carries the Connekyt logo in the middle and still scans."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-28-event-page-wishes",
-            "date": "2026-10-28",
-            "title": "A clearer event page, and wishes you can invite others to send",
-            "items": [
-              {
-                "icon": "heart-outline",
-                "title": "Wishes and memories in one card",
-                "body": "Send your own wish, or switch to Invite loved ones to share a QR code and a link. Anyone who opens it sees the event and can send a wish without an account."
-              },
-              {
-                "icon": "calendar-outline",
-                "title": "Date and time together",
-                "body": "The date, the time with its timezone and an Add to calendar button now sit in one card."
-              },
-              {
-                "icon": "people-outline",
-                "title": "One Hosted by card",
-                "body": "When the organizer is also the photographer you see one row with both roles. The photographer opens their profile."
-              },
-              {
-                "icon": "people-outline",
-                "title": "Choose who can invite others to send wishes",
-                "body": "Every event now has a Wish invites setting. Enable it and viewers can share a link or QR so loved ones send their wishes too, or disable it to keep wishes to your own viewers. You can change it at any time, even while live."
               }
             ]
           }
