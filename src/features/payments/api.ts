@@ -179,12 +179,9 @@ export async function listGiftPayments(): Promise<GiftPayment[]> {
   );
   const items = pageContent(res?.data);
   return items.map((p) => {
-    const rawAmt =
-      typeof p.amount === 'number'
-        ? p.amount
-        : typeof p.amountInUsd === 'number'
-          ? p.amountInUsd
-          : 0;
+    // An amount that only exists in USD is labelled USD, not the row's own currency.
+    const usdOnly = typeof p.amount !== 'number' && typeof p.amountInUsd === 'number';
+    const rawAmt = typeof p.amount === 'number' ? p.amount : usdOnly ? (p.amountInUsd as number) : 0;
     const rawNet =
       typeof p.withdrawableAmount === 'number'
         ? p.withdrawableAmount
@@ -196,7 +193,7 @@ export async function listGiftPayments(): Promise<GiftPayment[]> {
       eventTitle: str(p.eventTitle) ?? 'Live Stream',
       amount: rawAmt,
       netAmount: rawNet,
-      currency: str(p.currencyAbbreviation) ?? str(p.currency) ?? 'RWF',
+      currency: usdOnly ? 'USD' : (str(p.currencyAbbreviation) ?? str(p.currency) ?? 'RWF'),
       giftMessage: str(p.giftMessage) ?? null,
       customerPhone:
         str(p.senderName) ??
