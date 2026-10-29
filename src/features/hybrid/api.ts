@@ -13,6 +13,8 @@ import type {
   CandidateSummary,
   CandidatesResponse,
   ConvertToHybridRescueResult,
+  HybridDraftPayload,
+  HybridDraftResponse,
   HybridOptions,
   HybridProfile,
   MatchPreviewPayload,
@@ -124,6 +126,66 @@ export async function createMatchRequest(eventId: string, payload: MatchRequestP
   );
   assertOk(res, 'Could not post your event to photographers.');
   return res.data!;
+}
+
+/** Retrieve the signed-in user's latest unpublished hybrid event offer draft from the server. */
+export async function getHybridDraft(): Promise<HybridDraftResponse | null> {
+  try {
+    const res = await api.get<ApiEnvelope<Raw>>('/events/hybrid-draft');
+    if (res?.action !== 1 || !res.data || typeof res.data !== 'object') return null;
+    const d = res.data as Raw;
+    if (!d.id) return null;
+    return {
+      id: String(d.id),
+      title: str(d.title),
+      description: str(d.description),
+      eventDate: str(d.eventDate),
+      startTime: str(d.startTime),
+      endTime: str(d.endTime),
+      city: str(d.city),
+      venue: str(d.venue),
+      location: str(d.location),
+      minBudget: num(d.minBudget),
+      maxBudget: num(d.maxBudget),
+      eventStatus: str(d.eventStatus),
+      bookingStatus: str(d.bookingStatus),
+      isPublished: typeof d.isPublished === 'boolean' ? d.isPublished : false,
+      updatedAt: str(d.updatedAt),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Upsert (autosave) the signed-in user's hybrid event offer draft on the server. */
+export async function saveHybridDraft(payload: HybridDraftPayload): Promise<HybridDraftResponse | null> {
+  const res = await api.post<ApiEnvelope<Raw>>('/events/hybrid-draft', payload);
+  assertOk(res, 'Could not save event draft.');
+  const d = (res.data ?? {}) as Raw;
+  if (!d.id) return null;
+  return {
+    id: String(d.id),
+    title: str(d.title),
+    description: str(d.description),
+    eventDate: str(d.eventDate),
+    startTime: str(d.startTime),
+    endTime: str(d.endTime),
+    city: str(d.city),
+    venue: str(d.venue),
+    location: str(d.location),
+    minBudget: num(d.minBudget),
+    maxBudget: num(d.maxBudget),
+    eventStatus: str(d.eventStatus),
+    bookingStatus: str(d.bookingStatus),
+    isPublished: typeof d.isPublished === 'boolean' ? d.isPublished : false,
+    updatedAt: str(d.updatedAt),
+  };
+}
+
+/** Delete an unpublished hybrid event offer draft on the server. */
+export async function deleteHybridDraft(eventId: string): Promise<void> {
+  if (!eventId) return;
+  await api.delete<ApiEnvelope<Raw>>(`/events/hybrid-draft/${encodeURIComponent(eventId)}`);
 }
 
 function mapCandidate(c: any): CandidateSummary {

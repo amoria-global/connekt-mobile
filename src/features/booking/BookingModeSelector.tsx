@@ -24,7 +24,14 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
-import { createMatchRequest, getHybridOptions, getMatchPreview } from '@/features/hybrid/api';
+import {
+  createMatchRequest,
+  deleteHybridDraft,
+  getHybridDraft,
+  getHybridOptions,
+  getMatchPreview,
+  saveHybridDraft,
+} from '@/features/hybrid/api';
 import type { HybridOptions, MatchPreviewResult } from '@/features/hybrid/types';
 import {
   Chip,
@@ -72,6 +79,8 @@ import {
   formatShortVideosSummary,
   formatWallPortraitSummary,
   getDeadlineCalendarDays,
+  deserializeDraftOfferDescription,
+  serializeDraftOfferDescription,
   serializeOfferBrief,
   type ClientEntityType,
   type DigitalCoverageMode,
@@ -128,6 +137,9 @@ export type ExistingHybridEvent = {
   endTime?: string;
   city?: string;
   venue?: string;
+  description?: string;
+  minBudget?: number;
+  maxBudget?: number;
 };
 
 export type BookingModeSelectorProps = {
@@ -261,6 +273,15 @@ export function BookingModeSelector({
   const [submitting, setSubmitting] = useState(false);
   const [createdEventId, setCreatedEventId] = useState<string | null>(null);
   const [result, setResult] = useState<{ eventId: string; invited: number; status?: string } | null>(null);
+  const [hasDirtyChanges, setHasDirtyChanges] = useState(false);
+  const [draftSaveState, setDraftSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [resumePromptDraft, setResumePromptDraft] = useState<{
+    eventId: string;
+    step: 1 | 2 | 3 | 4;
+    draft: HybridOfferDraft;
+    title?: string;
+  } | null>(null);
+  const [discardingDraft, setDiscardingDraft] = useState(false);
 
   const toggleInfo = useCallback((k: InfoKey) => {
     setOpenInfo((prev) => ({ ...prev, [k]: !prev[k] }));
@@ -281,25 +302,81 @@ export function BookingModeSelector({
   }, [activeSheet]);
 
   const updateDraft = useCallback(<K extends keyof HybridOfferDraft>(key: K, value: HybridOfferDraft[K]) => {
+    setHasDirtyChanges(true);
     setDraft((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   useEffect(() => {
     if (!visible) return;
-    setStep(existingEvent ? 1 : initialStep);
     setError(null);
     setResult(null);
+    setHasDirtyChanges(false);
+    setDraftSaveState('idle');
+    setResumePromptDraft(null);
     setCreatedEventId(existingEvent?.id ?? null);
+
     if (existingEvent) {
-      setDraft((prev) => ({
-        ...prev,
-        date: existingEvent.eventDate ? existingEvent.eventDate.slice(0, 10) : prev.date,
-        startTime: existingEvent.startTime ? existingEvent.startTime.slice(0, 5) : prev.startTime,
-        endTime: existingEvent.endTime ? existingEvent.endTime.slice(0, 5) : prev.endTime,
-        city: existingEvent.city || prev.city,
-        venue: existingEvent.venue || prev.venue,
-      }));
+      const parsedFromExisting = deserializeDraftOfferDescription(existingEvent.description);
+      if (parsedFromExisting) {
+        setDraft(parsedFromExisting.draft);
+        setStep(parsedFromExisting.step);
+        setDraftSaveState('saved');
+      } else {
+        setStep(1);
+        setDraft((prev) => ({
+          ...prev,
+          date: existingEvent.eventDate ? existingEvent.eventDate.slice(0, 10) : prev.date,
+          startTime: existingEvent.startTime ? existingEvent.startTime.slice(0, 5) : prev.startTime,
+          endTime: existingEvent.endTime ? existingEvent.endTime.slice(0, 5) : prev.endTime,
+          city: existingEvent.city || prev.city,
+          venue: existingEvent.venue || prev.venue,
+          minBudgetInput:
+            typeof existingEvent.minBudget === 'number' && existingEvent.minBudget >= 0
+              ? formatAmountWithCommas(String(existingEvent.minBudget))
+              : prev.minBudgetInput,
+          maxBudgetInput:
+            typeof existingEvent.maxBudget === 'number' && existingEvent.maxBudget > 0
+              ? formatAmountWithCommas(String(existingEvent.maxBudget))
+              : prev.maxBudgetInput,
+        }));
+      }
+    } else {
+      setStep(initialStep);
+      setDraft(DEFAULT_OFFER_DRAFT);
+      if (user) {
+        getHybridDraft()
+          .then((serverDraft) => {
+            if (!serverDraft || !serverDraft.id) return;
+            const parsed = deserializeDraftOfferDescription(serverDraft.description);
+            const hydratedDraft: HybridOfferDraft = parsed
+              ? parsed.draft
+              : {
+                  ...DEFAULT_OFFER_DRAFT,
+                  date: serverDraft.eventDate ? serverDraft.eventDate.slice(0, 10) : DEFAULT_OFFER_DRAFT.date,
+                  startTime: serverDraft.startTime ? serverDraft.startTime.slice(0, 5) : DEFAULT_OFFER_DRAFT.startTime,
+                  endTime: serverDraft.endTime ? serverDraft.endTime.slice(0, 5) : DEFAULT_OFFER_DRAFT.endTime,
+                  city: serverDraft.city || DEFAULT_OFFER_DRAFT.city,
+                  venue: serverDraft.venue || serverDraft.location || DEFAULT_OFFER_DRAFT.venue,
+                  minBudgetInput:
+                    typeof serverDraft.minBudget === 'number' && serverDraft.minBudget >= 0
+                      ? formatAmountWithCommas(String(serverDraft.minBudget))
+                      : DEFAULT_OFFER_DRAFT.minBudgetInput,
+                  maxBudgetInput:
+                    typeof serverDraft.maxBudget === 'number' && serverDraft.maxBudget > 0
+                      ? formatAmountWithCommas(String(serverDraft.maxBudget))
+                      : DEFAULT_OFFER_DRAFT.maxBudgetInput,
+                };
+            setResumePromptDraft({
+              eventId: serverDraft.id,
+              step: parsed ? parsed.step : 1,
+              draft: hydratedDraft,
+              title: serverDraft.title,
+            });
+          })
+          .catch(() => {});
+      }
     }
+
     getHybridOptions()
       .then((o) => {
         setOptions(o);
@@ -315,7 +392,7 @@ export function BookingModeSelector({
         }
       })
       .catch((e) => setOptionsError(isApiError(e) ? e.message : tr('Could not load the event options.')));
-  }, [visible, initialStep, existingEvent, tr]);
+  }, [visible, initialStep, existingEvent, user, tr]);
 
   const eventTypeObj = useMemo(() => {
     if (!options?.eventTypes.length) return undefined;
@@ -577,6 +654,101 @@ export function BookingModeSelector({
     return () => clearTimeout(t);
   }, [visible, step, fetchPreview]);
 
+  const persistDraftToServer = useCallback(
+    async (draftToSave: HybridOfferDraft, stepToSave: 1 | 2 | 3 | 4): Promise<string | null> => {
+      if (!user) return createdEventId;
+      const resolvedType =
+        options?.eventTypes.find((t) => t.id === draftToSave.eventTypeId)?.name ||
+        draftToSave.eventTypeKey ||
+        'Event';
+      const place = draftToSave.venue.trim() || draftToSave.city.trim() || 'Kigali';
+      const title = existingEvent?.title?.trim() || `${resolvedType} · ${place}`;
+      const durMins = durationBetween(draftToSave.startTime, draftToSave.endTime);
+      const description = serializeDraftOfferDescription(draftToSave, durMins, stepToSave);
+      const minB = parseAmountNumber(draftToSave.minBudgetInput) || undefined;
+      const maxB = parseAmountNumber(draftToSave.maxBudgetInput) || undefined;
+
+      setDraftSaveState('saving');
+      try {
+        const saved = await saveHybridDraft({
+          eventId: createdEventId ?? existingEvent?.id ?? undefined,
+          title,
+          eventType: resolvedType,
+          eventCategoryId: draftToSave.eventTypeId || undefined,
+          eventDate: draftToSave.date || undefined,
+          startTime: draftToSave.startTime ? `${draftToSave.startTime}:00` : undefined,
+          endTime: draftToSave.endTime ? `${draftToSave.endTime}:00` : undefined,
+          city: draftToSave.city || undefined,
+          venue: draftToSave.venue.trim() || undefined,
+          location: [draftToSave.venue.trim(), draftToSave.city, options?.country]
+            .filter(Boolean)
+            .join(', '),
+          latitude: cityInfo?.latitude,
+          longitude: cityInfo?.longitude,
+          description,
+          minBudget: minB,
+          maxBudget: maxB,
+          hasLiveStream: draftToSave.liveStream,
+          allowWishInvites: draftToSave.instantWishesAndMemories,
+          minimumPhotos: draftToSave.coverageMode === 'VIDEO' ? 0 : draftToSave.editedPhotos,
+          draftStep: stepToSave,
+        });
+        if (saved?.id) {
+          setCreatedEventId(saved.id);
+        }
+        setDraftSaveState('saved');
+        return saved?.id ?? createdEventId;
+      } catch {
+        setDraftSaveState('idle');
+        return createdEventId;
+      }
+    },
+    [user, options, existingEvent?.title, existingEvent?.id, createdEventId, cityInfo],
+  );
+
+  // Debounced server-side autosave whenever the user types or changes any field in the wizard
+  useEffect(() => {
+    if (!visible || !hasDirtyChanges || typeof step !== 'number' || resumePromptDraft !== null) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      void persistDraftToServer(draft, step);
+    }, 650);
+    return () => clearTimeout(timer);
+  }, [visible, hasDirtyChanges, step, draft, resumePromptDraft, persistDraftToServer]);
+
+  const handleResumeSavedDraft = useCallback(() => {
+    if (!resumePromptDraft) return;
+    setCreatedEventId(resumePromptDraft.eventId);
+    setDraft(resumePromptDraft.draft);
+    setStep(resumePromptDraft.step);
+    setDraftSaveState('saved');
+    setHasDirtyChanges(false);
+    setResumePromptDraft(null);
+    scrollToTop();
+  }, [resumePromptDraft, scrollToTop]);
+
+  const handleDiscardSavedDraft = useCallback(async () => {
+    const idToDelete = resumePromptDraft?.eventId;
+    setDiscardingDraft(true);
+    try {
+      if (idToDelete) {
+        await deleteHybridDraft(idToDelete);
+      }
+    } catch {
+      // ignore if already removed
+    } finally {
+      setDiscardingDraft(false);
+      setResumePromptDraft(null);
+      setCreatedEventId(null);
+      setDraft(DEFAULT_OFFER_DRAFT);
+      setHasDirtyChanges(false);
+      setDraftSaveState('idle');
+      setStep(1);
+      scrollToTop();
+    }
+  }, [resumePromptDraft, scrollToTop]);
+
   const close = () => onClose();
 
   const goDirect = () => {
@@ -642,14 +814,17 @@ export function BookingModeSelector({
       if (e) return setError(e);
       setStep(2);
       scrollToTop();
+      void persistDraftToServer(draft, 2);
     } else if (step === 2) {
       setStep(3);
       scrollToTop();
+      void persistDraftToServer(draft, 3);
     } else if (step === 3) {
       const e3 = validateStep3();
       if (e3) return setError(e3);
       setStep(4);
       scrollToTop();
+      void persistDraftToServer(draft, 4);
     }
   };
 
@@ -663,6 +838,7 @@ export function BookingModeSelector({
   };
 
   const handleSelectCoverageMode = (mode: DigitalCoverageMode) => {
+    setHasDirtyChanges(true);
     setDraft((prev) => ({
       ...prev,
       coverageMode: mode,
@@ -683,25 +859,31 @@ export function BookingModeSelector({
         : draft.packageOption === 'PRIORITY'
           ? '4 days'
           : '7 days';
-    setDraft((prev) => ({
-      ...prev,
+    const nextDraft: HybridOfferDraft = {
+      ...draft,
       pricingDecision: 'RECOMMENDED',
       digitalDeadline: chosenDeadline,
-    }));
+    };
+    setHasDirtyChanges(true);
+    setDraft(nextDraft);
     setStep(4);
     scrollToTop();
+    void persistDraftToServer(nextDraft, 4);
   };
 
   const handlePublishMyOfferAnyway = () => {
     setError(null);
     const e3 = validateStep3();
     if (e3) return setError(e3);
-    setDraft((prev) => ({
-      ...prev,
+    const nextDraft: HybridOfferDraft = {
+      ...draft,
       pricingDecision: 'MY_OFFER_ANYWAY',
-    }));
+    };
+    setHasDirtyChanges(true);
+    setDraft(nextDraft);
     setStep(4);
     scrollToTop();
+    void persistDraftToServer(nextDraft, 4);
   };
 
   const publish = async () => {
@@ -714,6 +896,16 @@ export function BookingModeSelector({
         existingEvent?.title?.trim() ||
         `${resolvedEventType} · ${draft.venue.trim() || draft.city}`;
       const serializedBrief = serializeOfferBrief(draft, minutes);
+      const fullLocation = [draft.venue.trim(), draft.city, options?.country]
+        .filter(Boolean)
+        .join(', ');
+
+      if (!eventId) {
+        const savedDraft = await persistDraftToServer(draft, 4);
+        if (savedDraft) {
+          eventId = savedDraft;
+        }
+      }
 
       if (!eventId) {
         const ev = await createEvent(
@@ -724,7 +916,7 @@ export function BookingModeSelector({
             eventDate: draft.date,
             startTime: draft.startTime,
             endTime: draft.endTime,
-            location: [draft.venue.trim(), draft.city, options?.country].filter(Boolean).join(', '),
+            location: fullLocation,
             description: serializedBrief,
             organizer:
               draft.clientType === 'ORGANIZATION'
@@ -747,6 +939,11 @@ export function BookingModeSelector({
       let posted;
       try {
         posted = await createMatchRequest(eventId, {
+          title: generatedTitle,
+          eventDate: draft.date,
+          startTime: `${draft.startTime}:00`,
+          endTime: `${draft.endTime}:00`,
+          location: fullLocation,
           minBudget: effectiveMinBudget,
           maxBudget: effectiveMaxBudget,
           currency: 'RWF',
@@ -777,6 +974,7 @@ export function BookingModeSelector({
           }. Tap Publish Offer again to retry.`,
         };
       }
+      setHasDirtyChanges(false);
       setResult({ eventId, invited: posted?.invitedCount ?? 0, status: posted?.status });
       setStep('done');
       onPosted?.(eventId);
@@ -2792,7 +2990,27 @@ export function BookingModeSelector({
               <View style={styles.stepNumberCircle}>
                 <Text style={styles.stepNumberText}>{step}</Text>
               </View>
-              <Text style={styles.stepBannerTitle}>{tr(activeStepMeta.title)}</Text>
+              <View style={{ flex: 1, gap: 1 }}>
+                <Text style={styles.stepBannerTitle}>{tr(activeStepMeta.title)}</Text>
+                {draftSaveState !== 'idle' ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Ionicons
+                      name={draftSaveState === 'saving' ? 'sync-outline' : 'cloud-done-outline'}
+                      size={11}
+                      color={draftSaveState === 'saving' ? colors.textMuted : colors.success}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: fontWeight.semibold,
+                        color: draftSaveState === 'saving' ? colors.textMuted : colors.success,
+                      }}
+                    >
+                      {draftSaveState === 'saving' ? tr('Saving draft…') : tr('Draft saved')}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
             <View style={styles.stepProgressRight}>
               <View style={styles.segmentTrackRow}>
@@ -2859,19 +3077,17 @@ export function BookingModeSelector({
                   <Text style={styles.backBtnText}>{tr('Back')}</Text>
                 </Pressable>
 
-                {step !== 4 ? (
+                {step === 1 || step === 2 ? (
                   <Pressable
                     onPress={next}
                     disabled={!options}
                     style={[styles.primaryBtn, { flex: 1, backgroundColor: colors.primary }]}
                     accessibilityRole="button"
                   >
-                    <Text style={styles.primaryText}>
-                      {step === 3 ? tr('Review offer') : tr('Continue')}
-                    </Text>
+                    <Text style={styles.primaryText}>{tr('Continue')}</Text>
                     <Ionicons name="arrow-forward" size={16} color={onFill} />
                   </Pressable>
-                ) : (
+                ) : step === 4 ? (
                   <Pressable
                     onPress={publish}
                     disabled={!canPublish}
@@ -2893,11 +3109,120 @@ export function BookingModeSelector({
                       </>
                     )}
                   </Pressable>
-                )}
+                ) : null}
               </>
             )}
           </View>
         ) : null}
+
+        {/* "Continue where you left off" Warning Modal on New Visit */}
+        <Modal
+          visible={typeof step === 'number' && resumePromptDraft !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={handleResumeSavedDraft}
+        >
+          <GlassScrim style={styles.scrim} onPress={handleResumeSavedDraft}>
+            <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.md }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
+                <View
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 20,
+                    backgroundColor: colors.warningBg,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name="warning-outline" size={22} color={colors.pending} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: fontWeight.extrabold,
+                      color: colors.pending,
+                      letterSpacing: 0.7,
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    {tr('Saved draft found')}
+                  </Text>
+                  <Text style={styles.sectionTitle}>{tr('Continue where you left off?')}</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.hint, { marginBottom: spacing.sm, lineHeight: 19 }]}>
+                {tr(
+                  'You have an unfinished event offer draft saved to your account. Would you like to continue where you left off or start a new offer?',
+                )}
+              </Text>
+
+              {resumePromptDraft ? (
+                <View
+                  style={{
+                    borderWidth: 1,
+                    borderColor: colors.borderSoft,
+                    borderRadius: radii.md,
+                    padding: spacing.sm,
+                    backgroundColor: colors.surface,
+                    marginBottom: spacing.md,
+                    gap: 4,
+                  }}
+                >
+                  <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.extrabold, color: colors.text }}>
+                    {resumePromptDraft.title ||
+                      `${resumePromptDraft.draft.eventTypeKey || 'Event'} · ${
+                        resumePromptDraft.draft.venue || resumePromptDraft.draft.city || 'Kigali'
+                      }`}
+                  </Text>
+                  <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>
+                    {`${tr('Saved on Step')} ${resumePromptDraft.step} ${tr('of 4')} • ${
+                      resumePromptDraft.draft.date
+                        ? prettyDate(resumePromptDraft.draft.date)
+                        : tr('Date not set')
+                    }`}
+                  </Text>
+                </View>
+              ) : null}
+
+              <View style={{ gap: spacing.sm }}>
+                <Pressable
+                  onPress={handleResumeSavedDraft}
+                  style={[styles.primaryBtn, { backgroundColor: colors.primary }]}
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="play-circle-outline" size={18} color={onFill} />
+                  <Text style={styles.primaryText}>{tr('Continue where you left off')}</Text>
+                </Pressable>
+
+                <Pressable
+                  onPress={handleDiscardSavedDraft}
+                  disabled={discardingDraft}
+                  style={[
+                    styles.backBtn,
+                    {
+                      justifyContent: 'center',
+                      borderColor: colors.borderSoft,
+                      paddingVertical: 11,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                >
+                  {discardingDraft ? (
+                    <ActivityIndicator size="small" color={colors.textMuted} />
+                  ) : (
+                    <>
+                      <Ionicons name="refresh-outline" size={16} color={colors.textSoft} />
+                      <Text style={styles.backBtnText}>{tr('Start fresh (Discard draft)')}</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
+            </GlassSheetHost>
+          </GlassScrim>
+        </Modal>
 
         {Platform.OS !== 'web' ? (
           <>

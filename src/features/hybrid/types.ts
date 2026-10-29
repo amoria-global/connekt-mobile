@@ -116,6 +116,11 @@ export type MatchPreviewResult = {
 };
 
 export type MatchRequestPayload = {
+  title?: string;
+  eventDate?: string;
+  startTime?: string;
+  endTime?: string;
+  location?: string;
   minBudget?: number;
   maxBudget?: number;
   currency?: string;
@@ -138,6 +143,46 @@ export type MatchRequestPayload = {
   printDeliveryMethod?: string;
   printDeliveryAddress?: string;
   printProposedDate?: string;
+};
+
+export type HybridDraftPayload = {
+  eventId?: string;
+  title?: string;
+  eventType?: string;
+  eventCategoryId?: string;
+  eventDate?: string;
+  startTime?: string;
+  endTime?: string;
+  city?: string;
+  venue?: string;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  description?: string;
+  minBudget?: number;
+  maxBudget?: number;
+  hasLiveStream?: boolean;
+  allowWishInvites?: boolean;
+  minimumPhotos?: number;
+  draftStep?: 1 | 2 | 3 | 4;
+};
+
+export type HybridDraftResponse = {
+  id: string;
+  title?: string;
+  description?: string;
+  eventDate?: string;
+  startTime?: string;
+  endTime?: string;
+  city?: string;
+  venue?: string;
+  location?: string;
+  minBudget?: number;
+  maxBudget?: number;
+  eventStatus?: string;
+  bookingStatus?: string;
+  isPublished?: boolean;
+  updatedAt?: string;
 };
 
 export type MatchRequestResult = {

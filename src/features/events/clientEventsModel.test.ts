@@ -27,13 +27,16 @@ describe('filtering and counts', () => {
   it('published is only published', () => {
     expect(filterEvents(list, 'published', '', today).map((e) => e.id)).toEqual(['a']);
   });
+  it('drafts filters unpublished unbooked drafts', () => {
+    expect(filterEvents(list, 'drafts', '', today).map((e) => e.id)).toEqual(['c']);
+  });
   it('search matches title, location and photographer, ignoring case and padding', () => {
     expect(filterEvents(list, 'all', '  KIGALI ', today).map((e) => e.id)).toEqual(['a']);
     expect(filterEvents(list, 'all', 'eric', today).map((e) => e.id)).toEqual(['b']);
     expect(filterEvents(list, 'all', 'zzz', today)).toEqual([]);
   });
   it('counts add up to the whole list', () => {
-    expect(countByFilter(list, today)).toEqual({ all: 3, upcoming: 2, published: 1, past: 1 });
+    expect(countByFilter(list, today)).toEqual({ all: 3, upcoming: 2, published: 1, drafts: 1, past: 1 });
   });
 });
 
@@ -58,6 +61,9 @@ describe('sorting', () => {
 describe('status words', () => {
   it('an unpublished direct booking says so rather than "upcoming"', () => {
     expect(eventStatus(ev({ published: false }))).toEqual({ label: 'Not published', tone: 'warning' });
+  });
+  it('a saved draft event says Draft', () => {
+    expect(eventStatus(ev({ status: 'DRAFT', published: false }))).toEqual({ label: 'Draft', tone: 'warning' });
   });
   it('a posted hybrid event with no photographer is matching, never published', () => {
     const s = eventStatus(ev({ bookingMode: 'HYBRID', status: 'MATCHING', published: true }));

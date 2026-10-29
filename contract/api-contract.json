@@ -5014,6 +5014,23 @@
     } ],
     "consumes" : [ "multipart/form-data" ]
   }, {
+    "method" : "GET",
+    "path" : "/api/remote/events/hybrid-draft",
+    "controller" : "HybridBookingController#getHybridDraft"
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/events/hybrid-draft",
+    "controller" : "HybridBookingController#saveHybridDraft",
+    "body" : {
+      "type" : "HybridDraftRequestDTO",
+      "properties" : [ "allowWishInvites", "city", "description", "draftStep", "endTime", "eventCategoryId", "eventDate", "eventId", "eventType", "hasLiveStream", "latitude", "location", "longitude", "maxBudget", "minBudget", "minimumPhotos", "startTime", "title", "venue" ]
+    }
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/events/hybrid-draft/{id}",
+    "controller" : "HybridBookingController#deleteHybridDraft",
+    "pathVariables" : [ "id" ]
+  }, {
     "method" : "POST",
     "path" : "/api/remote/events/join",
     "controller" : "EventRemoteController#joinEvent",
@@ -5032,7 +5049,7 @@
     "controller" : "HybridBookingController#getMatchPreview",
     "body" : {
       "type" : "MatchPreviewRequestDTO",
-      "properties" : [ "allowWishInvites", "city", "currency", "digitalDeliveryDays", "editedPhotos", "endTime", "eventDate", "eventId", "hasLiveStream", "latitude", "locationCoverage", "longVideosQty", "longitude", "maxBudget", "minBudget", "photoAlbumsQty", "photoBooksQty", "photographerSpecialty", "photographerType", "shortVideosQty", "specialty", "startTime", "wallPortraitsQty" ]
+      "properties" : [ "allowWishInvites", "city", "clientType", "coverageMode", "currency", "digitalDeliveryDays", "editedPhotos", "editingStyle", "endTime", "eventDate", "eventId", "hasLiveStream", "instantUpdates", "latitude", "locationCoverage", "longVideosDuration", "longVideosQty", "longitude", "maxBudget", "minBudget", "photoAlbumPrints", "photoAlbumSize", "photoAlbumsQty", "photoBookPages", "photoBookSize", "photoBooksQty", "photographerSpecialty", "photographerType", "printCollectionMethod", "printProductionTime", "printProposedDate", "shortVideosDuration", "shortVideosQty", "specialty", "startTime", "usageRights", "wallPortraitFrame", "wallPortraitSize", "wallPortraitsQty" ]
     }
   }, {
     "method" : "PATCH",
@@ -5336,7 +5353,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "allowWishInvites", "city", "clientType", "country", "currency", "digitalDeliveryDays", "eventId", "expirationHours", "hasLiveStream", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "minimumPhotos", "photographerSpecialty", "photographerType", "printDeliveryAddress", "printDeliveryMethod", "printProposedDate", "specialty", "venue" ]
+      "properties" : [ "allowWishInvites", "city", "clientType", "country", "currency", "digitalDeliveryDays", "endTime", "eventDate", "eventId", "expirationHours", "hasLiveStream", "instructions", "latitude", "location", "locationCoverage", "longitude", "maxBudget", "minBudget", "minimumPhotos", "photographerSpecialty", "photographerType", "printDeliveryAddress", "printDeliveryMethod", "printProposedDate", "specialty", "startTime", "title", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {
@@ -5390,6 +5407,23 @@
     "pathVariables" : [ "id" ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/match/draft",
+    "controller" : "HybridBookingController#getHybridDraft"
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/match/draft",
+    "controller" : "HybridBookingController#saveHybridDraft",
+    "body" : {
+      "type" : "HybridDraftRequestDTO",
+      "properties" : [ "allowWishInvites", "city", "description", "draftStep", "endTime", "eventCategoryId", "eventDate", "eventId", "eventType", "hasLiveStream", "latitude", "location", "longitude", "maxBudget", "minBudget", "minimumPhotos", "startTime", "title", "venue" ]
+    }
+  }, {
+    "method" : "DELETE",
+    "path" : "/api/remote/match/draft/{id}",
+    "controller" : "HybridBookingController#deleteHybridDraft",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/match/events/{id}/candidates",
     "controller" : "HybridBookingController#getApprovedCandidates",
     "pathVariables" : [ "id" ]
@@ -5429,7 +5463,7 @@
     "controller" : "HybridBookingController#getMatchPreview",
     "body" : {
       "type" : "MatchPreviewRequestDTO",
-      "properties" : [ "allowWishInvites", "city", "currency", "digitalDeliveryDays", "editedPhotos", "endTime", "eventDate", "eventId", "hasLiveStream", "latitude", "locationCoverage", "longVideosQty", "longitude", "maxBudget", "minBudget", "photoAlbumsQty", "photoBooksQty", "photographerSpecialty", "photographerType", "shortVideosQty", "specialty", "startTime", "wallPortraitsQty" ]
+      "properties" : [ "allowWishInvites", "city", "clientType", "coverageMode", "currency", "digitalDeliveryDays", "editedPhotos", "editingStyle", "endTime", "eventDate", "eventId", "hasLiveStream", "instantUpdates", "latitude", "locationCoverage", "longVideosDuration", "longVideosQty", "longitude", "maxBudget", "minBudget", "photoAlbumPrints", "photoAlbumSize", "photoAlbumsQty", "photoBookPages", "photoBookSize", "photoBooksQty", "photographerSpecialty", "photographerType", "printCollectionMethod", "printProductionTime", "printProposedDate", "shortVideosDuration", "shortVideosQty", "specialty", "startTime", "usageRights", "wallPortraitFrame", "wallPortraitSize", "wallPortraitsQty" ]
     }
   }, {
     "method" : "POST",
@@ -5437,7 +5471,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "allowWishInvites", "city", "clientType", "country", "currency", "digitalDeliveryDays", "eventId", "expirationHours", "hasLiveStream", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "minimumPhotos", "photographerSpecialty", "photographerType", "printDeliveryAddress", "printDeliveryMethod", "printProposedDate", "specialty", "venue" ]
+      "properties" : [ "allowWishInvites", "city", "clientType", "country", "currency", "digitalDeliveryDays", "endTime", "eventDate", "eventId", "expirationHours", "hasLiveStream", "instructions", "latitude", "location", "locationCoverage", "longitude", "maxBudget", "minBudget", "minimumPhotos", "photographerSpecialty", "photographerType", "printDeliveryAddress", "printDeliveryMethod", "printProposedDate", "specialty", "startTime", "title", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {
@@ -5450,7 +5484,7 @@
     "controller" : "HybridBookingController#createMatchRequest",
     "body" : {
       "type" : "CreateMatchRequestDTO",
-      "properties" : [ "allowWishInvites", "city", "clientType", "country", "currency", "digitalDeliveryDays", "eventId", "expirationHours", "hasLiveStream", "instructions", "latitude", "locationCoverage", "longitude", "maxBudget", "minBudget", "minimumPhotos", "photographerSpecialty", "photographerType", "printDeliveryAddress", "printDeliveryMethod", "printProposedDate", "specialty", "venue" ]
+      "properties" : [ "allowWishInvites", "city", "clientType", "country", "currency", "digitalDeliveryDays", "endTime", "eventDate", "eventId", "expirationHours", "hasLiveStream", "instructions", "latitude", "location", "locationCoverage", "longitude", "maxBudget", "minBudget", "minimumPhotos", "photographerSpecialty", "photographerType", "printDeliveryAddress", "printDeliveryMethod", "printProposedDate", "specialty", "startTime", "title", "venue" ]
     },
     "pathVariables" : [ "id" ],
     "params" : [ {

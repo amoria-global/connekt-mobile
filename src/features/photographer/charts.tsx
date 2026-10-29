@@ -61,8 +61,7 @@ export function SegmentRing({
                   fill="none"
                   strokeDasharray={`${dash} ${c - dash}`}
                   strokeDashoffset={-offset}
-                  rotation={-90}
-                  origin={`${size / 2}, ${size / 2}`}
+                  transform={`rotate(-90 ${size / 2} ${size / 2})`}
                 />
               );
               offset += len;
