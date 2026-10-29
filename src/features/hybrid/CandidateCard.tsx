@@ -1,111 +1,77 @@
 /**
- * A photographer who said yes to a posted event. Shows the recommendation
- * tier (a matching recommendation, not a quality guarantee), never the
- * internal score; rating only when there are reviews.
+ * A photographer who said yes to a posted event, as one compact card in a recommendation band's row:
+ * profile (photo and name), role, speciality, Smart Match score, estimated distance and how they
+ * accepted. Tapping it opens the choose panel. The score is relative to the others who accepted
+ * this event, and the band the card sits under is the score's range.
  */
 import React from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
+import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import type { CandidateSummary } from './types';
-import { MODE_META, TierBadge } from './hybridUi';
+import { smartTierOf, TIER_META } from './hybridUi';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 type Props = {
   candidate: CandidateSummary;
-  onSelect: (candidate: CandidateSummary) => void;
-  onViewProfile?: (candidate: CandidateSummary) => void;
-  selecting?: boolean;
+  onOpen: (candidate: CandidateSummary) => void;
+  width: number;
 };
 
-export function CandidateCard({ candidate: c, onSelect, onViewProfile, selecting }: Props) {
+export function CandidateCard({ candidate: c, onOpen, width }: Props) {
   const { colors } = useTheme();
   const styles = useStyles();
   const { tr } = useSharedT();
-  const isPackagePolicy = c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE';
+  const tier = TIER_META[smartTierOf(c)];
+  const ownPolicy = c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE';
+  const role = c.photographerType === 'STUDIO' ? tr('Company / Studio') : tr('Freelancer / Individual');
+  const status = ownPolicy ? tr('Accepted · own delivery policy') : tr('Accepted · your schedule');
+  const score = c.matchScore != null ? `${c.matchScore}` : null;
 
   return (
-    <View style={styles.card}>
-      <View style={{ flexDirection: 'row', gap: spacing.md }}>
+    <Pressable
+      onPress={() => onOpen(c)}
+      style={[styles.card, { width, borderColor: tier.color }]}
+      accessibilityRole="button"
+      accessibilityLabel={[c.name, role, c.primarySpecialty, score ? `Score ${score}` : null, c.distanceLabel, status].filter(Boolean).join(', ')}
+    >
+      <View style={styles.top}>
         <View style={styles.avatar}>
           {c.avatar ? <Image source={{ uri: c.avatar }} style={{ width: '100%', height: '100%' }} contentFit="cover" accessibilityIgnoresInvertColors />
             : <Text style={styles.initial}>{c.name.charAt(0)}</Text>}
         </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <Text style={styles.name} numberOfLines={2}>{c.name}</Text>
-          <TierBadge tier={c.recommendationTier} />
-        </View>
-      </View>
-
-      <View style={styles.meta}>
-        <Meta icon={c.photographerType === 'STUDIO' ? 'business-outline' : 'person-outline'} text={c.photographerType === 'STUDIO' ? tr('Company / Studio') : tr('Freelancer / Individual')} />
-        {c.distanceLabel ? <Meta icon="location-outline" text={c.distanceLabel} /> : null}
-        {c.rating != null && c.reviewCount ? (
-          <Meta icon="star" iconColor={colors.pending} text={`${c.rating.toFixed(1)} · ${c.reviewCount} ${tr('reviews')}`} />
-        ) : <Meta icon="star-outline" text={tr('No reviews yet')} muted />}
-        {c.typicalPriceRange ? <Meta icon="pricetag-outline" text={c.typicalPriceRange} /> : null}
-        {c.instagram?.handle ? <Meta icon="logo-instagram" text={`@${c.instagram.handle}`} /> : null}
-        <Meta
-          icon={isPackagePolicy ? 'cube-outline' : 'checkmark-circle-outline'}
-          iconColor={isPackagePolicy ? colors.info : colors.success}
-          text={
-            isPackagePolicy
-              ? `${tr("Accepted with photographer's package delivery policy")}${
-                  c.packageDeliveryDays ? ` (${c.packageDeliveryDays}d digital & package print handover)` : ''
-                }`
-              : tr('Accepted with your requested delivery schedule')
-          }
-        />
-      </View>
-
-      {c.specialties.length > 0 ? (
-        <View style={styles.tags}>
-          {c.specialties.slice(0, 4).map((s) => <Text key={s} style={styles.tag}>{s}</Text>)}
-        </View>
-      ) : null}
-      {c.about ? <Text style={styles.about} numberOfLines={3}>{c.about}</Text> : null}
-
-      <View style={styles.actions}>
-        {onViewProfile ? (
-          <Pressable onPress={() => onViewProfile(c)} style={styles.secondary} accessibilityRole="button" accessibilityLabel={tr('View portfolio')}>
-            <Text style={styles.secondaryText}>{tr('View portfolio')}</Text>
-          </Pressable>
+        {score ? (
+          <View style={[styles.score, { backgroundColor: tier.bg }]}>
+            <Text style={[styles.scoreText, { color: tier.color }]}>{score}</Text>
+          </View>
         ) : null}
-        <Pressable onPress={() => onSelect(c)} disabled={selecting} style={[styles.primary, selecting && { opacity: 0.6 }]}
-          accessibilityRole="button" accessibilityLabel={tr('Choose')}>
-          {selecting ? <ActivityIndicator color={onFill} /> : <Text style={styles.primaryText}>{tr('Choose')}</Text>}
-        </Pressable>
       </View>
-    </View>
-  );
-}
-
-function Meta({ icon, text, iconColor, muted }: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string; iconColor?: string; muted?: boolean }) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  return (
-    <View style={styles.metaRow}>
-      <Ionicons name={icon} size={13} color={iconColor || colors.primary} />
-      <Text style={[styles.metaText, muted && { color: colors.textMuted }]} numberOfLines={2}>{text}</Text>
-    </View>
+      <Text style={styles.name} numberOfLines={1}>{c.name}</Text>
+      <Text style={styles.role} numberOfLines={1}>{role}</Text>
+      {c.primarySpecialty ? <Text style={styles.specialty} numberOfLines={2}>{c.primarySpecialty}</Text> : null}
+      <View style={styles.row}>
+        <Ionicons name="location-outline" size={12} color={colors.textMuted} />
+        <Text style={styles.meta} numberOfLines={1}>{c.distanceLabel || c.city || tr('Distance not shown')}</Text>
+      </View>
+      <View style={styles.row}>
+        <Ionicons name={ownPolicy ? 'cube-outline' : 'checkmark-circle'} size={12} color={ownPolicy ? colors.info : colors.success} />
+        <Text style={[styles.meta, { color: ownPolicy ? colors.info : colors.success }]} numberOfLines={2}>{status}</Text>
+      </View>
+    </Pressable>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: c.card, borderRadius: radii.xl, borderWidth: 1, borderColor: c.border, padding: spacing.lg, gap: spacing.sm },
-  avatar: { width: 56, height: 56, borderRadius: 28, overflow: 'hidden', backgroundColor: c.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
-  initial: { fontSize: fontSize.xl, fontWeight: fontWeight.extrabold, color: c.primary },
-  name: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, color: c.text },
-  meta: { gap: 4 },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  metaText: { fontSize: fontSize.sm, color: c.textSoft, flex: 1 },
-  tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  tag: { fontSize: 11, color: c.textSoft, backgroundColor: c.surfaceMuted, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radii.full, overflow: 'hidden' },
-  about: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 17 },
-  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
-  primary: { flex: 1, minHeight: 46, borderRadius: radii.md, backgroundColor: MODE_META.HYBRID.color, alignItems: 'center', justifyContent: 'center' },
-  primaryText: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
-  secondary: { flex: 1, minHeight: 46, borderRadius: radii.md, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { color: c.text, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
+  card: { backgroundColor: c.card, borderRadius: radii.lg, borderWidth: 1, padding: spacing.sm, gap: 3 },
+  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 },
+  avatar: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden', backgroundColor: c.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
+  initial: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, color: c.primary },
+  score: { minWidth: 34, paddingHorizontal: 8, height: 24, borderRadius: radii.full, alignItems: 'center', justifyContent: 'center' },
+  scoreText: { fontSize: 12, fontWeight: fontWeight.extrabold },
+  name: { fontSize: fontSize.sm, fontWeight: fontWeight.extrabold, color: c.text },
+  role: { fontSize: 11, color: c.textMuted },
+  specialty: { fontSize: 11.5, color: c.textSoft },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  meta: { flex: 1, fontSize: 11, color: c.textSoft },
 }));

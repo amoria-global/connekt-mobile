@@ -24,6 +24,7 @@ import type {
   OpportunityDeliveryPolicy,
   PhotographerOpportunity,
   RecommendationTier,
+  SmartMatchTier,
   SelectPhotographerPayload,
   SelectPhotographerResult,
 } from './types';
@@ -39,6 +40,8 @@ function assertOk(res: { action?: number; message?: string } | undefined, fallba
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
 const str = (v: unknown): string | undefined => (typeof v === 'string' && v !== '' ? v : undefined);
 const tier = (v: unknown): RecommendationTier => (v === 'HIGH' || v === 'MEDIUM' || v === 'LOW' ? v : 'LOW');
+const smartTier = (v: unknown): SmartMatchTier | undefined =>
+  v === 'PREMIUM' || v === 'PREFERRED' || v === 'SUGGESTED' || v === 'ALTERNATIVE' ? v : undefined;
 
 // ───────────────────────── server clock ─────────────────────────
 
@@ -198,6 +201,10 @@ function mapCandidate(c: any): CandidateSummary {
     city: str(c.city),
     photographerType: c.photographerType === 'STUDIO' ? 'STUDIO' : 'FREELANCER',
     recommendationTier: tier(c.recommendationTier),
+    smartTier: smartTier(c.smartTier),
+    matchScore: num(c.matchScore),
+    primarySpecialty: str(c.primarySpecialty),
+    approvedAt: str(c.approvedAt),
     rank: num(c.rank),
     distanceKm: num(c.distanceKm),
     distanceLabel: str(c.distanceLabel),
@@ -212,6 +219,13 @@ function mapCandidate(c: any): CandidateSummary {
     deliveryPolicy: c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'PHOTOGRAPHER_PACKAGE' : 'CLIENT',
     packageDeliveryDays: num(c.packageDeliveryDays),
     packageDeliveryDescription: str(c.packageDeliveryDescription),
+    matchedPackageId: str(c.matchedPackageId),
+    matchedPackageName: str(c.matchedPackageName),
+    matchedPackagePrice: num(c.matchedPackagePrice),
+    matchedPackageCurrency: str(c.matchedPackageCurrency),
+    matchedPackagePhotos: num(c.matchedPackagePhotos),
+    matchedPackageVideos: num(c.matchedPackageVideos),
+    matchedPackageHours: num(c.matchedPackageHours),
   };
 }
 

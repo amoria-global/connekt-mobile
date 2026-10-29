@@ -69,6 +69,7 @@ import { clearReminder, getReminder, isValidReminderEmail, setReminder } from '@
 import { registerForPushNotifications } from '@/features/notifications/push';
 import { useStackClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { cleanEventDescription } from '@/features/hybrid/offerBrief';
 
 /**
  * Web parity (view-event.client.tsx:1507-1538): countdown to event
@@ -561,7 +562,7 @@ export default function PublicEventDetailScreen() {
         }
       : baseCta;
   const price = priceLabel(data, t);
-  const desc = data.description ?? '';
+  const desc = cleanEventDescription(data.description);
   const descTruncated = desc.length > DESC_LIMIT && !descExpanded;
   const descText = descTruncated ? `${desc.slice(0, DESC_LIMIT)}…` : desc;
 
