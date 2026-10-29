@@ -1208,7 +1208,7 @@ export default function NewEventScreen() {
                 />
                 <Text style={styles.visibilityHint}>
                   {visibility === 'PRIVATE'
-                    ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee of at least 100 RWF.'
+                    ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee of at least 100 in the currency you pick.'
                     : 'A photographer covers your event and streams it. Published events appear on connekyt.com.'}
                 </Text>
               </View>
