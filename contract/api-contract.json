@@ -4795,6 +4795,14 @@
     "pathVariables" : [ "deviceId" ]
   }, {
     "method" : "POST",
+    "path" : "/api/remote/customer/tv-devices/{deviceId}/cast",
+    "controller" : "TvCastController#send",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "deviceId" ]
+  }, {
+    "method" : "POST",
     "path" : "/api/remote/customer/withdraw/initiate",
     "controller" : "WithdrawalController#initiateWithdraw",
     "body" : {
@@ -7127,6 +7135,26 @@
     "path" : "/api/remote/public/currencies/rates",
     "controller" : "PublicRemoteController#getCurrencyRates"
   }, {
+    "method" : "POST",
+    "path" : "/api/remote/public/deferred-links",
+    "controller" : "DeferredLinkController#create",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/deferred-links/match",
+    "controller" : "DeferredLinkController#byNetwork",
+    "params" : [ {
+      "name" : "platform",
+      "required" : true
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/deferred-links/{code}",
+    "controller" : "DeferredLinkController#byCode",
+    "pathVariables" : [ "code" ]
+  }, {
     "method" : "GET",
     "path" : "/api/remote/public/donation-tiers",
     "controller" : "PublicRemoteController#getDonationTiers",
@@ -7409,7 +7437,7 @@
       "required" : true
     }, {
       "name" : "email",
-      "required" : true
+      "required" : false
     }, {
       "name" : "deviceFingerprint",
       "required" : true
@@ -7928,6 +7956,15 @@
     "method" : "ANY",
     "path" : "/api/remote/team/users/**",
     "controller" : "TeamController#retired"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/tv/cast/{pairingCode}",
+    "controller" : "TvCastController#poll",
+    "pathVariables" : [ "pairingCode" ],
+    "params" : [ {
+      "name" : "deviceSecret",
+      "required" : false
+    } ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/tv/catalog/categories",

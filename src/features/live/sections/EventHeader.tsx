@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts } from '@/theme';
@@ -10,11 +10,14 @@ export const EventHeader = memo(function EventHeader({
   onBack,
   onShare,
   topInset = 0,
+  extra,
 }: {
   title: string;
   onBack: () => void;
   onShare: () => void;
   topInset?: number;
+  /** Extra header actions, drawn before Share (the live page puts Watch on TV here). */
+  extra?: ReactNode;
 }) {
   return (
     <View style={[s.root, { paddingTop: topInset + 4 }]}>
@@ -24,6 +27,7 @@ export const EventHeader = memo(function EventHeader({
       <Text style={s.title} numberOfLines={1} accessibilityRole="header">
         {title}
       </Text>
+      {extra}
       <Pressable onPress={onShare} accessibilityRole="button" accessibilityLabel="Share event" style={s.icon}>
         <Ionicons name="share-social-outline" size={20} color={V.text} />
       </Pressable>
