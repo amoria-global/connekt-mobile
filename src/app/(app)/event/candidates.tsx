@@ -5,16 +5,18 @@
  * creates the booking; payment then goes through the shared checkout.
  */
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
+import { keepIfSame, useForegroundPolling } from '@/hooks/useForegroundPolling';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen } from '@/components/ui/Screen';
 import { CandidateCard } from '@/features/hybrid/CandidateCard';
+import { getPhotographer, type PhotographerPackage } from '@/features/photographers/api';
 import { convertToDirectRescue, getHybridOptions, listEventCandidates, selectPhotographer, syncServerClock } from '@/features/hybrid/api';
-import type { CandidateSummary, CandidatesResponse, RecommendationTier } from '@/features/hybrid/types';
-import { budgetLabel, CountdownText, hhmm, MODE_META, TIER_META } from '@/features/hybrid/hybridUi';
+import type { CandidateSummary, CandidatesResponse } from '@/features/hybrid/types';
+import { budgetLabel, CountdownText, hhmm, MODE_META, SMART_TIER_ORDER, SMART_TIER_RANGE, smartTierOf, TIER_META } from '@/features/hybrid/hybridUi';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { isMatchBooked } from '@/features/hybrid/status';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
@@ -23,8 +25,10 @@ import { useLanguage } from '@/store/language';
 import { formatPrice } from '@/utils/format';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill } from '@/theme';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { Sheet } from '@/components/ui/Sheet';
 
-const TIERS: RecommendationTier[] = ['HIGH', 'MEDIUM', 'LOW'];
+/** Cards in a band's row before View more. */
+const TIER_ROW = 4;
 
 export default function EventCandidatesScreen() {
   const router = useRouter();
@@ -42,6 +46,16 @@ export default function EventCandidatesScreen() {
   const [choosing, setChoosing] = useState<CandidateSummary | null>(null);
   const [escrow, setEscrow] = useState(50);
   const [escrowOptions, setEscrowOptions] = useState<number[]>([50, 70, 100]);
+  const [detail, setDetail] = useState<CandidateSummary | null>(null);
+  const [packagesFor, setPackagesFor] = useState<CandidateSummary | null>(null);
+  const [loadedPackages, setLoadedPackages] = useState<{ id: string; list: PhotographerPackage[] } | null>(null);
+  const packagesLoading = !!packagesFor && loadedPackages?.id !== packagesFor.photographerId;
+  const packages = loadedPackages && packagesFor && loadedPackages.id === packagesFor.photographerId ? loadedPackages.list : [];
+  const { width: screenW } = useWindowDimensions();
+  // Four across when the screen is wide enough; on a phone the row of four scrolls sideways.
+  const rowW = Math.min(screenW, 720) - spacing.lg * 2;
+  const cardWidth = rowW >= 560 ? Math.floor((rowW - spacing.sm * 3) / 4) : 148;
+  const [expandedTiers, setExpandedTiers] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [converting, setConverting] = useState(false);
   const [repostOpen, setRepostOpen] = useState(false);
@@ -51,7 +65,8 @@ export default function EventCandidatesScreen() {
   const load = useCallback(async () => {
     if (!eventId) return;
     try {
-      setData(await listEventCandidates(eventId));
+      const next = await listEventCandidates(eventId);
+      setData((prev) => (prev ? keepIfSame(prev, next) : next));
       setError(null);
     } catch (e) {
       setError(isApiError(e) ? e.message : t('b3_cand_load_err'));
@@ -73,10 +88,17 @@ export default function EventCandidatesScreen() {
 
   const active = (data?.matchStatus || '').toUpperCase() === 'ACTIVE';
   useEffect(() => {
-    if (data && !active && (data.candidates.length > 0 || isMatchBooked(data))) return;
-    const id = setInterval(load, 12000);
-    return () => clearInterval(id);
-  }, [active, data, load]);
+    if (!packagesFor) return;
+    let live = true;
+    const id = packagesFor.photographerId;
+    getPhotographer(id)
+      .then((d) => { if (live) setLoadedPackages({ id, list: d.packages }); })
+      .catch(() => { if (live) setLoadedPackages({ id, list: [] }); });
+    return () => { live = false; };
+  }, [packagesFor]);
+
+  const settled = !!data && !active && (data.candidates.length > 0 || isMatchBooked(data));
+  useForegroundPolling(load, 12000, !settled);
 
   const confirmChoice = async () => {
     if (!choosing) return;
@@ -122,19 +144,44 @@ export default function EventCandidatesScreen() {
   } else if (candidates.length > 0) {
     content = (
       <View style={{ gap: spacing.lg }}>
-        {TIERS.filter((tTier) => candidates.some((c) => c.recommendationTier === tTier)).map((tTier) => (
-          <View key={tTier} style={{ gap: spacing.sm }}>
-            <View>
-              <Text style={[styles.tierTitle, { color: TIER_META[tTier].color }]} accessibilityRole="header">{TIER_META[tTier].label.toUpperCase()}</Text>
-              <Text style={styles.hint}>{TIER_META[tTier].hint}</Text>
+        {SMART_TIER_ORDER.map((tTier) => {
+          const inTier = candidates.filter((c) => smartTierOf(c) === tTier);
+          if (inTier.length === 0) return null;
+          const open = !!expandedTiers[tTier];
+          const meta = TIER_META[tTier];
+          const extra = inTier.length - TIER_ROW;
+          return (
+            <View key={tTier} style={styles.band}>
+              <View style={styles.tierHead}>
+                <View style={[styles.tierIcon, { backgroundColor: meta.bg }]}><Ionicons name={meta.icon} size={16} color={meta.color} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.tierTitle, { color: meta.color }]} accessibilityRole="header">{meta.label.toUpperCase()}</Text>
+                  <Text style={styles.hint}>Score {SMART_TIER_RANGE[tTier]} · {inTier.length} accepted</Text>
+                </View>
+                {extra > 0 ? (
+                  <Pressable
+                    onPress={() => setExpandedTiers((p) => ({ ...p, [tTier]: !open }))}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: open }}
+                    style={[styles.tierMore, { borderColor: meta.color }]}
+                  >
+                    <Text style={[styles.tierMoreText, { color: meta.color }]}>{open ? 'Show less' : `View more (${extra})`}</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+              {open ? (
+                <View style={styles.bandGrid}>
+                  {inTier.map((c) => <CandidateCard key={c.candidateId} candidate={c} width={cardWidth} onOpen={setDetail} />)}
+                </View>
+              ) : (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bandRow}>
+                  {inTier.slice(0, TIER_ROW).map((c) => <CandidateCard key={c.candidateId} candidate={c} width={cardWidth} onOpen={setDetail} />)}
+                </ScrollView>
+              )}
             </View>
-            {candidates.filter((c) => c.recommendationTier === tTier).map((c) => (
-              <CandidateCard key={c.candidateId} candidate={c}
-                onSelect={(cand) => { setEscrow(50); setChoosing(cand); }}
-                onViewProfile={(cand) => router.push(`/photographer/${cand.photographerId}` as never)} />
-            ))}
-          </View>
-        ))}
+          );
+        })}
         <Text style={styles.hint}>{t('b3_cand_groups_hint')}</Text>
       </View>
     );
@@ -243,6 +290,118 @@ export default function EventCandidatesScreen() {
         {content}
       </ScrollView>
 
+      <Sheet
+        visible={!!detail}
+        title={detail?.name ?? ''}
+        subtitle={detail ? [detail.primarySpecialty, `${TIER_META[smartTierOf(detail)].label}${detail.matchScore != null ? ` · Score ${detail.matchScore}` : ''}`].filter(Boolean).join(' · ') : undefined}
+        onClose={() => setDetail(null)}
+      >
+        {detail ? (
+          <View style={{ gap: spacing.md }}>
+            <View style={styles.detailBox}>
+              <Text style={styles.hint}>
+                {[detail.photographerType === 'STUDIO' ? 'Company / Studio' : 'Freelancer', detail.distanceLabel || detail.city].filter(Boolean).join(' · ')}
+              </Text>
+              <Text style={styles.hint}>
+                {detail.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+                  ? `Accepted with their own delivery policy${detail.packageDeliveryDays ? ` (${detail.packageDeliveryDays} days)` : ''}`
+                  : 'Accepted with your requested delivery schedule'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => { const cand = detail; setDetail(null); setEscrow(50); setChoosing(cand); }}
+              style={styles.primary}
+              accessibilityRole="button"
+              accessibilityLabel={`Confirm ${detail.name} and pay`}
+            >
+              <Text style={styles.primaryText}>Confirm and Pay</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => { const id = detail.photographerId; setDetail(null); router.push(`/photographer/${id}?tab=Portfolio` as never); }}
+              style={styles.detailAction}
+              accessibilityRole="button"
+            >
+              <Ionicons name="images-outline" size={18} color={colors.primary} />
+              <Text style={styles.detailActionText}>View portfolio</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </Pressable>
+            <Pressable
+              onPress={() => { setPackagesFor(detail); setDetail(null); }}
+              style={styles.detailAction}
+              accessibilityRole="button"
+            >
+              <Ionicons name="cube-outline" size={18} color={colors.primary} />
+              <Text style={styles.detailActionText}>View packages and delivery policy</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </Pressable>
+          </View>
+        ) : null}
+      </Sheet>
+
+      <Sheet
+        visible={!!packagesFor}
+        title={packagesFor ? `${packagesFor.name}: packages` : ''}
+        subtitle={packagesFor?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'Delivery follows their own policy' : 'Delivery follows your requested schedule'}
+        onClose={() => setPackagesFor(null)}
+        footer={packagesFor ? (
+          <Pressable
+            onPress={() => { const cand = packagesFor; setPackagesFor(null); setEscrow(50); setChoosing(cand); }}
+            style={styles.primary}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryText}>Confirm and Pay</Text>
+          </Pressable>
+        ) : undefined}
+      >
+        {packagesFor ? (
+          <View style={{ gap: spacing.md }}>
+            <View style={styles.detailBox}>
+              <Text style={styles.tierTitle}>DELIVERY POLICY</Text>
+              <Text style={styles.detailTitle}>
+                {packagesFor.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'Photographer\u2019s package policy' : 'Your requested schedule'}
+              </Text>
+              <Text style={styles.hint}>
+                {packagesFor.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+                  ? `Choosing them updates your event\u2019s digital and print delivery to their package${packagesFor.packageDeliveryDays ? ` (${packagesFor.packageDeliveryDays} days turnaround)` : ''}.${packagesFor.packageDeliveryDescription ? ` ${packagesFor.packageDeliveryDescription}` : ''}`
+                  : 'They accepted the delivery timing you asked for. Nothing changes on your event.'}
+              </Text>
+            </View>
+            {packagesFor.matchedPackageName ? (
+              <View style={styles.detailBox}>
+                <Text style={styles.tierTitle}>MATCHED TO YOUR EVENT</Text>
+                <Text style={styles.detailTitle}>{packagesFor.matchedPackageName}</Text>
+                <Text style={styles.hint}>
+                  {[
+                    packagesFor.matchedPackagePrice != null ? formatPrice(packagesFor.matchedPackagePrice, packagesFor.matchedPackageCurrency) : null,
+                    packagesFor.matchedPackageHours ? `${packagesFor.matchedPackageHours}h coverage` : null,
+                    packagesFor.matchedPackagePhotos ? `${packagesFor.matchedPackagePhotos} photos` : null,
+                    packagesFor.matchedPackageVideos ? `${packagesFor.matchedPackageVideos} videos` : null,
+                  ].filter(Boolean).join(' · ')}
+                </Text>
+              </View>
+            ) : null}
+            <Text style={styles.tierTitle}>ALL PACKAGES</Text>
+            {packagesLoading ? <ActivityIndicator color={colors.primary} /> : null}
+            {!packagesLoading && packages.length === 0 ? <Text style={styles.hint}>No other packages are listed yet.</Text> : null}
+            {packages.map((pk) => (
+              <View key={String(pk.id)} style={[styles.detailAction, pk.id === packagesFor.matchedPackageId && { borderColor: colors.primary }]}>
+                <Text style={styles.detailActionText} numberOfLines={2}>{pk.name}</Text>
+                {pk.price != null ? <Text style={styles.hint}>{formatPrice(pk.price, pk.currency)}</Text> : null}
+              </View>
+            ))}
+            <Pressable
+              onPress={() => { const id = packagesFor.photographerId; setPackagesFor(null); router.push(`/photographer/${id}` as never); }}
+              style={styles.detailAction}
+              accessibilityRole="button"
+            >
+              <Ionicons name="person-outline" size={18} color={colors.primary} />
+              <Text style={styles.detailActionText}>Open full profile</Text>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </Pressable>
+          </View>
+        ) : null}
+      </Sheet>
+
       <Modal visible={!!choosing} transparent animationType="fade" onRequestClose={() => !submitting && setChoosing(null)}>
         <GlassScrim style={styles.scrim} onPress={() => !submitting && setChoosing(null)}>
           <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
@@ -316,6 +475,17 @@ const useStyles = makeStyles((c) => ({
   count: { fontSize: fontSize.xs, color: c.textSoft, backgroundColor: c.surfaceMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.full, overflow: 'hidden' },
   window: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: 'rgba(242,12,143,0.10)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full, marginTop: 4 },
   windowText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.accent },
+  detailBox: { gap: 4, padding: spacing.md, borderRadius: radii.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surfaceMuted },
+  detailTitle: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, color: c.text },
+  detailAction: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 48, paddingHorizontal: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: c.border },
+  detailActionText: { flex: 1, fontSize: fontSize.sm, fontWeight: fontWeight.bold, color: c.text },
+  band: { gap: spacing.sm },
+  bandRow: { gap: spacing.sm, paddingRight: spacing.sm },
+  bandGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  tierHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  tierIcon: { width: 32, height: 32, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center' },
+  tierMore: { borderWidth: 1, borderRadius: radii.full, paddingHorizontal: spacing.md, minHeight: 32, alignItems: 'center', justifyContent: 'center' },
+  tierMoreText: { fontSize: 12, fontWeight: fontWeight.bold },
   tierTitle: { fontSize: 12, fontWeight: fontWeight.extrabold, letterSpacing: 0.8 },
   error: { color: c.error, backgroundColor: c.errorBg, padding: spacing.md, borderRadius: radii.md, fontSize: fontSize.sm },
   empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing['2xl'] },

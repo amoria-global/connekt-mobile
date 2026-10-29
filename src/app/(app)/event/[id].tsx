@@ -37,6 +37,7 @@ import { submitSatisfactionSurvey, type SatisfactionSurvey } from '@/features/ev
 import { submitReview } from '@/features/reviews/api';
 import { convertToDirectRescue } from '@/features/hybrid/api';
 import { friendlyEventStatus, isOpenHybrid } from '@/features/hybrid/hybridUi';
+import { cleanEventDescription, parseEventOfferBrief } from '@/features/hybrid/offerBrief';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
@@ -511,7 +512,10 @@ export default function EventDetailScreen() {
   // offers the button then. Until it is, say what's being waited on.
   const awaitingConfirmation = completion === 'PENDING_CUSTOMER_CONFIRMATION';
   const canConfirmDone = awaitingConfirmation && ev?.albumDelivered === true;
-  const money = fmtMoney(ev?.price, ev?.currency);
+  const effectiveAmount = ev?.price ?? ev?.maxBudget ?? ev?.minBudget;
+  const money = fmtMoney(effectiveAmount, ev?.currency);
+  const cleanDesc = cleanEventDescription(ev?.description);
+  const offerBrief = parseEventOfferBrief(ev?.description || ev?.notes);
 
   return (
     <Screen padded={false} edges={[]}>
@@ -550,7 +554,7 @@ export default function EventDetailScreen() {
           </View>
         </View>
 
-        {ev?.description ? <Text style={styles.desc}>{ev.description}</Text> : null}
+        {cleanDesc ? <Text style={styles.desc}>{cleanDesc}</Text> : null}
 
         {/* Details. Photographers get one compact list (icon tile, label, value, hairlines) instead of a grid of
             tinted cards; every other role keeps the grid. */}
@@ -565,7 +569,7 @@ export default function EventDetailScreen() {
             rows.push({ key: 'photog', icon: 'camera', label: tr('b3_evdet_lbl_photographer'), value: ev.photographerName });
           if (ev?.packageName) rows.push({ key: 'pkg', icon: 'cube', label: tr('b3_evdet_lbl_package'), value: ev.packageName });
           if (ev?.category) rows.push({ key: 'cat', icon: 'pricetag', label: tr('b3_evdet_lbl_event_type'), value: ev.category });
-          if (ev?.maxGuests != null)
+          if (ev?.maxGuests != null && ev.maxGuests > 0)
             rows.push({ key: 'guests', icon: 'people', label: tr('b3_evdet_lbl_guests'), value: `${ev.guestCount ?? 0} / ${ev.maxGuests}` });
           if (money) rows.push({ key: 'amount', icon: 'wallet', label: tr('b3_evdet_lbl_amount'), value: money });
           if (isPhotog) {
@@ -586,11 +590,38 @@ export default function EventDetailScreen() {
           return (
             <View style={styles.grid}>
               {rows.map((r) => (
-                <DetailCard key={r.key} icon={r.icon} label={r.label} value={r.value} />
+                <DetailCard
+                  key={r.key}
+                  icon={r.icon}
+                  label={r.label}
+                  value={r.value}
+                  wide={r.key === 'loc' || r.value.length > 22}
+                />
               ))}
             </View>
           );
         })()}
+
+        {/* Structured Offer Scope & Deliverables card when event was posted via Hybrid Offer Wizard */}
+        {offerBrief ? (
+          <InfoCard icon="list-outline" title="Requested deliverables & delivery">
+            <View style={styles.scopeList}>
+              <KeyValue label="Coverage mode" value={offerBrief.coverageModeLabel} />
+              <KeyValue label="Coverage hours" value={offerBrief.coverageHoursLabel} />
+              <KeyValue label="Edited photos" value={offerBrief.editedPhotosLabel} />
+              <KeyValue label="Short videos" value={offerBrief.shortVideosLabel} />
+              <KeyValue label="Long videos" value={offerBrief.longVideosLabel} />
+              <KeyValue label="Photo book" value={offerBrief.photoBookLabel} />
+              <KeyValue label="Photo album" value={offerBrief.photoAlbumLabel} />
+              <KeyValue label="Wall portraits" value={offerBrief.wallPortraitsLabel} />
+              <KeyValue label="Digital delivery" value={offerBrief.digitalDeliveryLabel} />
+              <KeyValue label="Print delivery" value={offerBrief.printDeliveryLabel} />
+              {offerBrief.styleLabel ? (
+                <KeyValue label="Style & rights" value={offerBrief.styleLabel} />
+              ) : null}
+            </View>
+          </InfoCard>
+        ) : null}
 
         {/* Primary actions — photographer */}
         {isPhotog && isPending ? (
@@ -687,7 +718,7 @@ export default function EventDetailScreen() {
                         })} />
                     </>
                   ) : (
-                    <PrimaryBtn icon="people-outline" label={ready ? 'Choose your photographer' : 'See the answers'} variant="primary"
+                    <PrimaryBtn icon="people-outline" label={ready ? 'Choose your photographer' : 'See the answers'} variant="primary" full
                       onPress={() => router.push(`/event/candidates?id=${id}` as never)} />
                   )}
                 </View>
@@ -714,7 +745,7 @@ export default function EventDetailScreen() {
         ) : null}
 
         {/* Completion status */}
-        {ev?.completionStatus ? (
+        {ev?.completionStatus && (ev.photographerName || ev.completionStatus.toUpperCase() !== 'NOT_COMPLETED') ? (
           <InfoCard icon="checkmark-circle-outline" title={tr('b3_evdet_completion_status')}>
             <Chip
               label={ev.completionStatus.replace(/_/g, ' ')}
@@ -735,18 +766,11 @@ export default function EventDetailScreen() {
 
         {/* Manage (owner only) */}
         {ownsEvents ? (
-          <InfoCard icon="settings-outline" title={tr('b3_evdet_manage')}>
-            <View style={styles.btnRow}>
-              <PrimaryBtn
-                icon={ev?.published ? 'eye-off-outline' : 'megaphone-outline'}
-                label={ev?.published ? 'Unpublish' : 'Publish'}
-                variant={ev?.published ? 'outline' : 'primary'}
-                onPress={ev?.published ? onUnpublish : onPublish}
-                loading={busy === 'publish'}
-              />
-              <PrimaryBtn icon="create-outline" label={tr('b3_evdet_edit')} variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
-              {ev ? <HostWishInvitesRow eventId={id} initial={invitesOn(ev.allowWishInvites)} asCoordinator={isCoordinator} /> : null}
-              {ev ? (
+          <InfoCard
+            icon="settings-outline"
+            title={tr('b3_evdet_manage')}
+            trailing={
+              ev ? (
                 <EventOverflowMenu
                   title={ev.title}
                   action={publishActionFor(ev.published, getEventStatus(ev))}
@@ -760,7 +784,18 @@ export default function EventDetailScreen() {
                     await refresh();
                   }}
                 />
-              ) : null}
+              ) : null
+            }
+          >
+            <View style={styles.btnRow}>
+              <PrimaryBtn
+                icon={ev?.published ? 'eye-off-outline' : 'megaphone-outline'}
+                label={ev?.published ? 'Unpublish' : 'Publish'}
+                variant={ev?.published ? 'outline' : 'primary'}
+                onPress={ev?.published ? onUnpublish : onPublish}
+                loading={busy === 'publish'}
+              />
+              <PrimaryBtn icon="create-outline" label={tr('b3_evdet_edit')} variant="outline" onPress={() => router.push(`/event/new?editId=${id}`)} />
               <PrimaryBtn icon="earth-outline" label={tr('b3_evdet_geo_pricing')} variant="outline" onPress={() => router.push(`/event/geo-pricing?eventId=${id}` as never)} />
               {ev?.published ? (
                 <PrimaryBtn icon="share-social-outline" label={tr('b3_evdet_share')} variant="outline" onPress={onShare} />
@@ -802,6 +837,11 @@ export default function EventDetailScreen() {
                 <PrimaryBtn icon="star-outline" label={tr('b3_evdet_rate')} variant="outline" onPress={() => setReviewOpen(true)} />
               ) : null}
             </View>
+            {ev ? (
+              <View style={styles.wishInvitesWrap}>
+                <HostWishInvitesRow eventId={id} initial={invitesOn(ev.allowWishInvites)} asCoordinator={isCoordinator} />
+              </View>
+            ) : null}
             {canDelete ? (
               <View style={styles.dangerZone}>
                 <Text style={styles.dangerLabel}>{tr('b3_danger_zone')}</Text>
@@ -936,11 +976,15 @@ function heroStatus(s: string, published?: boolean): { label: string; tone: Swat
       return { label: 'CANCELLED', tone: 'error' as const };
     case 'PAUSED':
       return { label: 'PAUSED', tone: 'neutral' as const };
+    case 'CANDIDATES_AVAILABLE':
     case 'MATCHES_AWAITING_SELECTION':
       return { label: 'CANDIDATES READY', tone: 'accent' as const };
+    case 'PUBLISHED_PENDING_ASSIGNMENT':
+    case 'MATCHING':
     case 'HYBRID_MATCHING':
       return { label: 'MATCHING ACTIVE', tone: 'active' as const };
     case 'HYBRID_TIMEOUT':
+    case 'MATCHING_FAILED':
       return { label: 'MATCH TIMEOUT', tone: 'pending' as const };
     case 'PENDING':
     case 'PROPOSED':
@@ -982,17 +1026,27 @@ function fmtMoney(amount?: number, currency?: string): string {
   return formatPrice(amount, currency);
 }
 
-function DetailCard({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; label: string; value: string }) {
+function DetailCard({
+  icon,
+  label,
+  value,
+  wide,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  value: string;
+  wide?: boolean;
+}) {
   const { colors } = useTheme();
   const styles = useStyles();
   return (
-    <View style={styles.detailCard}>
+    <View style={[styles.detailCard, wide && styles.detailCardWide]}>
       <View style={styles.detailIcon}>
         <Ionicons name={icon} size={18} color={colors.primary} />
       </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.detailLabel}>{label}</Text>
-        <Text style={styles.detailValue} numberOfLines={5}>
+        <Text style={styles.detailValue} numberOfLines={3}>
           {value}
         </Text>
       </View>
@@ -1062,14 +1116,25 @@ function PrimaryBtn({
   );
 }
 
-function InfoCard({ icon, title, children }: { icon: keyof typeof Ionicons.glyphMap; title: string; children: React.ReactNode }) {
+function InfoCard({
+  icon,
+  title,
+  trailing,
+  children,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  trailing?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   const { colors } = useTheme();
   const styles = useStyles();
   return (
     <View style={styles.card}>
       <View style={styles.cardHead}>
         <Ionicons name={icon} size={18} color={colors.primary} />
-        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={[styles.cardTitle, { flex: 1 }]}>{title}</Text>
+        {trailing}
       </View>
       {children}
     </View>
@@ -1150,9 +1215,9 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.lg,
   },
 
-  titleWrap: { gap: 2 },
-  eyebrow: { fontFamily: fonts.bold, fontSize: 12, color: c.accent, letterSpacing: 1.2 },
-  title: { fontFamily: fonts.bold, fontSize: 28, color: c.text, letterSpacing: -0.5 },
+  titleWrap: { gap: 4 },
+  eyebrow: { fontFamily: fonts.semibold, fontSize: 11, color: c.accent, letterSpacing: 1.1, textTransform: 'uppercase' },
+  title: { fontFamily: fonts.display, fontSize: 26, lineHeight: 32, color: c.text, letterSpacing: -0.4 },
 
   hero: {
     height: 210,
@@ -1161,7 +1226,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: onMedia.ground,
   },
   heroFallback: { alignItems: 'center', justifyContent: 'center' },
-  heroPills: { position: 'absolute', top: spacing.md, left: spacing.md, flexDirection: 'row', gap: 8 },
+  heroPills: { position: 'absolute', top: spacing.md, left: spacing.md, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   heroPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1171,26 +1236,31 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
   },
   heroLive: { backgroundColor: c.primaryLight },
-  heroPillText: { fontFamily: fonts.bold, fontSize: 12, letterSpacing: 0.4 },
+  heroPillText: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.5 },
 
   desc: { fontFamily: fonts.regular, fontSize: 15, color: c.textSoft, lineHeight: 22 },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   detailCard: {
-    width: '47%',
+    flexBasis: '47%',
     flexGrow: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     padding: spacing.md,
     borderRadius: radii.lg,
-    backgroundColor: c.surfaceMuted,
+    backgroundColor: c.surface,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  detailCardWide: {
+    flexBasis: '100%',
   },
   detailIcon: {
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: 'rgba(8,58,133,0.10)',
+    backgroundColor: c.tint,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -1204,14 +1274,21 @@ const useStyles = makeStyles((c) => ({
   detailRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 12, paddingVertical: 10, minHeight: 52 },
   detailRowRule: { borderTopWidth: 1, borderTopColor: c.borderSoft },
   detailRowText: { flex: 1, minWidth: 0 },
-  detailRowLabel: { fontFamily: fonts.bold, fontSize: 11, color: c.textMuted, letterSpacing: 0.6 },
-  detailRowValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 1 },
-  detailLabel: { fontFamily: fonts.bold, fontSize: 10, color: c.accent, letterSpacing: 0.6 },
-  detailValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 1 },
+  detailRowLabel: { fontFamily: fonts.semibold, fontSize: 11, color: c.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  detailRowValue: { fontFamily: fonts.semibold, fontSize: 15, color: c.text, marginTop: 2 },
+  detailLabel: { fontFamily: fonts.semibold, fontSize: 11, color: c.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  detailValue: { fontFamily: fonts.semibold, fontSize: 15, color: c.text, marginTop: 2, lineHeight: 20 },
+
+  scopeList: { gap: 10 },
 
   btnRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  dangerZone: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: c.borderSoft, gap: spacing.sm },
-  dangerLabel: { color: c.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase' },
+  wishInvitesWrap: {
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: c.borderSoft,
+  },
+  dangerZone: { marginTop: spacing.sm, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: c.borderSoft, gap: spacing.sm },
+  dangerLabel: { fontFamily: fonts.semibold, color: c.textMuted, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase' },
   btn: {
     flexGrow: 1,
     flexBasis: '45%',
@@ -1219,11 +1296,12 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 7,
-    height: 48,
+    minHeight: 46,
+    paddingHorizontal: spacing.md,
     borderRadius: radii.md,
     borderWidth: 1.5,
   },
-  btnText: { fontFamily: fonts.bold, fontSize: 14 },
+  btnText: { fontFamily: fonts.semibold, fontSize: 14 },
 
   card: {
     backgroundColor: c.surface,
@@ -1234,7 +1312,7 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.md,
   },
   cardHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle: { fontFamily: fonts.bold, fontSize: 17, color: c.text },
+  cardTitle: { fontFamily: fonts.display, fontSize: 17, color: c.text },
 
   personRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   personAvatar: {
@@ -1245,8 +1323,8 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  personInitial: { fontFamily: fonts.bold, fontSize: 18, color: c.textOnPrimary },
-  personName: { fontFamily: fonts.bold, fontSize: 16, color: c.text, marginBottom: 4 },
+  personInitial: { fontFamily: fonts.display, fontSize: 18, color: c.textOnPrimary },
+  personName: { fontFamily: fonts.semibold, fontSize: 16, color: c.text, marginBottom: 4 },
   messagePersonBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1259,22 +1337,21 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.primary,
   },
   messagePersonBtnText: {
-    fontFamily: fonts.bold,
+    fontFamily: fonts.semibold,
     fontSize: 12,
     color: c.primary,
-    fontWeight: fontWeight.bold,
   },
 
-  kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  kv: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
   kvLabel: { fontFamily: fonts.regular, fontSize: 14, color: c.textMuted },
-  kvValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text },
+  kvValue: { fontFamily: fonts.semibold, fontSize: 14, color: c.text, flexShrink: 1, textAlign: 'right' },
 
   chip: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full },
   chipDot: { width: 6, height: 6, borderRadius: 3 },
-  chipText: { fontFamily: fonts.bold, fontSize: 11, letterSpacing: 0.4 },
+  chipText: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.4 },
 
-  infoLabel: { fontFamily: fonts.bold, fontSize: 11, color: c.accent, letterSpacing: 0.6 },
-  infoValue: { fontFamily: fonts.bold, fontSize: 15, color: c.text, marginTop: 2 },
+  infoLabel: { fontFamily: fonts.semibold, fontSize: 11, color: c.textMuted, letterSpacing: 0.5, textTransform: 'uppercase' },
+  infoValue: { fontFamily: fonts.semibold, fontSize: 15, color: c.text, marginTop: 2 },
 
   // Stepper
   stepper: { paddingVertical: spacing.xs },
@@ -1292,11 +1369,11 @@ const useStyles = makeStyles((c) => ({
   },
   stepCircleDone: { backgroundColor: c.success, borderColor: c.success },
   stepCircleCurrent: { borderColor: c.primary },
-  stepNum: { fontFamily: fonts.bold, fontSize: 13, color: c.textMuted },
+  stepNum: { fontFamily: fonts.semibold, fontSize: 13, color: c.textMuted },
   stepLine: { flex: 1, height: 2, backgroundColor: c.border, marginHorizontal: 2 },
   stepLineDone: { backgroundColor: c.success },
   stepLabel: { fontFamily: fonts.regular, fontSize: 11, color: c.textMuted, marginTop: 6 },
-  stepLabelDone: { fontFamily: fonts.bold, color: c.text },
+  stepLabelDone: { fontFamily: fonts.semibold, color: c.text },
 
   // Modals
   backdrop: { flex: 1, justifyContent: 'flex-end' },
@@ -1304,10 +1381,10 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.xl,
     gap: spacing.md,
   },
-  sheetTitle: { fontFamily: fonts.bold, fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: c.text },
-  sheetHint: { fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
+  sheetTitle: { fontFamily: fonts.display, fontSize: fontSize.lg, color: c.text },
+  sheetHint: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textMuted, lineHeight: 20 },
   commentInput: { height: 90, paddingTop: spacing.md, textAlignVertical: 'top' },
   starRow: { alignItems: 'center', paddingVertical: spacing.sm },
   requestChanges: { alignItems: 'center', paddingVertical: spacing.md },
-  requestChangesText: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.accent },
+  requestChangesText: { fontFamily: fonts.semibold, fontSize: fontSize.md, color: c.accent },
 }));

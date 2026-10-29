@@ -274,19 +274,22 @@ export function IncomingOpportunityAlertModal({
     );
 
     let p: AudioPlayer | null = null;
-    if (Platform.OS !== 'web') {
-      try {
+    try {
+      if (Platform.OS !== 'web') {
         void setAudioModeAsync({
           playsInSilentMode: true,
-          interruptionMode: 'doNotMix',
+          shouldPlayInBackground: true,
+          interruptionMode: 'mixWithOthers',
         });
-        p = createAudioPlayer(RINGTONE);
-        p.loop = true;
-        p.play();
-        playerRef.current = p;
-      } catch {
-        // Fallback to vibration if audio fails
       }
+      p = createAudioPlayer(RINGTONE);
+      p.loop = true;
+      p.play();
+      playerRef.current = p;
+    } catch {
+      // Fallback to vibration if audio fails
+    }
+    if (Platform.OS !== 'web') {
       Vibration.vibrate([0, 600, 350, 600, 350, 600], true);
     }
 

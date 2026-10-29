@@ -73,7 +73,7 @@ function applyDefaultFont() {
   // Forcing it with `!important` instead would flatten our real bold and
   // break the icon fonts (Ionicons et al.).
   //
-  // The clean fix: build ONE real "Inter" family (400 + 700) from
+  // The clean fix: build ONE real "Inter" family (400..800) from
   // the already-loaded font files, then REDEFINE the exact fallback family
   // names in RNW's system stack to point at it. Unstyled text resolves to
   // one of those names → renders Inter, with fontWeight still selecting the
@@ -81,33 +81,68 @@ function applyDefaultFont() {
   // fonts are untouched (they're not in the hijack list), so bold and icons
   // keep working — no `!important`, no specificity fight.
   let regular: string | undefined;
-  let bold: string | undefined;
+  let medium: string | undefined;
+  let semibold: string | undefined;
+  let displayMedium: string | undefined;
+  let displayBold: string | undefined;
   try {
     // Dynamically require expo-asset only on web where @font-face CSS injection is needed.
     // Prevents native iOS/Android from evaluating requireNativeModule('ExpoAsset') on startup.
-    const { Asset } = require('expo-asset') as typeof import('expo-asset');
-    regular = Asset.fromModule(Inter_400Regular).uri;
-    bold = Asset.fromModule(Inter_600SemiBold).uri;
+    const resolveUri = (mod: unknown): string | undefined => {
+      if (typeof mod === 'string') return mod;
+      const { Asset } = require('expo-asset') as typeof import('expo-asset');
+      return Asset.fromModule(mod as number).uri;
+    };
+    regular = resolveUri(Inter_400Regular);
+    medium = resolveUri(Inter_500Medium) ?? regular;
+    semibold = resolveUri(Inter_600SemiBold) ?? regular;
+    displayMedium = resolveUri(SpaceGrotesk_600SemiBold) ?? semibold;
+    displayBold = resolveUri(SpaceGrotesk_700Bold) ?? semibold;
   } catch {
     /* asset uris unavailable — skip; screens that set `fonts.*` still render Inter */
   }
-  if (!regular || !bold) return;
+  if (!regular || !semibold) return;
 
   const face = (family: string) =>
     `@font-face{font-family:${family};font-style:normal;font-weight:400;src:url("${regular}") format("truetype");}` +
-    `@font-face{font-family:${family};font-style:normal;font-weight:700;src:url("${bold}") format("truetype");}`;
+    `@font-face{font-family:${family};font-style:normal;font-weight:500;src:url("${medium}") format("truetype");}` +
+    `@font-face{font-family:${family};font-style:normal;font-weight:600;src:url("${semibold}") format("truetype");}` +
+    `@font-face{font-family:${family};font-style:normal;font-weight:700;src:url("${semibold}") format("truetype");}` +
+    `@font-face{font-family:${family};font-style:normal;font-weight:800;src:url("${displayBold ?? semibold}") format("truetype");}`;
+
+  const namedFaces = [
+    `@font-face{font-family:"Inter_400Regular";font-style:normal;font-weight:100 900;src:url("${regular}") format("truetype");}`,
+    `@font-face{font-family:"Inter_500Medium";font-style:normal;font-weight:100 900;src:url("${medium}") format("truetype");}`,
+    `@font-face{font-family:"Inter_600SemiBold";font-style:normal;font-weight:100 900;src:url("${semibold}") format("truetype");}`,
+    displayMedium
+      ? `@font-face{font-family:"SpaceGrotesk_600SemiBold";font-style:normal;font-weight:100 900;src:url("${displayMedium}") format("truetype");}`
+      : '',
+    displayBold
+      ? `@font-face{font-family:"SpaceGrotesk_700Bold";font-style:normal;font-weight:100 900;src:url("${displayBold}") format("truetype");}`
+      : '',
+  ].join('');
 
   // The real family + the system-stack names browsers actually fall back to.
-  const families = ["'Inter'", "'Segoe UI'", 'Roboto', 'Helvetica', 'Arial', 'BlinkMacSystemFont'];
+  const families = [
+    "'Inter'",
+    "'Segoe UI'",
+    'Roboto',
+    'Helvetica',
+    'Arial',
+    'BlinkMacSystemFont',
+    '-apple-system',
+    'system-ui',
+  ];
   const stack =
     "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
   const style = document.createElement('style');
   style.id = id;
   style.textContent =
+    namedFaces +
     families.map(face).join('') +
     // Catch UA-styled elements (body, form controls) that don't use the RN stack.
-    `html,body,input,textarea,button,select{font-family:${stack};}`;
+    `html,body,input,textarea,button,select{font-family:${stack};-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}`;
   document.head.appendChild(style);
 }
 
@@ -245,15 +280,11 @@ export default function RootLayout() {
     SplashScreen.hideAsync().catch(() => {});
   }, []);
 
-  // Apply the global Inter default ONCE the Google Font has
-  // loaded — applying earlier would print the family name as text since
-  // the font file isn't registered yet on Android.
+  // Apply the global Inter default on web mount and once the Google Font has
+  // loaded — `applyDefaultFont` is a no-op on native.
   useEffect(() => {
-    if (!fontsLoaded) return;
     applyDefaultFont();
   }, [fontsLoaded]);
-
-
 
   useProtectedRoute();
 
@@ -293,7 +324,7 @@ export default function RootLayout() {
 /**
  * Feeds our palette to React Navigation, whose own default theme paints a
  * WHITE screen canvas. Without this, every screen that does not explicitly set
- * its own background renders white in dark mode — which was the "only the
+ * its own background renders white in dark mode — which is the "only the
  * login page follows the theme" bug, since login happened to paint its own.
  *
  * Must sit INSIDE our ThemeProvider (it consumes the scheme) and OUTSIDE the
@@ -316,4 +347,3 @@ function ThemedStatusBar() {
   const { isDark } = useTheme();
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
 }
-

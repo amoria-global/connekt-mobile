@@ -6,20 +6,47 @@
  * and stays available for 2 hours before permanently disappearing.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
 import { useRouter } from 'expo-router';
-import { useRole } from '@/features/auth/role';
+import { useAuth } from '@/store/auth';
 import { env } from '@/config/env';
-import { listOpportunities, approveOpportunity, rejectOpportunity, serverNowMs } from './api';
+import {
+  listOpportunities,
+  getOpportunity,
+  approveOpportunity,
+  rejectOpportunity,
+  serverNowMs,
+} from './api';
 import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
 import {
   IncomingOpportunityAlertModal,
   OPPORTUNITY_AVAILABILITY_WINDOW_MS,
 } from './IncomingOpportunityAlertModal';
 
+type ShowListener = (candidateId?: string, stage?: 'ringing' | 'details') => void;
+const showListeners = new Set<ShowListener>();
+
+/**
+ * Trigger the incoming opportunity modal immediately (e.g. when a push notification
+ * or its Accept/Decline action button is tapped).
+ */
+export function showIncomingOpportunity(
+  candidateId?: string,
+  stage: 'ringing' | 'details' = 'details',
+): void {
+  showListeners.forEach((fn) => fn(candidateId, stage));
+}
+
 function isWithinTwoHourWindow(opp: PhotographerOpportunity): boolean {
   const now = serverNowMs();
+  if (opp.invitedAt) {
+    const invitedMs = Date.parse(opp.invitedAt);
+    if (Number.isFinite(invitedMs)) {
+      return invitedMs + OPPORTUNITY_AVAILABILITY_WINDOW_MS > now;
+    }
+  }
   const deadlineStr = opp.responseDeadlineAt || opp.candidateExpiresAt;
   if (deadlineStr) {
     const deadlineMs = Date.parse(deadlineStr);
@@ -27,76 +54,202 @@ function isWithinTwoHourWindow(opp: PhotographerOpportunity): boolean {
       return deadlineMs > now;
     }
   }
-  if (opp.invitedAt) {
-    const invitedMs = Date.parse(opp.invitedAt);
-    if (Number.isFinite(invitedMs)) {
-      return invitedMs + OPPORTUNITY_AVAILABILITY_WINDOW_MS > now;
-    }
-  }
   return true;
+}
+
+function isOpenStatus(status?: string): boolean {
+  const s = (status ?? '').toUpperCase();
+  return (
+    s !== 'APPROVED' &&
+    s !== 'REJECTED' &&
+    s !== 'DECLINED' &&
+    s !== 'EXPIRED' &&
+    s !== 'WITHDRAWN' &&
+    s !== 'NO_LONGER_AVAILABLE' &&
+    s !== 'SELECTED' &&
+    s !== 'NOT_SELECTED'
+  );
 }
 
 export function GlobalOpportunityCallNotifier() {
   const router = useRouter();
-  const { isPhotographer, isCoordinator } = useRole();
-  const isEligible = isPhotographer || isCoordinator;
+  const isSignedIn = useAuth((s) => !!s.user);
+  const isEligible = isSignedIn;
 
   const [activeOpportunity, setActiveOpportunity] = useState<PhotographerOpportunity | null>(null);
+  const [modalStage, setModalStage] = useState<'ringing' | 'details'>('ringing');
   const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const isBusyRef = useRef(false);
+  const notifiedTrayIdsRef = useRef<Set<string>>(new Set());
 
-  const checkOpportunities = useCallback(async () => {
-    if (!env.hybridBookingEnabled || !isEligible || isBusyRef.current) return;
+  const ensureTrayNotification = useCallback(async (opp: PhotographerOpportunity) => {
+    if (Platform.OS === 'web') return;
+    // In the foreground the modal is already ringing, and the server's own push covers the tray.
+    if (AppState.currentState === 'active') return;
+    if (notifiedTrayIdsRef.current.has(opp.candidateId)) return;
+    notifiedTrayIdsRef.current.add(opp.candidateId);
     try {
-      const opps = await listOpportunities();
-      if (!Array.isArray(opps) || opps.length === 0) {
-        if (activeOpportunity && !opps.some((o) => o.candidateId === activeOpportunity.candidateId)) {
+      const where = opp.city || opp.venue || 'Rwanda';
+      const when = opp.eventDate || 'Upcoming date';
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Incoming Shoot Offer: ${opp.eventTitle}`,
+          body: `${when} · ${where} · Tap Accept or Decline to review offer details`,
+          sound: 'default',
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          categoryIdentifier: 'OPPORTUNITY_ALERT',
+          data: {
+            type: 'OPPORTUNITY',
+            candidateId: opp.candidateId,
+            referenceId: opp.candidateId,
+            eventId: opp.eventId,
+            link: `/opportunities/${opp.candidateId}`,
+          },
+        },
+        trigger:
+          Platform.OS === 'android'
+            ? {
+                type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+                seconds: 1,
+                channelId: 'urgent_booking_alerts',
+              }
+            : null,
+      });
+    } catch {
+      // Non-fatal if local notification scheduling is unavailable
+    }
+  }, []);
+
+  const checkOpportunities = useCallback(
+    async (focusCandidateId?: string, requestedStage?: 'ringing' | 'details') => {
+      if (!env.hybridBookingEnabled || !isEligible || isBusyRef.current) return;
+      try {
+        if (focusCandidateId) {
+          setDismissedIds((prev) => prev.filter((id) => id !== focusCandidateId));
+          try {
+            const directOpp = await getOpportunity(focusCandidateId);
+            if (directOpp && directOpp.candidateId && isOpenStatus(directOpp.status) && isWithinTwoHourWindow(directOpp)) {
+              setModalStage(requestedStage ?? 'details');
+              setActiveOpportunity(directOpp);
+              return;
+            }
+          } catch {
+            // Fall back to list check
+          }
+        }
+
+        let opps = await listOpportunities('PENDING_RESPONSE');
+        if (!Array.isArray(opps) || opps.length === 0) {
+          try {
+            const allOpps = await listOpportunities('ALL');
+            if (Array.isArray(allOpps) && allOpps.length > 0) {
+              opps = allOpps.filter(
+                (o) => (o.status ?? '').toUpperCase() === 'INVITED' && isWithinTwoHourWindow(o),
+              );
+            }
+          } catch {
+            // ignore fallback error
+          }
+        }
+
+        if (!Array.isArray(opps) || opps.length === 0) {
+          if (activeOpportunity && !focusCandidateId) {
+            setActiveOpportunity(null);
+          }
+          return;
+        }
+
+        // Find first pending opportunity not dismissed and still within its 2-hour window
+        const pending =
+          (focusCandidateId && opps.find((o) => o.candidateId === focusCandidateId)) ||
+          opps.find(
+            (opp) =>
+              isOpenStatus(opp.status) &&
+              isWithinTwoHourWindow(opp) &&
+              !dismissedIds.includes(opp.candidateId),
+          );
+
+        if (pending) {
+          void ensureTrayNotification(pending);
+          setActiveOpportunity((prev) => {
+            if (prev?.candidateId === pending.candidateId) {
+              if (requestedStage) setModalStage(requestedStage);
+              return prev;
+            }
+            setModalStage(requestedStage ?? 'ringing');
+            return pending;
+          });
+        } else if (!focusCandidateId) {
           setActiveOpportunity(null);
         }
-        return;
+      } catch {
+        // Background polling is non-blocking
       }
+    },
+    [isEligible, dismissedIds, activeOpportunity, ensureTrayNotification],
+  );
 
-      // Find first pending opportunity not dismissed and still within its 2-hour window
-      const pending = opps.find((opp) => {
-        const s = (opp.status ?? '').toUpperCase();
-        const isClosed =
-          s === 'APPROVED' ||
-          s === 'REJECTED' ||
-          s === 'DECLINED' ||
-          s === 'EXPIRED' ||
-          s === 'WITHDRAWN' ||
-          s === 'NO_LONGER_AVAILABLE';
-        return !isClosed && isWithinTwoHourWindow(opp) && !dismissedIds.includes(opp.candidateId);
-      });
+  // The timer below must outlive re-renders, so it calls the latest check through a ref instead of restarting.
+  const checkRef = useRef(checkOpportunities);
+  checkRef.current = checkOpportunities;
 
-      if (pending) {
-        setActiveOpportunity((prev) => (prev?.candidateId === pending.candidateId ? prev : pending));
-      } else {
-        setActiveOpportunity(null);
-      }
-    } catch {
-      // Background polling is non-blocking
-    }
-  }, [isEligible, dismissedIds, activeOpportunity]);
-
-  // Polling loop every 5 seconds + on foreground resume
+  // Silent poll every 5 seconds while the app is in the foreground, plus on resume, on push receipt and on explicit trigger.
   useEffect(() => {
     if (!env.hybridBookingEnabled || !isEligible) return;
+    const check = (cid?: string, st?: 'ringing' | 'details') => void checkRef.current(cid, st);
 
-    void checkOpportunities();
-    const interval = setInterval(checkOpportunities, 5000);
+    let interval: ReturnType<typeof setInterval> | null = null;
+    const start = () => {
+      if (interval) clearInterval(interval);
+      interval = setInterval(() => check(), 5000);
+    };
+    const stop = () => {
+      if (interval) clearInterval(interval);
+      interval = null;
+    };
+
+    check();
+    if (AppState.currentState === 'active') start();
 
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (nextState === 'active') {
-        void checkOpportunities();
+        check();
+        start();
+      } else {
+        stop();
       }
     });
 
-    return () => {
-      clearInterval(interval);
-      subscription.remove();
+    const pushReceived =
+      Platform.OS === 'web'
+        ? null
+        : Notifications.addNotificationReceivedListener((notification) => {
+            const data = (notification.request.content.data ?? {}) as Record<string, unknown>;
+            const type = typeof data.type === 'string' ? data.type.toUpperCase() : '';
+            const cid =
+              typeof data.candidateId === 'string'
+                ? data.candidateId
+                : type === 'OPPORTUNITY' && typeof data.referenceId === 'string'
+                  ? data.referenceId
+                  : undefined;
+            if (cid) {
+              notifiedTrayIdsRef.current.add(cid);
+            }
+            check(cid, 'ringing');
+          });
+
+    const onShow: ShowListener = (cid, st) => {
+      check(cid, st ?? 'details');
     };
-  }, [checkOpportunities, isEligible]);
+    showListeners.add(onShow);
+
+    return () => {
+      stop();
+      subscription.remove();
+      pushReceived?.remove();
+      showListeners.delete(onShow);
+    };
+  }, [isEligible]);
 
   const handleApprove = async (
     opp: PhotographerOpportunity,
@@ -171,7 +324,7 @@ export function GlobalOpportunityCallNotifier() {
     <IncomingOpportunityAlertModal
       opportunity={activeOpportunity}
       visible={activeOpportunity !== null}
-      initialStage="ringing"
+      initialStage={modalStage}
       onApprove={handleApprove}
       onReject={handleReject}
       onDismiss={handleDismiss}
