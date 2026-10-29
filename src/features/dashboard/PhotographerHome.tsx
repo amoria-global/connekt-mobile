@@ -129,7 +129,7 @@ const shootDate = (e: EventItem): Date | null => {
 const SHOOT_STATUS: Record<ReturnType<typeof bucketOf>, { label: string; tone: 'success' | 'warning' | 'error' | 'info' | 'neutral' | 'live' | 'active' }> = {
   pending: { label: 'Awaiting your reply', tone: 'warning' },
   upcoming: { label: 'Scheduled', tone: 'info' },
-  ongoing: { label: 'In progress', tone: 'active' },
+  ongoing: { label: 'In progress', tone: 'live' },
   completed: { label: 'Completed', tone: 'neutral' },
   cancelled: { label: 'Cancelled', tone: 'error' },
 };

@@ -136,7 +136,8 @@ describe('status chip colour meaning', () => {
   it.each([
     ['Live', 'live'],
     ['Streaming', 'live'],
-    ['Ongoing', 'active'],
+    ['Ongoing', 'live'],
+    ['In progress', 'active'],
     ['PENDING', 'pending'],
     ['Completed', 'success'],
     ['Cancelled', 'error'],
