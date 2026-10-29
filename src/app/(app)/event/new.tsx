@@ -213,6 +213,11 @@ export default function NewEventScreen() {
     }
   }, [isCoordinator, params.editId, entertainmentCategory, setValue]);
 
+  // A photographer creates an event through Host an event, the one screen for it, so any other way in lands there.
+  useEffect(() => {
+    if (isPhotographer && !params.editId) router.replace('/host/new' as never);
+  }, [isPhotographer, params.editId, router]);
+
   // Prefill when editing an existing event.
   const hhmm = (t?: string) => {
     if (!t) return '';
@@ -494,13 +499,14 @@ export default function NewEventScreen() {
     // A private event is self-streamed and paid — it must charge at least the
     // minimum. Public events may be free, but a non-zero fee still can't be
     // below the minimum. Non-coordinators ("the rest") have digital purchases disabled.
+    // Coordinators self-stream a private event under the same rule as clients.
+    if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
+      setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} ${selectedCurrency}.`);
+      return;
+    }
     if (!isCoordinator) {
-      if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
-        setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} RWF.`);
-        return;
-      }
       if (priceNum > 0 && priceNum < MIN_RWF) {
-        setServerError(`Live stream access fee must be at least ${MIN_RWF} RWF.`);
+        setServerError(`Live stream access fee must be at least ${MIN_RWF} ${selectedCurrency}.`);
         return;
       }
     }
@@ -533,7 +539,9 @@ export default function NewEventScreen() {
       // The "Live stream fee" field IS the stream fee (viewer paywall). Booking
       // events (amount param) carry no stream fee of their own.
       streamFee: feeNum || undefined,
-      currency: isCoordinator ? selectedCurrency : params.currency,
+      // The fee is charged in the picked currency (coordinators always, clients on a self-streamed event).
+      currency: isCoordinator || visibility === 'PRIVATE' ? selectedCurrency : params.currency,
+      streamFeeCurrencyId: feeNum ? currenciesList.find((c) => c.code === selectedCurrency)?.id : undefined,
       maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
       eventVisibility: visibility,
       allowWishInvites: wishInvites === true,
@@ -1178,7 +1186,9 @@ export default function NewEventScreen() {
               </View>
             ) : null}
 
-            {/* Visibility drives the whole model, so it's always visible. */}
+            {/* Visibility drives the whole model. A photographer is the one who covers, so the question is not theirs
+                (they go live from Host an event); it stays only on an old self-streamed event so it can still be edited. */}
+            {!isPhotographer || visibility === 'PRIVATE' ? (
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>{tr('b3_evnew_who_covers')}</Text>
               <Segmented
@@ -1198,27 +1208,52 @@ export default function NewEventScreen() {
                 />
                 <Text style={styles.visibilityHint}>
                   {visibility === 'PRIVATE'
-                    ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee of at least 100 RWF.'
+                    ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee of at least 100 in the currency you pick.'
                     : 'A photographer covers your event and streams it. Published events appear on connekyt.com.'}
                 </Text>
               </View>
             </View>
+            ) : null}
 
             {!isCoordinator && visibility === 'PRIVATE' ? (
-              <Controller
-                control={control}
-                name="price"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <Input
-                    label={tr('b3_evnew_stream_fee_label')}
-                    placeholder={tr('b3_evnew_stream_fee_ph')}
-                    keyboardType="number-pad"
-                    value={value}
-                    onChangeText={onChange}
-                    onBlur={onBlur}
-                  />
-                )}
-              />
+              <>
+                <Controller
+                  control={control}
+                  name="price"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <Input
+                      label={tr('b3_evnew_stream_fee_label')}
+                      placeholder={tr('b3_evnew_stream_fee_ph')}
+                      keyboardType="number-pad"
+                      value={value}
+                      onChangeText={onChange}
+                      onBlur={onBlur}
+                    />
+                  )}
+                />
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
+                  <View style={styles.currencyWrap}>
+                    {currenciesList.map((c) => {
+                      const active = selectedCurrency === c.code;
+                      return (
+                        <Pressable
+                          key={c.code}
+                          onPress={() => {
+                            setSelectedCurrency(c.code);
+                            setCurrencyId(c.id);
+                          }}
+                          style={[styles.currencyChip, active && styles.chipActive]}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: active }}
+                        >
+                          <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.code}</Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              </>
             ) : null}
 
             {!isCoordinator ? (

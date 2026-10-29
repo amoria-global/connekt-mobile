@@ -31,6 +31,8 @@ export type CreateEventInput = {
    * shows "Free" and never charges anyone.
    */
   streamFee?: number;
+  /** The currency the stream fee is charged in; without it the server defaults a paid stream to RWF. */
+  streamFeeCurrencyId?: string;
   currency?: string;
   maxGuests?: number;
   eventVisibility?: string;
