@@ -43,6 +43,9 @@ function application(): ApplicationModule | null {
   }
 }
 
+/** An album invite code as the website prints it (digits or letters, never a path). */
+export const INVITE_CODE = /^[A-Za-z0-9_-]{3,64}$/;
+
 /** A path on connekyt.com to the screen that shows it, or null when the app has no matching screen. */
 export function webPathToAppHref(path: string): string | null {
   let url: URL;
@@ -75,7 +78,12 @@ export function webPathToAppHref(path: string): string | null {
   }
   const join = p.match(/^\/user\/photographer\/collaborate\/join\/([^/]+)$/);
   if (join && ID.test(join[1])) return `/(app)/collaborate/join/${join[1]}`;
-  if (p === '/user/find-my-photos') return '/(public)/find-photos';
+  // A free or paid album invite: the code travels with the link so the screen opens that album instead of an empty box.
+  const free = p.match(/^\/user\/albums\/free\/([^/]+)$/);
+  const inviteCode = free ? decodeURIComponent(free[1]) : (url.searchParams.get('code') ?? '').trim();
+  if (p === '/user/find-my-photos' || free) {
+    return INVITE_CODE.test(inviteCode) ? `/(public)/find-photos?code=${encodeURIComponent(inviteCode)}` : '/(public)/find-photos';
+  }
   if (p.startsWith('/user/browse-photos/')) return '/(public)/browse-photos';
   return null;
 }

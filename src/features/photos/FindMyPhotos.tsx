@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Image } from 'expo-image';
-import { useRouter, Stack } from 'expo-router';
+import { useRouter, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   preventScreenCapture,
@@ -27,6 +27,7 @@ import { PhotoHelpPill, PhotoLanguagePill } from '@/features/auth/AuthGlassLayou
 import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import { LanguageButton } from '@/components/topbar/LanguageButton';
 import { PhotoCheckoutSheet } from './PhotoCheckoutSheet';
+import { INVITE_CODE } from '@/features/links/deferredLink';
 import { savePhotoToGallery, saveBatchPhotosToGallery } from '@/utils/gallerySaver';
 import {
   faceSearch,
@@ -290,6 +291,8 @@ export function FindMyPhotos() {
   const [selfie, setSelfie] = useState<PickedImage | null>(null);
   const [activeOption, setActiveOption] = useState<'take' | 'upload' | null>(null);
   const [code, setCode] = useState('');
+  // An album link opened in the app (https://connekyt.com/user/find-my-photos?code=...) arrives with the invite code.
+  const { code: linkCode } = useLocalSearchParams<{ code?: string }>();
   const [searching, setSearching] = useState(false);
   const [faceResults, setFaceResults] = useState<FoundPhoto[] | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
@@ -550,8 +553,8 @@ export function FindMyPhotos() {
 
   // ─── Invite code → album ──────────────────────────────────────────────────
 
-  const handleAccessGallery = async () => {
-    const trimmed = code.trim();
+  const handleAccessGallery = async (override?: string) => {
+    const trimmed = (typeof override === 'string' ? override : code).trim();
     if (!trimmed) {
       setAlbumError(t('fmp_errNeedCode'));
       return;
@@ -582,6 +585,17 @@ export function FindMyPhotos() {
       setAlbumLoading(false);
     }
   };
+
+  // Opens the album a shared link points at, once per code, as if the person had typed it and pressed Access.
+  const openedLinkCode = useRef<string | null>(null);
+  useEffect(() => {
+    const c = (Array.isArray(linkCode) ? linkCode[0] : linkCode)?.trim();
+    if (!c || !INVITE_CODE.test(c) || openedLinkCode.current === c) return;
+    openedLinkCode.current = c;
+    setCode(c);
+    handleAccessGallery(c);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkCode]);
 
   // ─── Free album flow ──────────────────────────────────────────────────────
 
@@ -1297,7 +1311,7 @@ export function FindMyPhotos() {
             style={styles.inviteInput}
             placeholderTextColor={colors.textMuted}
             returnKeyType="go"
-            onSubmitEditing={handleAccessGallery}
+            onSubmitEditing={() => handleAccessGallery()}
           />
 
           {albumError ? <Text style={styles.error}>{albumError}</Text> : null}
@@ -1305,7 +1319,7 @@ export function FindMyPhotos() {
           {/* Secondary to "Find My Photos": one filled button per screen. */}
           <Pressable
             style={({ pressed }) => [styles.accessBtnOutline, (albumLoading || pressed) && { opacity: 0.6 }]}
-            onPress={handleAccessGallery}
+            onPress={() => handleAccessGallery()}
             disabled={albumLoading}
             accessibilityRole="button"
           >

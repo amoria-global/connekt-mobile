@@ -31,3 +31,12 @@ describe.each(['production', 'preview'])('eas build profile %s', (profile) => {
     expect(env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID).toBe(ANDROID);
   });
 });
+
+describe('bundled fallback', () => {
+  it('keeps both native client ids in env.ts for an export made without EXPO_PUBLIC_GOOGLE_*', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'env.ts'), 'utf8');
+    expect(src).toContain(IOS);
+    expect(src).toContain(ANDROID);
+    expect(src).toMatch(/EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID \|\| GOOGLE_IOS_CLIENT_ID/);
+  });
+});

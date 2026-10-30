@@ -49,6 +49,8 @@ import {
   type MoneyItem,
 } from '@/features/wallet/moneyView';
 import { useAsync } from '@/hooks/useAsync';
+import { useWalletSync } from '@/features/wallet/useLiveWallet';
+import { LiveAmount } from '@/features/wallet/LiveAmount';
 import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
@@ -115,7 +117,9 @@ export default function WalletScreen() {
     return { wallet, history: history.m, movementsFailed: history.failed };
   }, [isShared]);
 
-  const { data, loading, error, refresh } = useAsync(fetchData);
+  const { data, loading, error, refresh, refreshQuietly } = useAsync(fetchData);
+  // Every 10 seconds the balance is fetched again; `syncing` swaps each figure for a loading placeholder meanwhile.
+  const syncing = useWalletSync(refreshQuietly) && !!data;
 
   // Older ledger pages are appended on request; the first page stays owned by the refresh above.
   const pages = useMovementPages(data?.history);
@@ -293,7 +297,10 @@ export default function WalletScreen() {
 
                 {/* Photographers: amount on the left and Withdraw beside it, as in the prototype, so the hero is a row and not a tall stack. */}
                 <View style={tabbed ? styles.heroRow : undefined}>
-                  <Text
+                  <LiveAmount
+                    syncing={syncing && !balanceHidden}
+                    width="60%"
+                    height={tabbed ? 30 : 40}
                     style={[styles.heroAmount, tabbed && styles.heroAmountCompact]}
                     numberOfLines={tabbed ? 1 : undefined}
                     adjustsFontSizeToFit={tabbed}
@@ -302,7 +309,7 @@ export default function WalletScreen() {
                     {balanceHidden
                       ? `${data?.wallet?.currency ? data.wallet.currency + ' ' : '$ '}••••••`
                       : formatPrice(stats.hero.value, data?.wallet.currency)}
-                  </Text>
+                  </LiveAmount>
                   {tabbed && canWithdraw ? (
                     <Pressable
                       style={({ pressed }) => [styles.heroWithdrawBtn, styles.heroWithdrawInline, pressed && { opacity: 0.88 }]}
@@ -330,9 +337,16 @@ export default function WalletScreen() {
                     <Text style={styles.pendingStripLabel} maxFontSizeMultiplier={1.6}>
                       {tr(pendingLabel)}
                     </Text>
-                    <Text style={styles.pendingStripAmount} numberOfLines={1} maxFontSizeMultiplier={1.6}>
+                    <LiveAmount
+                      syncing={syncing && !balanceHidden}
+                      width={64}
+                      height={14}
+                      style={styles.pendingStripAmount}
+                      numberOfLines={1}
+                      maxFontSizeMultiplier={1.6}
+                    >
                       {balanceHidden ? '••••' : formatPrice(pendingValue, data?.wallet.currency)}
-                    </Text>
+                    </LiveAmount>
                     <Text style={styles.pendingStripNote} numberOfLines={2} maxFontSizeMultiplier={1.6}>
                       Not in available balance
                     </Text>
@@ -344,7 +358,9 @@ export default function WalletScreen() {
                       {tr(stats.pendingChip.label)}:{' '}
                       {balanceHidden
                         ? '••••'
-                        : formatPrice(stats.pendingChip.value, data?.wallet.currency)}
+                        : syncing
+                          ? '...'
+                          : formatPrice(stats.pendingChip.value, data?.wallet.currency)}
                     </Text>
                   </View>
                 ) : null}

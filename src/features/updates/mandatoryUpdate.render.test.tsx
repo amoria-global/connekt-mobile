@@ -80,7 +80,8 @@ describe('mandatory update prompt', () => {
     const r = await mount();
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const t = text(r.root);
-    expect(t).toContain('New version available');
+    expect(t).toContain('Good news!');
+    expect(t).toContain('New update available');
     expect(t).toContain('Update now');
     expect(t).not.toMatch(/Maybe later|Not Now|Dismiss|Skip|Later|Cancel/i);
     // Exactly one pressable, and it is the update action.
@@ -97,8 +98,7 @@ describe('mandatory update prompt', () => {
     mockFetch.mockResolvedValue({ isNew: true });
     const r = await mount();
     const t = text(r.root);
-    expect(t).toContain('1 change');
-    expect(t).toContain('Compact Glass');
+    expect(t).toContain("What's new");
     expect(t).toContain('Tighter screens');
     expect(t).toContain('Home fits more on one screen.');
     expect(t).toContain('Update now');
