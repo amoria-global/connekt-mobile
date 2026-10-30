@@ -114,7 +114,7 @@ export function MatchingProfileForm({
             <Text style={styles.connectedHandle} numberOfLines={1}>
               @{profile?.instagramHandle}
             </Text>
-            <Text style={styles.hint}>{tr('Instagram · Used for matching')}</Text>
+            <Text style={styles.hint}>{tr('Instagram')}</Text>
           </View>
           <Pressable onPress={() => setEditing(true)} accessibilityRole="button" accessibilityLabel={tr('Change Instagram account')} style={styles.change}>
             <Text style={styles.changeText}>{tr('Change')}</Text>

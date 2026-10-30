@@ -156,17 +156,6 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
         </View>
       ) : null}
 
-      {o.matchReasons && o.matchReasons.length > 0 ? (
-        <View style={styles.reasons}>
-          {o.matchReasons.map((r) => (
-            <View key={r} style={styles.reason}>
-              <Ionicons name="checkmark" size={12} color={colors.success} />
-              <Text style={styles.reasonText}>{r}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
-
       {o.status === 'SELECTED' && o.eventStartAt ? <EventStartClock startAt={o.eventStartAt} /> : null}
 
       {open ? (
@@ -228,17 +217,17 @@ const useStyles = makeStyles((c) => ({
   card: { backgroundColor: c.card, borderRadius: radii.xl, borderWidth: 1, borderColor: c.border, padding: spacing.md, gap: spacing.sm },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
   eyebrow: { fontSize: 11, fontWeight: fontWeight.extrabold, letterSpacing: 0.6 },
-  timer: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: 'rgba(242,12,143,0.10)' },
+  timer: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: c.tintAccent },
   timerText: { fontSize: 12, fontWeight: fontWeight.extrabold, color: c.accent, fontVariant: ['tabular-nums'] },
   requestedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs },
-  requestedPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(242,12,143,0.12)', borderRadius: radii.full, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: c.accent },
+  requestedPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.tintAccent, borderRadius: radii.full, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: c.accent },
   requestedText: { fontSize: 11, fontWeight: fontWeight.bold, color: c.text },
   clientKindBadge: { fontSize: 11, fontWeight: fontWeight.semibold, color: c.textMuted },
   offerBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(242,12,143,0.08)',
+    backgroundColor: c.tintAccent,
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: c.primary,

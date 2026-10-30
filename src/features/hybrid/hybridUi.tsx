@@ -97,13 +97,6 @@ export const TIER_META: Record<RecommendationTier, { label: string; hint: string
   ALTERNATIVE: { label: 'Alternative choice', hint: 'Available, with a looser fit', color: midTones.slate, bg: 'rgba(147,163,190,0.16)', icon: 'person-outline' },
 };
 
-/** Score range each Smart Match band covers, shown beside its name. */
-export const SMART_TIER_RANGE: Record<SmartMatchTier, string> = {
-  PREMIUM: '80–100',
-  PREFERRED: '65–79',
-  SUGGESTED: '50–64',
-  ALTERNATIVE: 'Below 50',
-};
 
 /** Client-facing order of the Smart Match bands. The points behind them stay on the server. */
 export const SMART_TIER_ORDER: SmartMatchTier[] = ['PREMIUM', 'PREFERRED', 'SUGGESTED', 'ALTERNATIVE'];
