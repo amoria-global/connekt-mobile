@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.3.0",
+    "version": "2.3.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -127,7 +127,8 @@
       "expo-sharing",
       "expo-web-browser",
       "expo-screen-orientation",
-      "expo-audio"
+      "expo-audio",
+      "./plugins/withIncomingCall"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -137,6 +138,23 @@
       "router": {},
       "releaseNotes": {
         "releases": [
+          {
+            "id": "2026-10-30-offer-calls",
+            "date": "2026-10-30",
+            "title": "Offers that ring like a call",
+            "items": [
+              {
+                "icon": "call-outline",
+                "title": "Full-screen offer calls",
+                "body": "A new event offer now wakes a locked Android phone with a full-screen incoming call, even when the app is closed."
+              },
+              {
+                "icon": "lock-open-outline",
+                "title": "Answer from the lock screen",
+                "body": "Tap the call to open the offer straight away, then accept or decline within the two hour window."
+              }
+            ]
+          },
           {
             "id": "2026-10-30-ringing-fix",
             "date": "2026-10-30",
@@ -217,23 +235,6 @@
                 "icon": "tv-outline",
                 "title": "Send a stream to your TV",
                 "body": "On a live event, tap the TV icon at the top, pick one of your connected TVs and the stream opens on it in the Connekyt TV app. If you have no TV connected yet, the same screen takes you to connect one."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-29-help-and-signin",
-            "date": "2026-10-29",
-            "title": "A fuller Help Center and a roomier sign-in",
-            "items": [
-              {
-                "icon": "help-circle-outline",
-                "title": "Help for every part of the app",
-                "body": "The Help Center now has step by step guides for accounts, bookings, events, live streams, wishes, photos, payments, your wallet, security and fixing problems, with search that finds the right guide."
-              },
-              {
-                "icon": "phone-portrait-outline",
-                "title": "Sign-in fits better",
-                "body": "The sign-in form is more compact, so Find My Photos and Explore Events get more room at the top of the screen."
               }
             ]
           }

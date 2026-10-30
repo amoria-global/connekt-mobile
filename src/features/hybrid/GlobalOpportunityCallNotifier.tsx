@@ -9,7 +9,15 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
+import * as SecureStore from 'expo-secure-store';
 import { showMatchingInProgress } from './MatchingInProgress';
+import {
+  cancelAllIncomingCalls,
+  cancelIncomingCall,
+  canShowFullScreenCalls,
+  isIncomingCallAvailable,
+  openFullScreenCallSettings,
+} from './incomingCall';
 import { RINGING_CHANNEL } from '@/features/notifications/push';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/auth';
@@ -62,6 +70,7 @@ function isWithinTwoHourWindow(opp: PhotographerOpportunity): boolean {
 
 /** Takes this offer's alerts off the phone, so nothing for it keeps sounding after an answer. */
 async function clearOfferNotifications(candidateId: string): Promise<void> {
+  cancelIncomingCall(candidateId);
   if (Platform.OS === 'web') return;
   try {
     const same = (r: Notifications.NotificationRequest) => {
@@ -78,6 +87,8 @@ async function clearOfferNotifications(candidateId: string): Promise<void> {
     // Best effort: the answer itself already went through.
   }
 }
+
+const FULL_SCREEN_PROMPTED_KEY = 'fullScreenCallPrompted';
 
 function isOpenStatus(status?: string): boolean {
   const s = (status ?? '').toUpperCase();
@@ -241,11 +252,14 @@ export function GlobalOpportunityCallNotifier() {
       interval = null;
     };
 
+    // The open app rings by itself, so a call alert still sounding from the lock screen is switched off.
+    if (AppState.currentState === 'active') cancelAllIncomingCalls();
     check();
     if (AppState.currentState === 'active') start();
 
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (nextState === 'active') {
+        cancelAllIncomingCalls();
         check();
         start();
       } else {
@@ -281,6 +295,29 @@ export function GlobalOpportunityCallNotifier() {
       subscription.remove();
       pushReceived?.remove();
       showListeners.delete(onShow);
+    };
+  }, [isEligible]);
+
+  // Android 14 and newer let the user switch full-screen alerts off. Ask once, so an offer can still wake a locked phone.
+  useEffect(() => {
+    if (!isEligible || !isIncomingCallAvailable() || canShowFullScreenCalls()) return;
+    let live = true;
+    (async () => {
+      try {
+        if (await SecureStore.getItemAsync(FULL_SCREEN_PROMPTED_KEY)) return;
+        await SecureStore.setItemAsync(FULL_SCREEN_PROMPTED_KEY, '1');
+      } catch {
+        return;
+      }
+      if (!live) return;
+      Alert.alert(
+        'Let offers wake your phone',
+        'Allow full-screen alerts for Connekyt so a new offer can ring on your lock screen.',
+        [{ text: 'Not now', style: 'cancel' }, { text: 'Open settings', onPress: openFullScreenCallSettings }],
+      );
+    })();
+    return () => {
+      live = false;
     };
   }, [isEligible]);
 
