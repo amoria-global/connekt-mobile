@@ -1,3 +1,4 @@
+import { MatchingInProgressHost } from '@/features/hybrid/MatchingInProgress';
 import { approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
 import {
     addNotificationResponseListener,
@@ -247,6 +248,7 @@ export default function AppLayout() {
       <InAppNotificationWatcher />
       <BookingRequestCallNotifier />
       <DialogHost />
+      <MatchingInProgressHost />
       <StatusBar style={isDark ? 'light' : 'dark'} />
     </View>
   );

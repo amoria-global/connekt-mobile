@@ -16,7 +16,7 @@ import { CandidateCard } from '@/features/hybrid/CandidateCard';
 import { getPhotographer, type PhotographerPackage } from '@/features/photographers/api';
 import { convertToDirectRescue, getHybridOptions, listEventCandidates, selectPhotographer, syncServerClock } from '@/features/hybrid/api';
 import type { CandidateSummary, CandidatesResponse } from '@/features/hybrid/types';
-import { budgetLabel, CountdownText, hhmm, MODE_META, SMART_TIER_ORDER, SMART_TIER_RANGE, smartTierOf, TIER_META } from '@/features/hybrid/hybridUi';
+import { budgetLabel, CountdownText, hhmm, MODE_META, SMART_TIER_ORDER, smartTierOf, TIER_META } from '@/features/hybrid/hybridUi';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { isMatchBooked } from '@/features/hybrid/status';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
@@ -46,7 +46,7 @@ export default function EventCandidatesScreen() {
   const [choosing, setChoosing] = useState<CandidateSummary | null>(null);
   const [escrow, setEscrow] = useState(50);
   const [escrowOptions, setEscrowOptions] = useState<number[]>([50, 70, 100]);
-  const [detail, setDetail] = useState<CandidateSummary | null>(null);
+  const [detailPick, setDetail] = useState<CandidateSummary | null>(null);
   const [packagesFor, setPackagesFor] = useState<CandidateSummary | null>(null);
   const [loadedPackages, setLoadedPackages] = useState<{ id: string; list: PhotographerPackage[] } | null>(null);
   const packagesLoading = !!packagesFor && loadedPackages?.id !== packagesFor.photographerId;
@@ -136,6 +136,8 @@ export default function EventCandidatesScreen() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(app)/(tabs)/events' as never));
   const candidates = data?.candidates ?? [];
+  // Scores are relative to who has accepted so far, so the open sheet follows the latest poll, not the tapped snapshot.
+  const detail = detailPick ? candidates.find((c) => c.candidateId === detailPick.candidateId) ?? detailPick : null;
   const budget = budgetLabel(data?.minBudget, data?.maxBudget);
 
   let content: React.ReactNode;
@@ -156,7 +158,7 @@ export default function EventCandidatesScreen() {
                 <View style={[styles.tierIcon, { backgroundColor: meta.bg }]}><Ionicons name={meta.icon} size={16} color={meta.color} /></View>
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.tierTitle, { color: meta.color }]} accessibilityRole="header">{meta.label.toUpperCase()}</Text>
-                  <Text style={styles.hint}>Score {SMART_TIER_RANGE[tTier]} · {inTier.length} accepted</Text>
+                  <Text style={styles.hint}>{inTier.length} accepted</Text>
                 </View>
                 {extra > 0 ? (
                   <Pressable
@@ -182,7 +184,6 @@ export default function EventCandidatesScreen() {
             </View>
           );
         })}
-        <Text style={styles.hint}>{t('b3_cand_groups_hint')}</Text>
       </View>
     );
   } else if (isMatchBooked(data)) {
@@ -304,13 +305,13 @@ export default function EventCandidatesScreen() {
               </Text>
               <Text style={styles.hint}>
                 {detail.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
-                  ? `Accepted with their own delivery policy${detail.packageDeliveryDays ? ` (${detail.packageDeliveryDays} days)` : ''}`
-                  : 'Accepted with your requested delivery schedule'}
+                  ? `Delivery${detail.packageDeliveryDays ? ` in ${detail.packageDeliveryDays} days` : ' by their package'}`
+                  : 'Delivery as you requested'}
               </Text>
             </View>
             <Pressable
               onPress={() => { const cand = detail; setDetail(null); setEscrow(50); setChoosing(cand); }}
-              style={styles.primary}
+              style={styles.sheetPrimary}
               accessibilityRole="button"
               accessibilityLabel={`Confirm ${detail.name} and pay`}
             >
@@ -341,12 +342,11 @@ export default function EventCandidatesScreen() {
       <Sheet
         visible={!!packagesFor}
         title={packagesFor ? `${packagesFor.name}: packages` : ''}
-        subtitle={packagesFor?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'Delivery follows their own policy' : 'Delivery follows your requested schedule'}
         onClose={() => setPackagesFor(null)}
         footer={packagesFor ? (
           <Pressable
             onPress={() => { const cand = packagesFor; setPackagesFor(null); setEscrow(50); setChoosing(cand); }}
-            style={styles.primary}
+            style={styles.sheetPrimary}
             accessibilityRole="button"
           >
             <Text style={styles.primaryText}>Confirm and Pay</Text>
@@ -358,12 +358,12 @@ export default function EventCandidatesScreen() {
             <View style={styles.detailBox}>
               <Text style={styles.tierTitle}>DELIVERY POLICY</Text>
               <Text style={styles.detailTitle}>
-                {packagesFor.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'Photographer\u2019s package policy' : 'Your requested schedule'}
+                {packagesFor.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'Their package delivery' : 'As you requested'}
               </Text>
               <Text style={styles.hint}>
                 {packagesFor.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
-                  ? `Choosing them updates your event\u2019s digital and print delivery to their package${packagesFor.packageDeliveryDays ? ` (${packagesFor.packageDeliveryDays} days turnaround)` : ''}.${packagesFor.packageDeliveryDescription ? ` ${packagesFor.packageDeliveryDescription}` : ''}`
-                  : 'They accepted the delivery timing you asked for. Nothing changes on your event.'}
+                  ? `${packagesFor.packageDeliveryDays ? `${packagesFor.packageDeliveryDays} days turnaround. ` : ''}${packagesFor.packageDeliveryDescription ?? ''}`.trim() || 'Delivered with their package.'
+                  : 'Delivered on the dates you asked for.'}
               </Text>
             </View>
             {packagesFor.matchedPackageName ? (
@@ -411,7 +411,7 @@ export default function EventCandidatesScreen() {
               <View style={styles.policyNoticeBox}>
                 <Ionicons name="cube-outline" size={16} color={colors.info} />
                 <Text style={styles.policyNoticeText}>
-                  This photographer accepted with their package delivery policy. Confirming them will update your event&apos;s digital and print delivery schedule to match their package{choosing.packageDeliveryDays ? ` (${choosing.packageDeliveryDays} days turnaround)` : ''}.
+                  Delivery with their package{choosing.packageDeliveryDays ? ` in ${choosing.packageDeliveryDays} days` : ''}.
                 </Text>
               </View>
             ) : null}
@@ -473,7 +473,7 @@ const useStyles = makeStyles((c) => ({
   hint: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 17 },
   counts: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: 4 },
   count: { fontSize: fontSize.xs, color: c.textSoft, backgroundColor: c.surfaceMuted, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radii.full, overflow: 'hidden' },
-  window: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: 'rgba(242,12,143,0.10)', paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full, marginTop: 4 },
+  window: { flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'flex-start', backgroundColor: c.tintAccent, paddingHorizontal: 10, paddingVertical: 5, borderRadius: radii.full, marginTop: 4 },
   windowText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.accent },
   detailBox: { gap: 4, padding: spacing.md, borderRadius: radii.lg, borderWidth: 1, borderColor: c.border, backgroundColor: c.surfaceMuted },
   detailTitle: { fontSize: fontSize.md, fontWeight: fontWeight.extrabold, color: c.text },
@@ -515,6 +515,7 @@ const useStyles = makeStyles((c) => ({
   },
   escrow: { flex: 1, alignItems: 'center', paddingVertical: spacing.md, borderRadius: radii.md, borderWidth: 2, borderColor: c.border },
   escrowPct: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
+  sheetPrimary: { alignSelf: 'stretch', minHeight: 50, borderRadius: radii.md, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   primary: { flex: 1.4, minHeight: 50, borderRadius: radii.md, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
   primaryText: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
   secondary: { flex: 1, minHeight: 50, borderRadius: radii.md, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },

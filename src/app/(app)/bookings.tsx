@@ -48,6 +48,7 @@ import {
 } from '@/features/hybrid/api';
 import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from '@/features/hybrid/types';
 import { OpportunityCard } from '@/features/hybrid/OpportunityCard';
+import { showMatchingInProgress } from '@/features/hybrid/MatchingInProgress';
 import { opportunityFilterFor } from '@/features/hybrid/status';
 import {
   IncomingOpportunityAlertModal,
@@ -95,13 +96,13 @@ export default function BookingsScreen() {
   const { isPhotographer } = useRole();
 
   // Tab state for photographer
-  const [activeTab, setActiveTab] = useState<Tab>(() => (tab === 'opportunities' ? 'opportunities' : 'direct'));
+  const [activeTab, setActiveTab] = useState<Tab>(() => (tab === 'opportunities' && isPhotographer ? 'opportunities' : 'direct'));
 
   useEffect(() => {
-    if (tab === 'opportunities') {
+    if (tab === 'opportunities' && isPhotographer) {
       setActiveTab('opportunities');
     }
-  }, [tab]);
+  }, [tab, isPhotographer]);
 
   // Direct bookings
   const { data, loading, error, refresh } = useAsync(useCallback(() => listBookings(), []));
@@ -117,7 +118,7 @@ export default function BookingsScreen() {
 
   /** `silent` is the background poll: no spinner, and no re-render when nothing changed. */
   const fetchOpportunities = useCallback(async (opts?: { silent?: boolean }) => {
-    if (!env.hybridBookingEnabled) return;
+    if (!env.hybridBookingEnabled || !isPhotographer) return;
     const silent = opts?.silent === true;
     if (!silent) setLoadingOpp(true);
     try {
@@ -131,13 +132,13 @@ export default function BookingsScreen() {
     } finally {
       if (!silent) setLoadingOpp(false);
     }
-  }, [oppFilter]);
+  }, [oppFilter, isPhotographer]);
 
   // A notification for one opportunity opens it full screen when it is still
   // open, and otherwise shows the filter that lists it: selected, not
   // selected, expired and closed ones are under History, not New.
   useEffect(() => {
-    if (!candidate) return;
+    if (!candidate || !isPhotographer) return;
     getOpportunity(String(candidate))
       .then((o) => {
         setOppFilter(opportunityFilterFor(o.status));
@@ -146,7 +147,7 @@ export default function BookingsScreen() {
         }
       })
       .catch(() => {});
-  }, [candidate]);
+  }, [candidate, isPhotographer]);
 
   useEffect(() => {
     if (!env.hybridBookingEnabled) return;
@@ -154,7 +155,7 @@ export default function BookingsScreen() {
   }, [fetchOpportunities]);
 
   // Quiet refresh while this screen is open and the app is in the foreground; nothing runs in the background.
-  useForegroundPolling(() => fetchOpportunities({ silent: true }), 6000, env.hybridBookingEnabled);
+  useForegroundPolling(() => fetchOpportunities({ silent: true }), 6000, env.hybridBookingEnabled && isPhotographer);
 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<Booking | null>(null);
@@ -213,14 +214,7 @@ export default function BookingsScreen() {
     setOppBusyId(opp.candidateId);
     try {
       await approveOpportunity(opp.candidateId, { deliveryPolicy });
-      const policyNote =
-        deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
-          ? 'with your package delivery policy (digital & print delivery will update to your package schedule once the client confirms you)'
-          : "with the client's requested delivery policy";
-      Alert.alert(
-        'Offer accepted',
-        `You accepted ${opp.eventTitle} ${policyNote}. The client now sees you and can choose you.`,
-      );
+      showMatchingInProgress();
       fetchOpportunities();
     } catch (e) {
       Alert.alert('Approval error', isApiError(e) ? e.message : 'Could not approve this opportunity.');
@@ -240,7 +234,7 @@ export default function BookingsScreen() {
       setOpportunities((prev) => prev.filter((o) => o.candidateId !== opp.candidateId));
       Alert.alert(
         'Offer Rejected',
-        'You rejected this offer. It remains active for other available photographers.',
+        'Offer declined.',
       );
     } catch (e) {
       Alert.alert('Decline error', isApiError(e) ? e.message : 'Could not decline this opportunity.');
@@ -276,8 +270,8 @@ export default function BookingsScreen() {
         }
       />
 
-      {/* Segmented Control (Direct vs Opportunities — open to all users) */}
-      {env.hybridBookingEnabled && (
+      {/* Segmented Control (Direct vs Opportunities, photographers only) */}
+      {env.hybridBookingEnabled && isPhotographer && (
         <View style={styles.segmentContainer}>
           <SegmentedTabs
             label="Booking sections"
@@ -465,12 +459,6 @@ export default function BookingsScreen() {
             />
           }
         >
-          <View style={styles.oppExplainer}>
-            <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
-            <Text style={styles.oppExplainerText}>
-              Opportunities come from clients who used Post My Event: your phone rings for 47 seconds when invited, and each offer stays open for 2 hours. Tap any offer to review details and accept with the client's delivery schedule, accept with your package delivery policy, or reject.
-            </Text>
-          </View>
           <View style={styles.oppFilters}>
             {([['PENDING_RESPONSE', 'New'], ['APPROVED', 'Waiting for client'], ['ALL', 'History']] as const).map(([k, l]) => (
               <Chip key={k} label={l} selected={oppFilter === k} onPress={() => setOppFilter(k)} />
@@ -488,7 +476,7 @@ export default function BookingsScreen() {
                 icon="radio-outline"
                 title={oppFilter === 'PENDING_RESPONSE' ? 'No open opportunities right now' : oppFilter === 'APPROVED' ? 'Nothing waiting for a client' : 'No history yet'}
                 body={oppFilter === 'PENDING_RESPONSE'
-                  ? 'When a client posts an event that fits your profile and calendar, it appears here and rings for 47 seconds (staying available for 2 hours).'
+                  ? 'New offers appear here the moment they arrive.'
                   : oppFilter === 'APPROVED' ? 'Opportunities you accepted wait here until the client chooses.' : 'Past opportunities and their outcomes appear here.'}
               />
             </View>
