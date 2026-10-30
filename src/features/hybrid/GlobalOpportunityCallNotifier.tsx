@@ -9,8 +9,10 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
+import { showMatchingInProgress } from './MatchingInProgress';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/auth';
+import { useRole } from '@/features/auth/role';
 import { env } from '@/config/env';
 import {
   listOpportunities,
@@ -74,7 +76,9 @@ function isOpenStatus(status?: string): boolean {
 export function GlobalOpportunityCallNotifier() {
   const router = useRouter();
   const isSignedIn = useAuth((s) => !!s.user);
-  const isEligible = isSignedIn;
+  // Offers ring for photographers only. Clients and event coordinators book photographers and are never invited.
+  const { isPhotographer } = useRole();
+  const isEligible = isSignedIn && isPhotographer;
 
   const [activeOpportunity, setActiveOpportunity] = useState<PhotographerOpportunity | null>(null);
   const [modalStage, setModalStage] = useState<'ringing' | 'details'>('ringing');
@@ -191,7 +195,9 @@ export function GlobalOpportunityCallNotifier() {
 
   // The timer below must outlive re-renders, so it calls the latest check through a ref instead of restarting.
   const checkRef = useRef(checkOpportunities);
-  checkRef.current = checkOpportunities;
+  useEffect(() => {
+    checkRef.current = checkOpportunities;
+  }, [checkOpportunities]);
 
   // Silent poll every 5 seconds while the app is in the foreground, plus on resume, on push receipt and on explicit trigger.
   useEffect(() => {
@@ -260,21 +266,7 @@ export function GlobalOpportunityCallNotifier() {
       await approveOpportunity(opp.candidateId, { deliveryPolicy });
       setDismissedIds((ids) => [...ids, opp.candidateId]);
       setActiveOpportunity(null);
-      const policyNote =
-        deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
-          ? 'with your package delivery policy (digital & print delivery will update to your package schedule once the client confirms you)'
-          : "with the client's requested delivery policy";
-      Alert.alert(
-        'Offer accepted',
-        `You accepted ${opp.eventTitle} ${policyNote}. The client can now review and confirm you.`,
-        [
-          {
-            text: 'View Opportunities',
-            onPress: () => router.push('/bookings?tab=opportunities' as never),
-          },
-          { text: 'OK' },
-        ],
-      );
+      showMatchingInProgress();
     } catch (e: any) {
       // 409: the invite closed, or the calendar now overlaps and it was released. Don't keep ringing for it.
       if (e?.status === 409) {
@@ -295,7 +287,7 @@ export function GlobalOpportunityCallNotifier() {
       setActiveOpportunity(null);
       Alert.alert(
         'Offer Rejected',
-        'You passed on this offer. It remains active for other available photographers.',
+        'Offer declined.',
       );
     } catch (e: any) {
       Alert.alert('Decline error', e?.message || 'Could not decline this opportunity.');
@@ -311,9 +303,10 @@ export function GlobalOpportunityCallNotifier() {
     }
   };
 
-  const handleOpenOfferPage = (opp: PhotographerOpportunity) => {
-    // Navigate photographer dashboard to incoming opportunities page while keeping Offer Details open
-    router.push(`/bookings?tab=opportunities&candidate=${encodeURIComponent(opp.candidateId)}` as never);
+  const handleOpenOfferPage = () => {
+    // Land on the opportunities list behind this modal. No `candidate` param: that makes the Bookings
+    // screen open its own copy of the offer, and two stacked offer modals fight over the same invite.
+    router.push('/bookings?tab=opportunities' as never);
   };
 
   if (!env.hybridBookingEnabled || !isEligible || !activeOpportunity) {

@@ -1,8 +1,7 @@
 /**
  * A photographer who said yes to a posted event, as one compact card in a recommendation band's row:
  * profile (photo and name), role, speciality, Smart Match score, estimated distance and how they
- * accepted. Tapping it opens the choose panel. The score is relative to the others who accepted
- * this event, and the band the card sits under is the score's range.
+ * accepted. Tapping it opens the choose panel.
  */
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -24,9 +23,8 @@ export function CandidateCard({ candidate: c, onOpen, width }: Props) {
   const styles = useStyles();
   const { tr } = useSharedT();
   const tier = TIER_META[smartTierOf(c)];
-  const ownPolicy = c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE';
   const role = c.photographerType === 'STUDIO' ? tr('Company / Studio') : tr('Freelancer / Individual');
-  const status = ownPolicy ? tr('Accepted · own delivery policy') : tr('Accepted · your schedule');
+  const status = tr('Accepted');
   const score = c.matchScore != null ? `${c.matchScore}` : null;
 
   return (
@@ -55,8 +53,8 @@ export function CandidateCard({ candidate: c, onOpen, width }: Props) {
         <Text style={styles.meta} numberOfLines={1}>{c.distanceLabel || c.city || tr('Distance not shown')}</Text>
       </View>
       <View style={styles.row}>
-        <Ionicons name={ownPolicy ? 'cube-outline' : 'checkmark-circle'} size={12} color={ownPolicy ? colors.info : colors.success} />
-        <Text style={[styles.meta, { color: ownPolicy ? colors.info : colors.success }]} numberOfLines={2}>{status}</Text>
+        <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+        <Text style={[styles.meta, { color: colors.success }]} numberOfLines={1}>{status}</Text>
       </View>
     </Pressable>
   );

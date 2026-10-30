@@ -138,6 +138,33 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-30-matching-polish",
+            "date": "2026-10-30",
+            "title": "A clearer wait after you accept",
+            "items": [
+              {
+                "icon": "hourglass-outline",
+                "title": "Matching in progress",
+                "body": "After you accept an offer, a live matching screen shows while the client makes their choice."
+              },
+              {
+                "icon": "albums-outline",
+                "title": "Simpler photographer cards",
+                "body": "Accepted photographers now appear as clean cards with their name, speciality and distance."
+              },
+              {
+                "icon": "layers-outline",
+                "title": "One offer screen at a time",
+                "body": "Opening an offer from the ringing screen no longer shows the same offer twice."
+              },
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Offers for photographers only",
+                "body": "Clients and event coordinators no longer see or hear photographer offers."
+              }
+            ]
+          },
+          {
             "id": "2026-10-30-offer-bands",
             "date": "2026-10-30",
             "title": "Offers that ring, and photographers ranked in clear bands",
@@ -202,23 +229,6 @@
                 "icon": "heart-outline",
                 "title": "No email needed for a wish",
                 "body": "When you send a wish or a video wish, you now only enter your name. The event owner sees who it is from, and we no longer ask for an email we never used."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-29-shared-links",
-            "date": "2026-10-29",
-            "title": "Shared links now take you to the right page",
-            "items": [
-              {
-                "icon": "link-outline",
-                "title": "Your link survives the install",
-                "body": "If you open a Connekyt link or scan a QR code before you have the app, it now takes you to that page after you install and sign up."
-              },
-              {
-                "icon": "timer-outline",
-                "title": "Clearer countdown on offer calls",
-                "body": "The time left on an incoming offer is now shown as days, hours, minutes and seconds, so you can see exactly how long you have to answer."
               }
             ]
           }
