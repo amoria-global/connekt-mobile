@@ -149,92 +149,72 @@
                 "body": "A new event offer now wakes a locked Android phone with a full-screen incoming call, even when the app is closed."
               },
               {
-                "icon": "lock-open-outline",
-                "title": "Answer from the lock screen",
-                "body": "Tap the call to open the offer straight away, then accept or decline within the two hour window."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-30-ringing-fix",
-            "date": "2026-10-30",
-            "title": "Offers that ring properly",
-            "items": [
-              {
-                "icon": "notifications-off-outline",
-                "title": "Silence on answer",
-                "body": "Accepting or declining an offer now stops its ring and clears its notification straight away."
+                "icon": "layers-outline",
+                "title": "Opens over other apps",
+                "body": "Allow Connekyt to appear over other apps and a new offer opens and rings right away, like a normal call."
               },
               {
-                "icon": "lock-closed-outline",
-                "title": "Rings when locked",
-                "body": "Offers now ring on a locked phone and outside the app, using a fresh high priority channel."
+                "icon": "arrow-down-circle-outline",
+                "title": "Closing only minimizes",
+                "body": "Going back from the first screen now tucks Connekyt away instead of closing it, so it stays ready for the next offer."
+              },
+              {
+                "icon": "power-outline",
+                "title": "Ready after a restart",
+                "body": "Connekyt now comes back by itself when your phone starts, so offers can ring without opening the app first."
               }
             ]
           },
           {
-            "id": "2026-10-30-matching-polish",
+            "id": "2026-10-30-live-wallet",
             "date": "2026-10-30",
-            "title": "A clearer wait after you accept",
+            "title": "Wallet balances that stay current",
             "items": [
+              {
+                "icon": "sync-outline",
+                "title": "Balances refresh by themselves",
+                "body": "Your wallet balance now checks for new money every 10 seconds while the app is open, so you never have to pull to refresh."
+              },
               {
                 "icon": "hourglass-outline",
-                "title": "Matching in progress",
-                "body": "After you accept an offer, a live matching screen shows while the client makes their choice."
-              },
-              {
-                "icon": "albums-outline",
-                "title": "Simpler photographer cards",
-                "body": "Accepted photographers now appear as clean cards with their name, speciality and distance."
-              },
-              {
-                "icon": "layers-outline",
-                "title": "One offer screen at a time",
-                "body": "Opening an offer from the ringing screen no longer shows the same offer twice."
-              },
-              {
-                "icon": "shield-checkmark-outline",
-                "title": "Offers for photographers only",
-                "body": "Clients and event coordinators no longer see or hear photographer offers."
+                "title": "A clear loading moment",
+                "body": "Each wallet figure shows a short loading placeholder while it updates, then the new balance appears in its place."
               }
             ]
           },
           {
-            "id": "2026-10-30-offer-bands",
+            "id": "2026-10-30-album-links-open",
             "date": "2026-10-30",
-            "title": "Offers that ring, and photographers ranked in clear bands",
+            "title": "Album links open in the app",
             "items": [
               {
-                "icon": "notifications-outline",
-                "title": "New offers ring and open at once",
-                "body": "A new event offer now rings with the Connekyt ringtone and opens straight to the offer, with a two hour countdown to accept or decline."
-              },
-              {
-                "icon": "ribbon-outline",
-                "title": "Accepted photographers in four bands",
-                "body": "Clients now see who accepted grouped as Premium, Preferred, Suggested and Alternative, each card showing a score, distance, speciality and how they accepted."
-              },
-              {
-                "icon": "card-outline",
-                "title": "Choose with confidence",
-                "body": "Tap a photographer to confirm and pay, open their portfolio, or compare their packages and delivery policy before you decide."
-              },
-              {
-                "icon": "refresh-outline",
-                "title": "Lists refresh without flickering",
-                "body": "Opportunity and candidate lists now update quietly in the background, with no spinner, and stop completely while the app is closed."
+                "icon": "images-outline",
+                "title": "Open a shared album link",
+                "body": "A link to a free album now opens that album in the app, ready to claim, instead of an empty screen. A link the app does not know takes you home instead of a blank page."
               }
             ]
           },
           {
-            "id": "2026-10-30-watch-on-tv",
+            "id": "2026-10-30-google-sign-in-back",
             "date": "2026-10-30",
-            "title": "Watch live streams on your TV",
+            "title": "Google sign-in is back",
             "items": [
               {
-                "icon": "tv-outline",
-                "title": "Send a stream to your TV",
-                "body": "On a live event, tap the TV icon at the top, pick one of your connected TVs and the stream opens on it in the Connekyt TV app. If you have no TV connected yet, the same screen takes you to connect one."
+                "icon": "logo-google",
+                "title": "Continue with Google",
+                "body": "The Google button is back on the sign-in screen, next to Apple, so you can sign in with your Google account again."
+              }
+            ]
+          },
+          {
+            "id": "2026-10-30-good-news-update-screen",
+            "date": "2026-10-30",
+            "title": "A clearer update screen",
+            "items": [
+              {
+                "icon": "download-outline",
+                "title": "Good news, in one glance",
+                "body": "This screen now opens with what is new, shown as a short list with an icon for each change, so you can read it quickly before you tap Update now."
               }
             ]
           }

@@ -72,7 +72,7 @@ import {
 import { listCoordinatorEvents, listEvents, listPhotographerEvents } from '@/features/events/api';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { listStreams } from '@/features/streams/api';
-import { getWallet } from '@/features/wallet/api';
+import { useLiveWallet } from '@/features/wallet/useLiveWallet';
 import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, swatch, type SwatchTone } from '@/theme';
@@ -220,7 +220,7 @@ export default function HomeScreen() {
   );
 
   // ── Wallet + upcoming feed (kept for non-dashboard roles) ──────────────
-  const wallet = useAsync(useCallback(() => getWallet(), []));
+  const wallet = useLiveWallet();
   const upcoming = useAsync(
     useCallback(async (): Promise<Preview[]> => {
       if (isPhotographer) {
@@ -944,7 +944,7 @@ function SimpleHeader({
   /** Absent when the session carries no resolved role — the badge is then hidden
       rather than showing a substituted one. */
   role: string | undefined;
-  wallet: ReturnType<typeof useAsync<Awaited<ReturnType<typeof getWallet>>>>;
+  wallet: ReturnType<typeof useLiveWallet>;
   router: ReturnType<typeof useRouter>;
 }) {
   const { colors, gradients, isDark } = useTheme();
@@ -967,9 +967,15 @@ function SimpleHeader({
         onPress={() => router.push('/wallet')}
       >
         <Text style={styles.balanceLabel}>Wallet balance</Text>
-        <Text style={styles.balanceValue}>
-          {wallet.loading && !wallet.data ? '—' : formatPrice(wallet.data?.total, wallet.data?.currency)}
-        </Text>
+        {wallet.syncing ? (
+          <View style={{ height: 40, justifyContent: 'center', alignItems: 'flex-start' }} accessible accessibilityRole="progressbar" accessibilityLabel="Updating balance">
+            <ActivityIndicator color={colors.textOnPrimary} />
+          </View>
+        ) : (
+          <Text style={styles.balanceValue}>
+            {wallet.loading && !wallet.data ? '—' : formatPrice(wallet.data?.total, wallet.data?.currency)}
+          </Text>
+        )}
         <View style={styles.balanceFoot}>
           <Text style={[styles.balanceLink, isDark && { color: colors.textOnPrimary }]}>Open wallet</Text>
           {/* Dark: the primary fill is a mid blue, where the light pink was about 2:1. White keeps the link readable. */}
