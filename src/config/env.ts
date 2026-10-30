@@ -15,6 +15,16 @@ type Extra = { apiBaseUrl?: string };
 
 const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
 
+/**
+ * Public OAuth client identifiers for the native apps. They ship inside every
+ * build anyway, so they are not secrets. They are the fallback when the
+ * EXPO_PUBLIC_GOOGLE_* variables are not present at bundle time (an update
+ * exported from a checkout or environment without them), which used to hide
+ * "Continue with Google" with no error anywhere.
+ */
+const GOOGLE_IOS_CLIENT_ID = '728809448366-69tueodvvmookki9pfnpmmg3cnunmihe.apps.googleusercontent.com';
+const GOOGLE_ANDROID_CLIENT_ID = '728809448366-p7n5gjov2ubgkcl0poun7argihmgk71c.apps.googleusercontent.com';
+
 export const env = {
   /** Base URL of the amoria-connect (Spring Boot) API, including /api/remote. */
   apiBaseUrl:
@@ -53,8 +63,8 @@ export const env = {
    * Android client IDs created for this app's bundle id + scheme (connekt).
    */
   googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
-  googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ?? '',
-  googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ?? '',
+  googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || GOOGLE_IOS_CLIENT_ID,
+  googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || GOOGLE_ANDROID_CLIENT_ID,
 
   /**
    * Dual Direct & Hybrid Booking Engine feature flag.
@@ -66,7 +76,4 @@ export const env = {
 } as const;
 
 /** True when at least one Google client ID is configured. */
-export const googleConfigured =
-  !!process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
-  !!process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ||
-  !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+export const googleConfigured = !!env.googleWebClientId || !!env.googleIosClientId || !!env.googleAndroidClientId;
