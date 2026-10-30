@@ -37,6 +37,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { IconTile as GlowTile } from '@/components/ui/IconTile';
 import { InsetWell } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/dialog';
+import { showMatchingInProgress } from '@/features/hybrid/MatchingInProgress';
 import { DashboardGreeting } from './DashboardGreeting';
 import { photographerProfileUrl } from '@/features/photographer/profileLink';
 import { useForegroundPolling } from '@/hooks/useForegroundPolling';
@@ -224,10 +225,7 @@ export function PhotographerHome() {
       Alert.alert('Could not approve', (e as { message?: string })?.message || 'Could not approve this opportunity.');
       return;
     }
-    Alert.alert(
-      'You said yes',
-      `The client now sees you for ${opp.eventTitle} and can choose you. We'll tell you the outcome either way.`,
-    );
+    showMatchingInProgress();
     opportunities.refresh();
     events.refresh();
   };
@@ -238,7 +236,7 @@ export function PhotographerHome() {
       Alert.alert('Could not decline', (e as { message?: string })?.message || 'Could not decline this opportunity.');
       return;
     }
-    Alert.alert('Passed', 'It goes to the next photographer.');
+    Alert.alert('Offer declined', 'We will keep new offers coming.');
     opportunities.refresh();
   };
 

@@ -53,7 +53,7 @@ let registered = false;
  * banner, system sound). Booking changes therefore use a new channel,
  * booking_updates, instead of trying to upgrade "default".
  */
-export const NOTIFICATION_CHANNELS = ['default', 'booking_updates', 'urgent_booking_alerts'] as const;
+export const NOTIFICATION_CHANNELS = ['default', 'booking_updates', 'urgent_booking_alerts', 'urgent_alerts_v2'] as const;
 
 /**
  * Forget that this device registered, so the next signed-in user registers
@@ -120,6 +120,21 @@ export async function ensureAndroidChannels(): Promise<void> {
     enableVibrate: true,
     showBadge: true,
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+
+  // Android freezes a channel's sound and importance once it exists, and phones that created urgent_booking_alerts
+  // earlier keep whatever it was then (often silent when locked). A fresh id gets the ringtone settings.
+  await safeSetChannel('urgent_alerts_v2', {
+    name: 'Offer & Booking Rings',
+    description: 'Rings for new booking requests and event offers, even when the phone is locked',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 500, 250, 500, 250, 500],
+    lightColor: lightPalette.accent,
+    sound: 'connekyt_ringtone.wav',
+    enableVibrate: true,
+    showBadge: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    bypassDnd: true,
   });
 
   await safeSetChannel('urgent_booking_alerts', {
@@ -262,7 +277,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 export async function scheduleTestLockScreenNotification(delaySeconds = 5): Promise<string> {
   await ensureAndroidChannels();
   await ensureNotificationCategories();
-  const channelId = Platform.OS === 'android' ? 'urgent_booking_alerts' : undefined;
+  const channelId = Platform.OS === 'android' ? 'urgent_alerts_v2' : undefined;
   return await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Connekyt Notification 🔔',
@@ -286,7 +301,7 @@ export async function scheduleTestLockScreenNotification(delaySeconds = 5): Prom
 export async function scheduleTestBookingAlert(delaySeconds = 5): Promise<string> {
   await ensureAndroidChannels();
   await ensureNotificationCategories();
-  const channelId = Platform.OS === 'android' ? 'urgent_booking_alerts' : undefined;
+  const channelId = Platform.OS === 'android' ? 'urgent_alerts_v2' : undefined;
   return await Notifications.scheduleNotificationAsync({
     content: {
       title: 'New Booking Request 🔔',
@@ -362,7 +377,7 @@ export async function checkNotificationDiagnostics(): Promise<NotificationDiagno
     try {
       await ensureAndroidChannels();
       const channels = await Notifications.getNotificationChannelsAsync();
-      const urgent = channels.find((c) => c.id === 'urgent_booking_alerts');
+      const urgent = channels.find((c) => c.id === 'urgent_alerts_v2');
       const updates = channels.find((c) => c.id === 'booking_updates');
       channelsSummary = `Android Channels:\n• Urgent Alert: ${urgent ? `Active (Importance ${urgent.importance})` : 'Missing'}\n• Booking Updates: ${updates ? `Active (Importance ${updates.importance})` : 'Missing'}`;
     } catch {
@@ -390,7 +405,7 @@ export async function checkNotificationDiagnostics(): Promise<NotificationDiagno
 }
 
 /** The channel that rings for booking requests and opportunities. */
-export const RINGING_CHANNEL = 'urgent_booking_alerts';
+export const RINGING_CHANNEL = 'urgent_alerts_v2';
 
 /**
  * Whether ringing alerts break through Do Not Disturb. Android only lets the

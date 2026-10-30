@@ -225,6 +225,11 @@ export function IncomingOpportunityAlertModal({
 
   const playerRef = useRef<AudioPlayer | null>(null);
   const pulseAnim = useSharedValue(1);
+  // The ring effect must not restart (ringtone, 47s clock) just because the parent passed a new callback.
+  const onDismissRef = useRef(onDismiss);
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
 
   const stopRinging = useCallback(() => {
     try {
@@ -306,7 +311,7 @@ export function IncomingOpportunityAlertModal({
         stopRinging();
         // After 47 seconds of ringing, stop ringing and dismiss the call overlay;
         // the offer stays available for 2 hours in notifications & Opportunities tab.
-        onDismiss();
+        onDismissRef.current();
       }
     }, 250);
 
@@ -318,7 +323,7 @@ export function IncomingOpportunityAlertModal({
       p?.remove();
       playerRef.current = null;
     };
-  }, [visible, opportunity?.candidateId, stage, onDismiss, pulseAnim, stopRinging]);
+  }, [visible, opportunity?.candidateId, stage, pulseAnim, stopRinging]);
 
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseAnim.value }],
@@ -466,9 +471,6 @@ export function IncomingOpportunityAlertModal({
                 {tr('INCOMING OFFER CALL')} • {ringSecondsLeft}s
               </Text>
             </View>
-            <Text style={styles.callWindowSub}>
-              {tr('Rings for 47s • Available for 2 hrs before disappearing')}
-            </Text>
           </View>
 
           {/* Center Pulsing Call Avatar & Event Summary */}
@@ -939,9 +941,7 @@ export function IncomingOpportunityAlertModal({
               {expandedSection === 'policies' ? (
                 <View style={styles.expandContent}>
                   <Text style={styles.expandContentText}>
-                    {tr(
-                      "Accepting with the client's delivery policy keeps the requested digital and print schedule. Accepting with your delivery package policy updates both digital and print delivery to your package schedule once the client confirms and books you.",
-                    )}
+                    {tr('Choose how you will deliver for this client.')}
                   </Text>
                 </View>
               ) : null}

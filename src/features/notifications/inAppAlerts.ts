@@ -44,5 +44,6 @@ export function freshUnread<T extends AlertCandidate>(seen: Set<string> | null, 
 /** Should the phone's own banner show for this push while the app is open? */
 export function showSystemBannerInForeground(data: Record<string, unknown> | undefined): boolean {
   const type = typeof data?.type === 'string' ? data.type.toUpperCase() : '';
-  return !WATCHED_TYPES.has(type);
+  // Offers ring through their own full-screen call; a second system sound on top of it is what kept beeping.
+  return !WATCHED_TYPES.has(type) && !OPPORTUNITY_TYPES.has(type);
 }
