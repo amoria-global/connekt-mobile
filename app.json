@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.3.0",
+    "version": "2.3.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -127,7 +127,8 @@
       "expo-sharing",
       "expo-web-browser",
       "expo-screen-orientation",
-      "expo-audio"
+      "expo-audio",
+      "./plugins/withIncomingCall"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -137,6 +138,33 @@
       "router": {},
       "releaseNotes": {
         "releases": [
+          {
+            "id": "2026-10-30-offer-calls",
+            "date": "2026-10-30",
+            "title": "Offers that ring like a call",
+            "items": [
+              {
+                "icon": "call-outline",
+                "title": "Full-screen offer calls",
+                "body": "A new event offer now wakes a locked Android phone with a full-screen incoming call, even when the app is closed."
+              },
+              {
+                "icon": "layers-outline",
+                "title": "Opens over other apps",
+                "body": "Allow Connekyt to appear over other apps and a new offer opens and rings right away, like a normal call."
+              },
+              {
+                "icon": "arrow-down-circle-outline",
+                "title": "Closing only minimizes",
+                "body": "Going back from the first screen now tucks Connekyt away instead of closing it, so it stays ready for the next offer."
+              },
+              {
+                "icon": "power-outline",
+                "title": "Ready after a restart",
+                "body": "Connekyt now comes back by itself when your phone starts, so offers can ring without opening the app first."
+              }
+            ]
+          },
           {
             "id": "2026-10-30-live-wallet",
             "date": "2026-10-30",
@@ -187,23 +215,6 @@
                 "icon": "download-outline",
                 "title": "Good news, in one glance",
                 "body": "This screen now opens with what is new, shown as a short list with an icon for each change, so you can read it quickly before you tap Update now."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-30-ringing-fix",
-            "date": "2026-10-30",
-            "title": "Offers that ring properly",
-            "items": [
-              {
-                "icon": "notifications-off-outline",
-                "title": "Silence on answer",
-                "body": "Accepting or declining an offer now stops its ring and clears its notification straight away."
-              },
-              {
-                "icon": "lock-closed-outline",
-                "title": "Rings when locked",
-                "body": "Offers now ring on a locked phone and outside the app, using a fresh high priority channel."
               }
             ]
           }

@@ -18,6 +18,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { registerPushToken } from './api';
+import { isIncomingCallAvailable } from '@/features/hybrid/incomingCall';
 import { showSystemBannerInForeground } from './inAppAlerts';
 // The notification LED is the brand colour, whatever the app's scheme.
 import { lightPalette } from '@/theme';
@@ -54,6 +55,16 @@ let registered = false;
  * booking_updates, instead of trying to upgrade "default".
  */
 export const NOTIFICATION_CHANNELS = ['default', 'booking_updates', 'urgent_booking_alerts', 'urgent_alerts_v2'] as const;
+
+/** Sent to the server with the token. Builds with the native incoming-call screen add the capability, and only then
+ * does the server send them offers as call pushes instead of ordinary notifications. */
+export const INCOMING_CALL_CAPABILITY = 'incoming_call_v1';
+
+export function reportedChannels(): string {
+  const list: string[] = [...NOTIFICATION_CHANNELS];
+  if (isIncomingCallAvailable()) list.push(INCOMING_CALL_CAPABILITY);
+  return list.join(',');
+}
 
 /**
  * Forget that this device registered, so the next signed-in user registers
@@ -258,7 +269,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
     await registerPushToken(
       token,
       Platform.OS,
-      Platform.OS === 'android' ? NOTIFICATION_CHANNELS.join(',') : undefined,
+      Platform.OS === 'android' ? reportedChannels() : undefined,
     );
     registered = true;
     console.log('[push] Successfully registered push token with backend.');
@@ -362,7 +373,7 @@ export async function checkNotificationDiagnostics(): Promise<NotificationDiagno
         await registerPushToken(
           pushToken,
           Platform.OS,
-          Platform.OS === 'android' ? NOTIFICATION_CHANNELS.join(',') : undefined,
+          Platform.OS === 'android' ? reportedChannels() : undefined,
         );
         registered = true;
         isRegistered = true;
