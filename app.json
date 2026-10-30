@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-30-good-news-update-screen",
+            "date": "2026-10-30",
+            "title": "A clearer update screen",
+            "items": [
+              {
+                "icon": "download-outline",
+                "title": "Good news, in one glance",
+                "body": "This screen now opens with what is new, shown as a short list with an icon for each change, so you can read it quickly before you tap Update now."
+              }
+            ]
+          },
+          {
             "id": "2026-10-30-ringing-fix",
             "date": "2026-10-30",
             "title": "Offers that ring properly",
@@ -217,23 +229,6 @@
                 "icon": "tv-outline",
                 "title": "Send a stream to your TV",
                 "body": "On a live event, tap the TV icon at the top, pick one of your connected TVs and the stream opens on it in the Connekyt TV app. If you have no TV connected yet, the same screen takes you to connect one."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-29-help-and-signin",
-            "date": "2026-10-29",
-            "title": "A fuller Help Center and a roomier sign-in",
-            "items": [
-              {
-                "icon": "help-circle-outline",
-                "title": "Help for every part of the app",
-                "body": "The Help Center now has step by step guides for accounts, bookings, events, live streams, wishes, photos, payments, your wallet, security and fixing problems, with search that finds the right guide."
-              },
-              {
-                "icon": "phone-portrait-outline",
-                "title": "Sign-in fits better",
-                "body": "The sign-in form is more compact, so Find My Photos and Explore Events get more room at the top of the screen."
               }
             ]
           }
