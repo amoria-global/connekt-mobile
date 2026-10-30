@@ -8,7 +8,7 @@
  * screen and the same button retries.
  */
 import React, { useContext, useRef, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +20,8 @@ import { useSharedT } from '@/i18n/sharedStrings';
 import { UpdateGlyph } from './UpdateGlyph';
 import { countItems, type Release } from './releaseNotes';
 import { updateNow, useAppUpdates, useUpdateChecks } from './useAppUpdates';
+
+const LOGO = require('../../../assets/images/logo.png');
 
 type IconName = keyof typeof Ionicons.glyphMap;
 const DEFAULT_ICON: IconName = 'sparkles-outline';
@@ -193,8 +195,9 @@ export function UpdatePromptModal() {
         />
         <View style={[StyleSheet.absoluteFill, styles.frostTint]} pointerEvents="none" />
 
-        {/* Top brand header: the spaced wordmark and the "new update" pill */}
+        {/* Top brand header: the app logo, the spaced wordmark and the "new update" pill */}
         <View style={styles.header}>
+          <Image source={LOGO} style={styles.brandLogo} resizeMode="contain" accessibilityLabel="Connekyt" accessibilityIgnoresInvertColors />
           <Text style={styles.brandWordmark} numberOfLines={1} accessibilityRole="header">
             CONNEKYT
           </Text>
@@ -358,6 +361,10 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
     rowGap: spacing.md,
     paddingTop: spacing.xs,
+  },
+  brandLogo: {
+    width: 52,
+    height: 52,
   },
   brandWordmark: {
     fontSize: fontSize.md,
