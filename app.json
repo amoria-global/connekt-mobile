@@ -138,6 +138,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-30-ringing-fix",
+            "date": "2026-10-30",
+            "title": "Offers that ring properly",
+            "items": [
+              {
+                "icon": "notifications-off-outline",
+                "title": "Silence on answer",
+                "body": "Accepting or declining an offer now stops its ring and clears its notification straight away."
+              },
+              {
+                "icon": "lock-closed-outline",
+                "title": "Rings when locked",
+                "body": "Offers now ring on a locked phone and outside the app, using a fresh high priority channel."
+              }
+            ]
+          },
+          {
             "id": "2026-10-30-matching-polish",
             "date": "2026-10-30",
             "title": "A clearer wait after you accept",
@@ -217,18 +234,6 @@
                 "icon": "phone-portrait-outline",
                 "title": "Sign-in fits better",
                 "body": "The sign-in form is more compact, so Find My Photos and Explore Events get more room at the top of the screen."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-29-wish-name-only",
-            "date": "2026-10-29",
-            "title": "Sending a wish is simpler",
-            "items": [
-              {
-                "icon": "heart-outline",
-                "title": "No email needed for a wish",
-                "body": "When you send a wish or a video wish, you now only enter your name. The event owner sees who it is from, and we no longer ask for an email we never used."
               }
             ]
           }

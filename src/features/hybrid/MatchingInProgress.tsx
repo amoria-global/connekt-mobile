@@ -4,18 +4,8 @@
  * for the whole app (see `(app)/_layout.tsx`) and every accept path calls `showMatchingInProgress()`, so the
  * wording and the effect are the same on Home, Bookings and the ringing screen.
  */
-import React, { useEffect, useSyncExternalStore } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
-import Animated, {
-  cancelAnimation,
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
+import React, { useEffect, useState, useSyncExternalStore } from 'react';
+import { Animated, Easing, Modal, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
@@ -37,42 +27,42 @@ const DOT_MS = 420;
 
 function Dot({ index, still }: { index: number; still: boolean }) {
   const { colors } = useTheme();
-  const o = useSharedValue(still ? 1 : 0.25);
+  const [o] = useState(() => new Animated.Value(still ? 1 : 0.25));
   useEffect(() => {
     if (still) {
-      o.value = 1;
+      o.setValue(1);
       return;
     }
-    o.value = withDelay(
-      index * (DOT_MS / 2),
-      withRepeat(
-        withSequence(
-          withTiming(1, { duration: DOT_MS, easing: Easing.inOut(Easing.ease) }),
-          withTiming(0.25, { duration: DOT_MS, easing: Easing.inOut(Easing.ease) }),
-        ),
-        -1,
-      ),
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.delay(index * (DOT_MS / 2)),
+        Animated.timing(o, { toValue: 1, duration: DOT_MS, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(o, { toValue: 0.25, duration: DOT_MS, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
     );
-    return () => cancelAnimation(o);
+    loop.start();
+    return () => loop.stop();
   }, [index, still, o]);
-  const style = useAnimatedStyle(() => ({ opacity: o.value, transform: [{ scale: 0.7 + o.value * 0.3 }] }));
-  return <Animated.View style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary }, style]} />;
+  const scale = o.interpolate({ inputRange: [0.25, 1], outputRange: [0.8, 1] });
+  return <Animated.View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary, opacity: o, transform: [{ scale }] }} />;
 }
 
 function Pulse({ still }: { still: boolean }) {
   const { colors } = useTheme();
-  const p = useSharedValue(0);
+  const [p] = useState(() => new Animated.Value(0));
   useEffect(() => {
     if (still) return;
-    p.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.out(Easing.ease) }), -1);
-    return () => cancelAnimation(p);
+    const loop = Animated.loop(Animated.timing(p, { toValue: 1, duration: 1600, easing: Easing.out(Easing.ease), useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
   }, [still, p]);
-  const ring = useAnimatedStyle(() => ({ opacity: 0.5 * (1 - p.value), transform: [{ scale: 1 + p.value * 0.9 }] }));
+  const opacity = p.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
+  const scale = p.interpolate({ inputRange: [0, 1], outputRange: [1, 1.9] });
   return (
     <View style={{ width: 72, height: 72, alignItems: 'center', justifyContent: 'center' }}>
       {still ? null : (
         <Animated.View
-          style={[{ position: 'absolute', width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: colors.primary }, ring]}
+          style={{ position: 'absolute', width: 56, height: 56, borderRadius: 28, borderWidth: 2, borderColor: colors.primary, opacity, transform: [{ scale }] }}
         />
       )}
       <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: colors.tint, alignItems: 'center', justifyContent: 'center' }}>

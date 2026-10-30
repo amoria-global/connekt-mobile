@@ -22,10 +22,12 @@ describe('in-app notification alerts', () => {
     expect(fresh.map((n) => n.id)).toEqual(['b']);
   });
 
-  it('suppresses the phone banner only for the types the in-app alert replaces', () => {
+  it('suppresses the phone banner for types the in-app alert replaces and for offers, which ring through their own call screen', () => {
     expect(showSystemBannerInForeground({ type: 'BOOKING' })).toBe(false);
     expect(showSystemBannerInForeground({ type: 'payment' })).toBe(false);
-    expect(showSystemBannerInForeground({ type: 'OPPORTUNITY' })).toBe(true);
+    expect(showSystemBannerInForeground({ type: 'OPPORTUNITY' })).toBe(false);
+    expect(showSystemBannerInForeground({ type: 'HYBRID_OPPORTUNITY' })).toBe(false);
+    expect(showSystemBannerInForeground({ type: 'CHAT' })).toBe(true);
     expect(showSystemBannerInForeground(undefined)).toBe(true);
   });
 });

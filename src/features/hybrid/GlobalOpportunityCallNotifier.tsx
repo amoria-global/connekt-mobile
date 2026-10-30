@@ -10,6 +10,7 @@ import { AppState, Platform, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
 import { showMatchingInProgress } from './MatchingInProgress';
+import { RINGING_CHANNEL } from '@/features/notifications/push';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/auth';
 import { useRole } from '@/features/auth/role';
@@ -59,6 +60,25 @@ function isWithinTwoHourWindow(opp: PhotographerOpportunity): boolean {
   return true;
 }
 
+/** Takes this offer's alerts off the phone, so nothing for it keeps sounding after an answer. */
+async function clearOfferNotifications(candidateId: string): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    const same = (r: Notifications.NotificationRequest) => {
+      const d = (r.content.data ?? {}) as Record<string, unknown>;
+      return d.candidateId === candidateId || d.referenceId === candidateId;
+    };
+    for (const n of await Notifications.getPresentedNotificationsAsync()) {
+      if (same(n.request)) await Notifications.dismissNotificationAsync(n.request.identifier);
+    }
+    for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
+      if (same(n)) await Notifications.cancelScheduledNotificationAsync(n.identifier);
+    }
+  } catch {
+    // Best effort: the answer itself already went through.
+  }
+}
+
 function isOpenStatus(status?: string): boolean {
   const s = (status ?? '').toUpperCase();
   return (
@@ -82,8 +102,13 @@ export function GlobalOpportunityCallNotifier() {
 
   const [activeOpportunity, setActiveOpportunity] = useState<PhotographerOpportunity | null>(null);
   const [modalStage, setModalStage] = useState<'ringing' | 'details'>('ringing');
-  const [dismissedIds, setDismissedIds] = useState<string[]>([]);
   const isBusyRef = useRef(false);
+  // Read after every await: a refresh that began before a reject finished must not bring the offer (and its ring) back.
+  const dismissedRef = useRef<string[]>([]);
+  const markDismissed = useCallback((id: string) => {
+    if (!dismissedRef.current.includes(id)) dismissedRef.current = [...dismissedRef.current, id];
+    void clearOfferNotifications(id);
+  }, []);
   const notifiedTrayIdsRef = useRef<Set<string>>(new Set());
 
   const ensureTrayNotification = useCallback(async (opp: PhotographerOpportunity) => {
@@ -115,7 +140,7 @@ export function GlobalOpportunityCallNotifier() {
             ? {
                 type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
                 seconds: 1,
-                channelId: 'urgent_booking_alerts',
+                channelId: RINGING_CHANNEL,
               }
             : null,
       });
@@ -129,9 +154,10 @@ export function GlobalOpportunityCallNotifier() {
       if (!env.hybridBookingEnabled || !isEligible || isBusyRef.current) return;
       try {
         if (focusCandidateId) {
-          setDismissedIds((prev) => prev.filter((id) => id !== focusCandidateId));
+          dismissedRef.current = dismissedRef.current.filter((id) => id !== focusCandidateId);
           try {
             const directOpp = await getOpportunity(focusCandidateId);
+            if (isBusyRef.current) return;
             if (directOpp && directOpp.candidateId && isOpenStatus(directOpp.status) && isWithinTwoHourWindow(directOpp)) {
               setModalStage(requestedStage ?? 'details');
               setActiveOpportunity(directOpp);
@@ -143,6 +169,7 @@ export function GlobalOpportunityCallNotifier() {
         }
 
         let opps = await listOpportunities('PENDING_RESPONSE');
+        if (isBusyRef.current) return;
         if (!Array.isArray(opps) || opps.length === 0) {
           try {
             const allOpps = await listOpportunities('ALL');
@@ -170,7 +197,7 @@ export function GlobalOpportunityCallNotifier() {
             (opp) =>
               isOpenStatus(opp.status) &&
               isWithinTwoHourWindow(opp) &&
-              !dismissedIds.includes(opp.candidateId),
+              !dismissedRef.current.includes(opp.candidateId),
           );
 
         if (pending) {
@@ -190,7 +217,7 @@ export function GlobalOpportunityCallNotifier() {
         // Background polling is non-blocking
       }
     },
-    [isEligible, dismissedIds, activeOpportunity, ensureTrayNotification],
+    [isEligible, activeOpportunity, ensureTrayNotification],
   );
 
   // The timer below must outlive re-renders, so it calls the latest check through a ref instead of restarting.
@@ -264,13 +291,13 @@ export function GlobalOpportunityCallNotifier() {
     try {
       isBusyRef.current = true;
       await approveOpportunity(opp.candidateId, { deliveryPolicy });
-      setDismissedIds((ids) => [...ids, opp.candidateId]);
+      markDismissed(opp.candidateId);
       setActiveOpportunity(null);
       showMatchingInProgress();
     } catch (e: any) {
       // 409: the invite closed, or the calendar now overlaps and it was released. Don't keep ringing for it.
       if (e?.status === 409) {
-        setDismissedIds((ids) => [...ids, opp.candidateId]);
+        markDismissed(opp.candidateId);
         setActiveOpportunity(null);
       }
       Alert.alert('Approval error', e?.message || 'Could not approve this opportunity.');
@@ -283,7 +310,7 @@ export function GlobalOpportunityCallNotifier() {
     try {
       isBusyRef.current = true;
       await rejectOpportunity(opp.candidateId);
-      setDismissedIds((ids) => [...ids, opp.candidateId]);
+      markDismissed(opp.candidateId);
       setActiveOpportunity(null);
       Alert.alert(
         'Offer Rejected',
@@ -298,7 +325,7 @@ export function GlobalOpportunityCallNotifier() {
 
   const handleDismiss = () => {
     if (activeOpportunity) {
-      setDismissedIds((prev) => [...prev, activeOpportunity.candidateId]);
+      markDismissed(activeOpportunity.candidateId);
       setActiveOpportunity(null);
     }
   };

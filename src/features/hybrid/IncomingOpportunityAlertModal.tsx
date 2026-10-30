@@ -117,6 +117,7 @@ type ParsedBriefScope = {
   instantUpdatesLabel: string;
   digitalDeliveryLabel: string;
   printDeliveryLabel: string;
+  budgetModeLabel: string;
   notesText: string;
 };
 
@@ -174,6 +175,10 @@ function parseOpportunityScope(opp: PhotographerOpportunity): ParsedBriefScope {
     map.PrintDelivery && map.PrintDelivery !== 'None'
       ? map.PrintDelivery
       : 'Propose production & handover date';
+  const budgetModeLabel =
+    map.BudgetMode === 'RECOMMENDED'
+      ? 'Client used recommended package pricing.'
+      : 'Client published their own budget.';
 
   return {
     coverageModeLabel,
@@ -189,6 +194,7 @@ function parseOpportunityScope(opp: PhotographerOpportunity): ParsedBriefScope {
     instantUpdatesLabel,
     digitalDeliveryLabel,
     printDeliveryLabel,
+    budgetModeLabel,
     notesText: map.Notes || freeNotes.join(' '),
   };
 }
@@ -710,6 +716,7 @@ export function IncomingOpportunityAlertModal({
                   {tr('For the complete requested scope')}
                 </Text>
                 <View style={styles.compareDividerPurple} />
+                <Text style={styles.compareFootnote}>{brief.budgetModeLabel}</Text>
               </View>
 
               {/* Right Card: Your Uploaded Package */}
@@ -940,6 +947,14 @@ export function IncomingOpportunityAlertModal({
               ) : null}
             </View>
 
+            {/* GUIDANCE INFO BAR */}
+            <View style={styles.guidanceBar}>
+              <Ionicons name="information-circle-outline" size={17} color={UI.slate300} />
+              <Text style={styles.guidanceBarText}>
+                {tr("Choose the client's delivery schedule or your package delivery policy.")}
+              </Text>
+            </View>
+
             {/* THREE ACTION BUTTONS ROW */}
             <View style={styles.threeButtonsRow}>
               {/* 1. Accept offer (Client delivery policy) */}
@@ -1009,6 +1024,9 @@ export function IncomingOpportunityAlertModal({
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={styles.bulletInfoLine}>
                   •  {tr("Both acceptance options keep the client's price and scope.")}
+                </Text>
+                <Text style={styles.bulletInfoLine}>
+                  •  {tr('Your delivery policy requires client agreement before booking.')}
                 </Text>
               </View>
             </View>
