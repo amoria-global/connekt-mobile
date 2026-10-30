@@ -72,7 +72,7 @@ import { HeroActionCard } from '@/features/client/studio';
 import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { PerformanceWaveCard, type WaveMetricMeta } from '@/features/dashboard/PerformanceWaveCard';
 import { ClientOverview } from '@/features/client/ClientOverview';
-import { getWallet } from '@/features/wallet/api';
+import { useLiveWallet } from '@/features/wallet/useLiveWallet';
 import { selectWalletStats } from '@/features/wallet/moneyView';
 import { matchDue, type DueMatch } from '@/features/payments/payNowLookup';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
@@ -207,7 +207,7 @@ export function ClientHome() {
   const activities = useAsync(useCallback(() => getCustomerRecentActivities(8), []));
   const photographers = useAsync(useCallback(() => listPhotographers(), []));
   const pending = useAsync(useCallback(() => getCustomerPendingPayments(), []));
-  const wallet = useAsync(useCallback(() => getWallet(), []));
+  const wallet = useLiveWallet();
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
   const [waveMetric, setWaveMetric] = useState('totalSpent');
   const trendsState = useAsync(useCallback(() => getCustomerTrends(period), [period]));
@@ -523,9 +523,9 @@ export function ClientHome() {
           <ClientOverview
             analytics={analytics.data}
             loading={analytics.loading}
-            spent={walletStats?.hero.value}
+            spent={wallet.syncing && !hidden ? undefined : walletStats?.hero.value}
             walletCurrency={wallet.data?.currency}
-            walletLoading={wallet.loading}
+            walletLoading={wallet.loading || (wallet.syncing && !hidden)}
             due={dueTotal}
             hidden={hidden}
             onOpenWallet={() => open('/wallet')}
