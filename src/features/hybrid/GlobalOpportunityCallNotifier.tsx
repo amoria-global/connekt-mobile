@@ -6,10 +6,17 @@
  * and stays available for 2 hours before permanently disappearing.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { AppState, Platform, type AppStateStatus } from 'react-native';
+import { AppState, BackHandler, Platform, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
 import { showMatchingInProgress } from './MatchingInProgress';
+import {
+  cancelAllIncomingCalls,
+  cancelIncomingCall,
+  canMinimizeApp,
+  minimizeApp,
+} from './incomingCall';
+import { useCallReadiness } from './useCallReadiness';
 import { RINGING_CHANNEL } from '@/features/notifications/push';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/auth';
@@ -62,6 +69,7 @@ function isWithinTwoHourWindow(opp: PhotographerOpportunity): boolean {
 
 /** Takes this offer's alerts off the phone, so nothing for it keeps sounding after an answer. */
 async function clearOfferNotifications(candidateId: string): Promise<void> {
+  cancelIncomingCall(candidateId);
   if (Platform.OS === 'web') return;
   try {
     const same = (r: Notifications.NotificationRequest) => {
@@ -241,11 +249,14 @@ export function GlobalOpportunityCallNotifier() {
       interval = null;
     };
 
+    // The open app rings by itself, so a call alert still sounding from the lock screen is switched off.
+    if (AppState.currentState === 'active') cancelAllIncomingCalls();
     check();
     if (AppState.currentState === 'active') start();
 
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (nextState === 'active') {
+        cancelAllIncomingCalls();
         check();
         start();
       } else {
@@ -283,6 +294,19 @@ export function GlobalOpportunityCallNotifier() {
       showListeners.delete(onShow);
     };
   }, [isEligible]);
+
+  // Ready to ring like a call: permissions asked once, and a quiet service keeps the app ready in the background.
+  useCallReadiness(isEligible);
+
+  // Back at the first screen tucks the app away instead of closing it, so it stays ready for the next offer.
+  useEffect(() => {
+    if (!isEligible || Platform.OS !== 'android' || !canMinimizeApp()) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) return false;
+      return minimizeApp();
+    });
+    return () => sub.remove();
+  }, [isEligible, router]);
 
   const handleApprove = async (
     opp: PhotographerOpportunity,

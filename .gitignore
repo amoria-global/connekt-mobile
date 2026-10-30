@@ -60,3 +60,7 @@ build-artifacts/
 # Scratch copy left by an app.json edit; never belongs in the repo
 app.json.backup
 *.ipa
+
+# Gradle output of local native modules
+modules/*/android/build/
+modules/*/android/.gradle/

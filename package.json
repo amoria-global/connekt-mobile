@@ -1,7 +1,7 @@
 {
   "name": "connekt-mobile",
   "packageManager": "yarn@1.22.22",
-  "main": "expo-router/entry",
+  "main": "index.js",
   "version": "2.2.2",
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -43,6 +43,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
+    "expo-task-manager": "~57.0.21",
     "expo-updates": "~57.0.26",
     "expo-video": "~57.0.5",
     "expo-web-browser": "~57.0.3",
