@@ -9,6 +9,7 @@ import android.content.Intent
 import android.media.AudioAttributes
 import android.net.Uri
 import android.os.Build
+import android.os.PowerManager
 import android.provider.Settings
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
@@ -55,6 +56,45 @@ class IncomingCallModule : Module() {
         ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(intent)
       }
+    }
+
+    // Closing the app only tucks it away, so it stays ready to ring.
+    Function("minimizeApp") {
+      appContext.currentActivity?.moveTaskToBack(true)
+    }
+
+    Function("canDrawOverOtherApps") {
+      Settings.canDrawOverlays(context)
+    }
+
+    Function("openOverlaySettings") {
+      val intent = Intent(
+        Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+        Uri.parse("package:" + context.packageName),
+      ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      context.startActivity(intent)
+    }
+
+    Function("isIgnoringBatteryOptimizations") {
+      val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+      power.isIgnoringBatteryOptimizations(context.packageName)
+    }
+
+    Function("openBatterySettings") {
+      val request = Intent(
+        Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+        Uri.parse("package:" + context.packageName),
+      ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+      try {
+        context.startActivity(request)
+      } catch (_: Exception) {
+        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+      }
+    }
+
+    // On: a quiet service keeps the app ready, and comes back by itself after the phone restarts. Off: it stops.
+    Function("setKeepReady") { enabled: Boolean ->
+      KeepAlive.set(context, enabled)
     }
   }
 
@@ -122,6 +162,16 @@ class IncomingCallModule : Module() {
     // Keeps the sound repeating until the notification is dismissed or times out, like a ringing call.
     notification.flags = notification.flags or Notification.FLAG_INSISTENT
     manager.notify(id, NOTIFICATION_ID, notification)
+
+    // With "display over other apps" granted, Android lets the app open straight away over whatever is on screen,
+    // so the offer rings in the app itself like a normal call and not only as a notification.
+    if (Settings.canDrawOverlays(context)) {
+      try {
+        context.startActivity(launch)
+      } catch (_: Exception) {
+        // The notification above is still there to tap.
+      }
+    }
   }
 
   private fun cancelAll() {

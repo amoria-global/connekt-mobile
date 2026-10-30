@@ -6,18 +6,17 @@
  * and stays available for 2 hours before permanently disappearing.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { AppState, Platform, type AppStateStatus } from 'react-native';
+import { AppState, BackHandler, Platform, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
-import * as SecureStore from 'expo-secure-store';
 import { showMatchingInProgress } from './MatchingInProgress';
 import {
   cancelAllIncomingCalls,
   cancelIncomingCall,
-  canShowFullScreenCalls,
-  isIncomingCallAvailable,
-  openFullScreenCallSettings,
+  canMinimizeApp,
+  minimizeApp,
 } from './incomingCall';
+import { useCallReadiness } from './useCallReadiness';
 import { RINGING_CHANNEL } from '@/features/notifications/push';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/auth';
@@ -87,8 +86,6 @@ async function clearOfferNotifications(candidateId: string): Promise<void> {
     // Best effort: the answer itself already went through.
   }
 }
-
-const FULL_SCREEN_PROMPTED_KEY = 'fullScreenCallPrompted';
 
 function isOpenStatus(status?: string): boolean {
   const s = (status ?? '').toUpperCase();
@@ -298,28 +295,18 @@ export function GlobalOpportunityCallNotifier() {
     };
   }, [isEligible]);
 
-  // Android 14 and newer let the user switch full-screen alerts off. Ask once, so an offer can still wake a locked phone.
+  // Ready to ring like a call: permissions asked once, and a quiet service keeps the app ready in the background.
+  useCallReadiness(isEligible);
+
+  // Back at the first screen tucks the app away instead of closing it, so it stays ready for the next offer.
   useEffect(() => {
-    if (!isEligible || !isIncomingCallAvailable() || canShowFullScreenCalls()) return;
-    let live = true;
-    (async () => {
-      try {
-        if (await SecureStore.getItemAsync(FULL_SCREEN_PROMPTED_KEY)) return;
-        await SecureStore.setItemAsync(FULL_SCREEN_PROMPTED_KEY, '1');
-      } catch {
-        return;
-      }
-      if (!live) return;
-      Alert.alert(
-        'Let offers wake your phone',
-        'Allow full-screen alerts for Connekyt so a new offer can ring on your lock screen.',
-        [{ text: 'Not now', style: 'cancel' }, { text: 'Open settings', onPress: openFullScreenCallSettings }],
-      );
-    })();
-    return () => {
-      live = false;
-    };
-  }, [isEligible]);
+    if (!isEligible || Platform.OS !== 'android' || !canMinimizeApp()) return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (router.canGoBack()) return false;
+      return minimizeApp();
+    });
+    return () => sub.remove();
+  }, [isEligible, router]);
 
   const handleApprove = async (
     opp: PhotographerOpportunity,
