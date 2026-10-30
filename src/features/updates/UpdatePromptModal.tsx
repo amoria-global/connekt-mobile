@@ -8,18 +8,14 @@
  * screen and the same button retries.
  */
 import React, { useContext, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
-import {
-  GlassBackdrop,
-  GlassSurface,
-  glassTile,
-  useGlassEdge,
-} from '@/components/ui/GlassCard';
-import { spacing, radii, fonts, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
+import { GlassBackdrop, GlassSurface, glassTile, useGlassEdge } from '@/components/ui/GlassCard';
+import { alpha, spacing, radii, fonts, fontSize, makeStyles, useTheme } from '@/theme';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { UpdateGlyph } from './UpdateGlyph';
 import { countItems, type Release } from './releaseNotes';
@@ -40,8 +36,6 @@ export function releaseDate(d?: string): string | undefined {
     return d;
   }
 }
-
-const LOGO = require('../../../assets/images/logo.png');
 
 type DevPreviewState = {
   label: string;
@@ -199,20 +193,19 @@ export function UpdatePromptModal() {
         />
         <View style={[StyleSheet.absoluteFill, styles.frostTint]} pointerEvents="none" />
 
-        {/* Top Brand Header: Logo + Connekyt wordmark (no box/pill wrapper) */}
+        {/* Top brand header: the spaced wordmark and the "new update" pill */}
         <View style={styles.header}>
-          <Image
-            source={LOGO}
-            style={styles.brandLogo}
-            resizeMode="contain"
-            accessibilityIgnoresInvertColors
-          />
           <Text style={styles.brandWordmark} numberOfLines={1} accessibilityRole="header">
-            Connekyt
+            CONNEKYT
           </Text>
+          {!failed ? (
+            <View style={styles.pill}>
+              <Text style={styles.pillText}>{tr('New update available')}</Text>
+            </View>
+          ) : null}
         </View>
 
-        {/* Hero: icon, title and a one-line summary */}
+        {/* Hero: glowing icon, "Good news!" and a two-line promise */}
         <View style={styles.hero}>
           <View style={[styles.iconWrapper, changes > 0 && styles.iconWrapperSmall]}>
             <BrandDownloadIcon
@@ -222,18 +215,14 @@ export function UpdatePromptModal() {
             />
           </View>
 
-          <Text style={styles.title}>
-            {tr(failed ? 'Update did not finish' : 'New version available')}
-          </Text>
+          <Text style={styles.title}>{tr(failed ? 'Update did not finish' : 'Good news!')}</Text>
 
           <Text style={styles.body}>
             {failed
               ? `${errorMessage} ${tr('Check your connection and try again.')}`
-              : changes > 0
-                ? `${changes === 1 ? '1 change' : `${changes} changes`} ${tr('to read before you update')}${store.currentVersion ? ` (v${store.currentVersion})` : ''}.`
-                : isDownloading
-                  ? tr('Downloading the latest version of Connekyt. This only takes a moment.')
-                  : tr('Update Connekyt to enjoy the latest improvements and features.')}
+              : isDownloading
+                ? tr('Downloading the latest version of Connekyt. This only takes a moment.')
+                : `${tr('You asked. We listened.')}\n${tr('Using Connekyt just got easier.')}`}
           </Text>
         </View>
 
@@ -245,23 +234,28 @@ export function UpdatePromptModal() {
             showsVerticalScrollIndicator
             testID="update-whats-new"
           >
+            <Text style={styles.notesHeading} accessibilityRole="header">
+              {tr("What's new")}
+            </Text>
             {releases.map((release: Release, ri) => (
               <View key={release.id} style={styles.release}>
-                <View style={styles.releaseHead}>
-                  <Text style={styles.releaseTitle}>{release.title}</Text>
-                  <View style={styles.releaseMeta}>
-                    {ri === 0 ? (
-                      <View style={styles.newPill}>
-                        <Text style={styles.newPillText}>NEW</Text>
-                      </View>
-                    ) : null}
-                    {releaseDate(release.date) ? <Text style={styles.releaseDate}>{releaseDate(release.date)}</Text> : null}
+                {releases.length > 1 ? (
+                  <View style={styles.releaseHead}>
+                    <Text style={styles.releaseTitle}>{release.title}</Text>
+                    <View style={styles.releaseMeta}>
+                      {ri === 0 ? (
+                        <View style={styles.newPill}>
+                          <Text style={styles.newPillText}>NEW</Text>
+                        </View>
+                      ) : null}
+                      {releaseDate(release.date) ? <Text style={styles.releaseDate}>{releaseDate(release.date)}</Text> : null}
+                    </View>
                   </View>
-                </View>
-                {release.items.map((item) => (
-                  <View key={item.title} style={styles.item}>
+                ) : null}
+                {release.items.map((item, ii) => (
+                  <View key={item.title} style={[styles.item, ii > 0 && styles.itemDivider]}>
                     <View style={styles.itemIcon}>
-                      <Ionicons name={iconFor(item.icon)} size={18} color={colors.primary} />
+                      <Ionicons name={iconFor(item.icon)} size={22} color={colors.active} />
                     </View>
                     <View style={styles.itemText}>
                       <Text style={styles.itemTitle}>{item.title}</Text>
@@ -310,12 +304,14 @@ export function UpdatePromptModal() {
             accessibilityLabel="Update now"
             accessibilityState={{ disabled: busy, busy }}
           >
-            <GlassSurface
-              strength="thin"
-              blurTarget={blurTargetRef}
-              style={styles.btnGlassSheen}
+            <GlassSurface strength="thin" blurTarget={blurTargetRef} style={styles.btnSheen} />
+            <LinearGradient
+              colors={[colors.primary, colors.active]}
+              start={{ x: 0, y: 0.5 }}
+              end={{ x: 1, y: 0.5 }}
+              style={StyleSheet.absoluteFill}
+              pointerEvents="none"
             />
-            <View style={[StyleSheet.absoluteFill, styles.btnBrandTint]} pointerEvents="none" />
             {busy ? (
               <ActivityIndicator size="small" color={colors.textOnPrimary} />
             ) : (
@@ -357,21 +353,34 @@ const useStyles = makeStyles((c) => ({
   header: {
     width: '100%',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs + 4,
+    rowGap: spacing.md,
     paddingTop: spacing.xs,
   },
-  brandLogo: {
-    width: 28,
-    height: 28,
-  },
   brandWordmark: {
-    fontSize: fontSize.xl,
+    fontSize: fontSize.md,
     fontFamily: fonts.bold,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-    letterSpacing: 0.2,
+    color: c.text,
+    letterSpacing: 8,
+    width: '100%',
+    textAlign: 'center',
+  },
+  pill: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radii.full,
+    borderWidth: 1,
+    borderColor: alpha(c.active, 0.45),
+    backgroundColor: alpha(c.active, 0.08),
+  },
+  pillText: {
+    fontSize: 12,
+    fontFamily: fonts.bold,
+    color: c.active,
+    letterSpacing: 2.4,
+    textTransform: 'uppercase',
   },
   hero: {
     width: '100%',
@@ -385,7 +394,8 @@ const useStyles = makeStyles((c) => ({
     maxWidth: 420,
     marginVertical: spacing.md,
   },
-  notesContent: { gap: spacing.lg, paddingVertical: spacing.xs },
+  notesContent: { gap: spacing.md, paddingVertical: spacing.xs },
+  notesHeading: { fontSize: 24, fontFamily: fonts.bold, color: c.text, marginBottom: spacing.xs },
   release: { gap: spacing.sm },
   releaseHead: { gap: 4 },
   releaseTitle: { fontSize: 17, fontFamily: fonts.bold, color: c.text },
@@ -395,17 +405,18 @@ const useStyles = makeStyles((c) => ({
   releaseDate: { fontSize: 12, fontFamily: fonts.regular, color: c.textMuted },
   item: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    ...glassTile(c),
+    paddingVertical: spacing.md,
   },
+  itemDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
   itemIcon: {
-    width: 32,
-    height: 32,
+    width: 48,
+    height: 48,
     borderRadius: radii.md,
-    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: alpha(c.active, 0.4),
+    backgroundColor: alpha(c.active, 0.08),
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -426,11 +437,10 @@ const useStyles = makeStyles((c) => ({
     transform: [{ scale: 0.72 }],
   },
   title: {
-    fontSize: 28,
+    fontSize: 38,
     fontFamily: fonts.bold,
     color: c.text,
     textAlign: 'center',
-    letterSpacing: 0.2,
     marginBottom: spacing.sm + 2,
   },
   body: {
@@ -480,20 +490,13 @@ const useStyles = makeStyles((c) => ({
     alignItems: 'center',
     overflow: 'hidden',
   },
-  btnGlassSheen: {
-    borderRadius: radii.full,
-  },
-  btnBrandTint: {
-    backgroundColor: c.primary,
-    opacity: 0.82,
-    borderRadius: radii.full,
-  },
   primaryBtnText: {
     color: c.textOnPrimary,
     fontSize: 17,
     fontFamily: fonts.bold,
     letterSpacing: 0.3,
   },
+  btnSheen: { borderRadius: radii.full },
   btnDisabled: {
     opacity: 0.7,
   },
