@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-30-album-links-open",
+            "date": "2026-10-30",
+            "title": "Album links open in the app",
+            "items": [
+              {
+                "icon": "images-outline",
+                "title": "Open a shared album link",
+                "body": "A link to a free album now opens that album in the app, ready to claim, instead of an empty screen. A link the app does not know takes you home instead of a blank page."
+              }
+            ]
+          },
+          {
             "id": "2026-10-30-google-sign-in-back",
             "date": "2026-10-30",
             "title": "Google sign-in is back",
@@ -202,33 +214,6 @@
                 "icon": "shield-checkmark-outline",
                 "title": "Offers for photographers only",
                 "body": "Clients and event coordinators no longer see or hear photographer offers."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-30-offer-bands",
-            "date": "2026-10-30",
-            "title": "Offers that ring, and photographers ranked in clear bands",
-            "items": [
-              {
-                "icon": "notifications-outline",
-                "title": "New offers ring and open at once",
-                "body": "A new event offer now rings with the Connekyt ringtone and opens straight to the offer, with a two hour countdown to accept or decline."
-              },
-              {
-                "icon": "ribbon-outline",
-                "title": "Accepted photographers in four bands",
-                "body": "Clients now see who accepted grouped as Premium, Preferred, Suggested and Alternative, each card showing a score, distance, speciality and how they accepted."
-              },
-              {
-                "icon": "card-outline",
-                "title": "Choose with confidence",
-                "body": "Tap a photographer to confirm and pay, open their portfolio, or compare their packages and delivery policy before you decide."
-              },
-              {
-                "icon": "refresh-outline",
-                "title": "Lists refresh without flickering",
-                "body": "Opportunity and candidate lists now update quietly in the background, with no spinner, and stop completely while the app is closed."
               }
             ]
           }
