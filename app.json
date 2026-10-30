@@ -138,6 +138,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-31-archived-albums",
+            "date": "2026-10-31",
+            "title": "Archived albums, explained",
+            "items": [
+              {
+                "icon": "archive-outline",
+                "title": "Archived albums",
+                "body": "An archived album now says when it was archived and what it costs to restore, with a confirmation before anything is charged. Archived albums are marked in your list and have their own filter."
+              }
+            ]
+          },
+          {
             "id": "2026-10-30-live-wallet",
             "date": "2026-10-30",
             "title": "Wallet balances that stay current",
@@ -187,23 +199,6 @@
                 "icon": "download-outline",
                 "title": "Good news, in one glance",
                 "body": "This screen now opens with what is new, shown as a short list with an icon for each change, so you can read it quickly before you tap Update now."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-30-ringing-fix",
-            "date": "2026-10-30",
-            "title": "Offers that ring properly",
-            "items": [
-              {
-                "icon": "notifications-off-outline",
-                "title": "Silence on answer",
-                "body": "Accepting or declining an offer now stops its ring and clears its notification straight away."
-              },
-              {
-                "icon": "lock-closed-outline",
-                "title": "Rings when locked",
-                "body": "Offers now ring on a locked phone and outside the app, using a fresh high priority channel."
               }
             ]
           }
