@@ -25,7 +25,7 @@ function badgeFor(kind?: string): string {
 }
 
 function a11yLabel(a: GalleryItem, subtitle?: string): string {
-  return [a.name, photoCountText(a.photoCount), subtitle, a.locked ? 'Locked' : null].filter(Boolean).join(', ');
+  return [a.name, photoCountText(a.photoCount), subtitle, a.locked ? 'Archived' : null].filter(Boolean).join(', ');
 }
 
 function Cover({ uri, full, icon, size }: { uri?: string; full?: string; icon: number; size?: 'fill' }) {
