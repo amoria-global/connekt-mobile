@@ -75,6 +75,8 @@ export type AlbumDetail = GalleryItem & {
    */
   archiveFee?: number;
   archiveCurrency?: string;
+  /** When the album was archived (locked), ISO. Set only while it is archived. */
+  lockedAt?: string;
   photographer?: string;
   photographerAvatar?: string;
   /** Content-album review state (only set for content albums). */
@@ -198,6 +200,7 @@ export async function getAlbum(id: string, role?: string | boolean): Promise<Alb
     currencyId: str(payment.currencyId) ?? str(d.currencyId),
     archiveFee: num(d.archiveFee),
     archiveCurrency: str(d.archiveCurrency),
+    lockedAt: str(d.lockedAt),
     approvalStatus: str(d.contentApprovalStatus) as ContentApprovalStatus | undefined,
     approvalComment: str(d.contentApprovalComment),
     categoryLabel: str(d.contentCategoryLabel) ?? str(d.contentCategory) ?? str(d.category),

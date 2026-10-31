@@ -53,6 +53,7 @@ import {
   type AlbumImage,
 } from '@/features/gallery/api';
 import { albumDateText, photoCountText } from '@/features/gallery/albumFacts';
+import { archivedMessage, restoreConfirmMessage } from '@/features/gallery/archivedCopy';
 import { PhotoViewer } from '@/features/gallery/PhotoViewer';
 import { PhotoCell, PhotoGridSkeleton } from '@/features/gallery/PhotoGrid';
 import { chipColors } from '@/features/photobooks/statusChip';
@@ -308,13 +309,19 @@ export default function AlbumDetailScreen() {
   const gridWidth = width - gridPadding * 2;
   const cell = Math.floor((gridWidth - gap * (gridCols - 1)) / gridCols);
 
+  const archivePrice = data?.archiveFee ? formatPrice(data.archiveFee, data.archiveCurrency) : null;
+
+  // Restoring is a payment, so the owner confirms the price and what they get before anything opens.
   const onUnlock = () => {
     if (!digitalPurchasesEnabled) return;
     if (!data?.eventId) {
       Alert.alert('Unavailable', 'This album cannot be restored right now.');
       return;
     }
-    setUnlockOpen(true);
+    Alert.alert(tr('Restore this album?'), restoreConfirmMessage(data.name || 'this album', archivePrice), [
+      { text: tr('Cancel'), style: 'cancel' },
+      { text: archivePrice ? `${tr('Restore')} · ${archivePrice}` : tr('Restore'), onPress: () => setUnlockOpen(true) },
+    ]);
   };
 
   if (loading && !data) {
@@ -565,7 +572,7 @@ export default function AlbumDetailScreen() {
                 {data?.locked ? (
                   <View style={[styles.metaChip, styles.metaChipLocked]}>
                     <Ionicons name="lock-closed" size={12} color={colors.warning} />
-                    <Text style={[styles.metaChipText, { color: colors.warning }]}>{tr('Locked')}</Text>
+                    <Text style={[styles.metaChipText, { color: colors.warning }]}>{tr('Archived')}</Text>
                   </View>
                 ) : null}
               </View>
@@ -676,25 +683,14 @@ export default function AlbumDetailScreen() {
                 <View style={styles.lockedIconBox}>
                   <Ionicons name="lock-closed" size={26} color={colors.primary} />
                 </View>
-                <Text style={styles.lockedTitle}>{tr('This album is locked')}</Text>
+                <Text style={styles.lockedTitle}>{tr('This album is archived')}</Text>
+                <Text style={styles.lockedMsg}>
+                  {archivedMessage({ lockedAt: data?.lockedAt, price: archivePrice, canRestoreInApp: digitalPurchasesEnabled })}
+                </Text>
                 {digitalPurchasesEnabled ? (
-                  <>
-                    <Text style={styles.lockedMsg}>
-                      {tr('Unlock this album to view and download all high-resolution photos.')}
-                    </Text>
-                    <Button
-                      title={
-                        data?.archiveFee
-                          ? `Unlock for ${formatPrice(data.archiveFee, data.archiveCurrency)}`
-                          : tr('Unlock on web')
-                      }
-                      onPress={onUnlock}
-                                          />
-                  </>
+                  <Button title={archivePrice ? `${tr('Restore')} · ${archivePrice}` : tr('Restore on web')} onPress={onUnlock} />
                 ) : (
-                  <Text style={styles.lockedMsg}>
-                    {tr('Photos are in cold storage. Contact support to restore this album.')}
-                  </Text>
+                  <Button title={tr('Contact support')} onPress={() => router.push('/contact_us' as never)} />
                 )}
               </View>
             ) : null}
