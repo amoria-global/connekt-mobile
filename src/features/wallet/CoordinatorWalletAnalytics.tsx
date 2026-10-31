@@ -10,6 +10,7 @@
  *     against the previous period, a revenue trend and an events-per-interval histogram. The backend sums
  *     payments across currencies, so the revenue curve is relative only and carries no currency label.
  */
+import { useLoadingDots } from '@/features/wallet/useLiveWallet';
 import { useCallback, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,7 +39,8 @@ const PERIODS: readonly { key: PeriodKey; label: string }[] = [
   { key: 'month', label: 'Month' },
 ];
 
-export function CoordinatorWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
+export function CoordinatorWalletAnalytics({ wallet, syncing = false }: { wallet: WalletDTO | null; syncing?: boolean }) {
+  const dots = useLoadingDots(syncing);
   const [period, setPeriod] = useState<PeriodKey>('month');
   const router = useRouter();
   const styles = useStyles();
@@ -66,7 +68,7 @@ export function CoordinatorWalletAnalytics({ wallet }: { wallet: WalletDTO | nul
           </View>
         </View>
         <Text style={styles.big} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-          {moneyText(stats?.hero.value, currency)}
+          {syncing ? dots : moneyText(stats?.hero.value, currency)}
         </Text>
       </Card>
       <View style={styles.row}>
@@ -74,13 +76,13 @@ export function CoordinatorWalletAnalytics({ wallet }: { wallet: WalletDTO | nul
           label="Processing"
           icon="time-outline"
           tone="warning"
-          value={moneyText(stats ? (stats.pendingChip?.value ?? 0) : undefined, currency)}
+          value={syncing ? dots : moneyText(stats ? (stats.pendingChip?.value ?? 0) : undefined, currency)}
           caption="Not yet settled"
         />
         <MetricCard
           label="Withdrawn to date"
           icon="arrow-up-circle-outline"
-          value={moneyText(wallet?.totalWithdrawn, currency)}
+          value={syncing ? dots : moneyText(wallet?.totalWithdrawn, currency)}
           caption="Lifetime"
         />
       </View>

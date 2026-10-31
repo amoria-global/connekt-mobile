@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.3.1",
+    "version": "2.2.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -139,6 +139,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-31-live-money",
+            "date": "2026-10-31",
+            "title": "Balances that show they are updating",
+            "items": [
+              {
+                "icon": "sync-outline",
+                "title": "Loading shows when amounts are hidden",
+                "body": "Wallet balances and revenue now show a short loading mark every 10 seconds as they refresh, even when your amounts are hidden."
+              },
+              {
+                "icon": "stats-chart-outline",
+                "title": "Revenue and earnings too",
+                "body": "Revenue, earnings, spending and the wallet figures now refresh together, so everything you see stays current."
+              }
+            ]
+          },
+          {
             "id": "2026-10-31-coordinator-event-create-fix",
             "date": "2026-10-31",
             "title": "Fix for event creation in coordinator dashboard",
@@ -208,40 +225,6 @@
                 "icon": "swap-horizontal-outline",
                 "title": "Answers side by side",
                 "body": "Accept offer and Accept with my delivery package policy sit side by side, with Reject offer on its own row below."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-31-offer-screens",
-            "date": "2026-10-31",
-            "title": "Clearer offer screens",
-            "items": [
-              {
-                "icon": "color-palette-outline",
-                "title": "Offers in the app look",
-                "body": "The offer screens for photographers now use the same colours and fonts as the rest of Connekyt, in dark and light."
-              },
-              {
-                "icon": "text-outline",
-                "title": "Nothing is cut off",
-                "body": "Long details such as delivery dates and print products now wrap onto the next line instead of being cut short."
-              },
-              {
-                "icon": "chatbubble-ellipses-outline",
-                "title": "Plainer wording",
-                "body": "Buttons now read Accept, Accept with my delivery terms and Decline, and extra explanations were removed."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-31-archived-albums",
-            "date": "2026-10-31",
-            "title": "Archived albums, explained",
-            "items": [
-              {
-                "icon": "archive-outline",
-                "title": "Archived albums",
-                "body": "An archived album now says when it was archived and what it costs to restore, with a confirmation before anything is charged. Archived albums are marked in your list and have their own filter."
               }
             ]
           }

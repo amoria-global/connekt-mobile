@@ -2,7 +2,7 @@ import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 import { AppState } from 'react-native';
 
-import { useWalletSync, WALLET_MIN_LOADING_MS, WALLET_POLL_MS } from './useLiveWallet';
+import { useLiveMoney, useLoadingDots, useWalletSync, WALLET_MIN_LOADING_MS, WALLET_POLL_MS } from './useLiveWallet';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -72,5 +72,57 @@ describe('wallet sync', () => {
       jest.advanceTimersByTime(WALLET_POLL_MS);
     });
     expect(refresh).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('live money, several sources at once', () => {
+  it('refreshes every source together on each tick, and is loading while they do', async () => {
+    const wallet = { refreshQuietly: jest.fn().mockResolvedValue(undefined) };
+    const analytics = { refreshQuietly: jest.fn().mockResolvedValue(undefined) };
+    function Probe() {
+      seen.push(useLiveMoney([wallet, analytics]));
+      return null;
+    }
+    act(() => {
+      TestRenderer.create(<Probe />);
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(WALLET_POLL_MS);
+    });
+    expect(wallet.refreshQuietly).toHaveBeenCalledTimes(1);
+    expect(analytics.refreshQuietly).toHaveBeenCalledTimes(1);
+    expect(seen[seen.length - 1]).toBe(true);
+    await act(async () => {
+      jest.advanceTimersByTime(WALLET_MIN_LOADING_MS);
+    });
+    expect(seen[seen.length - 1]).toBe(false);
+  });
+});
+
+describe('loading dots', () => {
+  it('are empty when idle and fill in one by one while loading', async () => {
+    const frames: string[] = [];
+    let setActive!: (v: boolean) => void;
+    function Probe() {
+      const [active, set] = React.useState(false);
+      setActive = set;
+      frames.push(useLoadingDots(active, 100));
+      return null;
+    }
+    act(() => {
+      TestRenderer.create(<Probe />);
+    });
+    expect(frames[frames.length - 1]).toBe('');
+    act(() => setActive(true));
+    expect(frames[frames.length - 1]).toContain('•');
+    const first = frames[frames.length - 1];
+    await act(async () => {
+      jest.advanceTimersByTime(100);
+    });
+    const second = frames[frames.length - 1];
+    expect(second).not.toBe(first);
+    expect(second.replace(/ /g, ' ').length).toBe(first.replace(/ /g, ' ').length);
+    act(() => setActive(false));
+    expect(frames[frames.length - 1]).toBe('');
   });
 });

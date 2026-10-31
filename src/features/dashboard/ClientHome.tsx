@@ -72,7 +72,8 @@ import { HeroActionCard } from '@/features/client/studio';
 import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { PerformanceWaveCard, type WaveMetricMeta } from '@/features/dashboard/PerformanceWaveCard';
 import { ClientOverview } from '@/features/client/ClientOverview';
-import { useLiveWallet } from '@/features/wallet/useLiveWallet';
+import { useLiveMoney } from '@/features/wallet/useLiveWallet';
+import { getWallet } from '@/features/wallet/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
 import { matchDue, type DueMatch } from '@/features/payments/payNowLookup';
 import { clock12, dayKey, eventDay } from '@/features/photographer/schedule';
@@ -207,7 +208,9 @@ export function ClientHome() {
   const activities = useAsync(useCallback(() => getCustomerRecentActivities(8), []));
   const photographers = useAsync(useCallback(() => listPhotographers(), []));
   const pending = useAsync(useCallback(() => getCustomerPendingPayments(), []));
-  const wallet = useLiveWallet();
+  const wallet = useAsync(useCallback(() => getWallet(), []));
+  // The balance, the spending figures and what is due are fetched again every 10 seconds, each showing a loading mark.
+  const moneySyncing = useLiveMoney([wallet, analytics, pending]);
   const [period, setPeriod] = useState<AnalyticsPeriod>('week');
   const [waveMetric, setWaveMetric] = useState('totalSpent');
   const trendsState = useAsync(useCallback(() => getCustomerTrends(period), [period]));
@@ -523,9 +526,9 @@ export function ClientHome() {
           <ClientOverview
             analytics={analytics.data}
             loading={analytics.loading}
-            spent={wallet.syncing && !hidden ? undefined : walletStats?.hero.value}
+            spent={moneySyncing ? undefined : walletStats?.hero.value}
             walletCurrency={wallet.data?.currency}
-            walletLoading={wallet.loading || (wallet.syncing && !hidden)}
+            walletLoading={wallet.loading || moneySyncing}
             due={dueTotal}
             hidden={hidden}
             onOpenWallet={() => open('/wallet')}

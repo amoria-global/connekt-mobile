@@ -58,7 +58,8 @@ import {
 import { listPhotographerEvents } from '@/features/events/api';
 import { listPhotographerReviews } from '@/features/reviews/api';
 import { selectWalletStats } from '@/features/wallet/moneyView';
-import { useLiveWallet } from '@/features/wallet/useLiveWallet';
+import { useLiveMoney, useLoadingDots } from '@/features/wallet/useLiveWallet';
+import { getWallet } from '@/features/wallet/api';
 import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
@@ -164,8 +165,11 @@ export function PhotographerHome() {
   const [pulling, setPulling] = useState(false);
   const [dismissedOppIds, setDismissedOppIds] = useState<string[]>([]);
 
-  const wallet = useLiveWallet();
+  const wallet = useAsync(useCallback(() => getWallet(), []));
   const analytics = useAsync(useCallback(() => getPhotographerAnalytics(), []));
+  // Every 10 seconds the balance and the earnings are fetched again; each figure shows dots while that runs.
+  const moneySyncing = useLiveMoney([wallet, analytics]);
+  const moneyDots = useLoadingDots(moneySyncing);
   const events = useAsync(useCallback(() => listPhotographerEvents(), []));
   const clients = useAsync(useCallback(() => getPhotographerClients(8), []));
   // In a workspace the photographer was invited to, the transaction history stays with the owner: it is never asked for.
@@ -358,7 +362,7 @@ export function PhotographerHome() {
                 </View>
                 {wallet.error && !wallet.data ? (
                   <ErrorNotice message={wallet.error} onRetry={wallet.refresh} flush />
-                ) : (wallet.loading && !wallet.data) || (wallet.syncing && !hidden) ? (
+                ) : (wallet.loading && !wallet.data) || moneySyncing ? (
                   <Skeleton height={40} width="62%" />
                 ) : (
                   <Text style={styles.moneyValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
@@ -377,7 +381,7 @@ export function PhotographerHome() {
                         {tr('Pending release')}
                       </Text>
                       <Text style={styles.pendingValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
-                        {(wallet.loading && !wallet.data) || (wallet.syncing && !hidden) ? '...' : moneyText(pending, walletCurrency, hidden)}
+                        {(wallet.loading && !wallet.data) || moneySyncing ? moneyDots : moneyText(pending, walletCurrency, hidden)}
                       </Text>
                     </View>
                   </InsetWell>
@@ -585,7 +589,7 @@ export function PhotographerHome() {
         ) : (
           <BusinessOverview
             loading={analytics.loading && !analytics.data}
-            earnings={moneyText(a?.totalEarnings, a ? LEDGER_CURRENCY : undefined, hidden)}
+            earnings={moneySyncing ? moneyDots : moneyText(a?.totalEarnings, a ? LEDGER_CURRENCY : undefined, hidden)}
             earningsCaption="Since you joined"
             rating={rating}
             reviewCount={reviewList.length}

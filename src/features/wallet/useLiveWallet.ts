@@ -45,6 +45,40 @@ export function useWalletSync(refreshQuietly: () => Promise<void>, enabled = tru
   return syncing;
 }
 
+type Refreshable = { refreshQuietly: () => Promise<void> };
+
+/**
+ * Refreshes several already-loaded sources together every 10 seconds (a wallet and the analytics beside it, say),
+ * and says whether that refresh is running. Whatever shows money from any of them can then show its loading
+ * mark and then the new figure, in step.
+ */
+export function useLiveMoney(sources: Refreshable[], enabled = true): boolean {
+  const latest = useRef(sources);
+  useEffect(() => {
+    latest.current = sources;
+  });
+  return useWalletSync(
+    () => Promise.all(latest.current.map((s) => s.refreshQuietly())).then(() => undefined),
+    enabled,
+  );
+}
+
+const DOT_FRAMES = ['•\u00A0\u00A0', '••\u00A0', '•••'] as const;
+
+/**
+ * Three dots that fill in one by one while `active`, for a figure that is being refreshed. Empty when not active.
+ * Fixed width, so the figure does not jump when the dots give way to the amount.
+ */
+export function useLoadingDots(active: boolean, stepMs = 250): string {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    if (!active) return undefined;
+    const id = setInterval(() => setFrame((f) => (f + 1) % DOT_FRAMES.length), stepMs);
+    return () => clearInterval(id);
+  }, [active, stepMs]);
+  return active ? DOT_FRAMES[frame] : '';
+}
+
 /** The wallet, loaded once and then refreshed every 10 seconds. */
 export function useLiveWallet() {
   const wallet = useAsync(useCallback(() => getWallet(), []));
