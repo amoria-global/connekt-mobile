@@ -139,6 +139,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-31-coordinator-event-create-fix",
+            "date": "2026-10-31",
+            "title": "Fix for event creation in coordinator dashboard",
+            "items": [
+              {
+                "icon": "calendar-outline",
+                "title": "Event creation fixed",
+                "body": "Fixed an issue where tapping the Create event button in the event coordinator dashboard would not submit when optional location details were omitted."
+              }
+            ]
+          },
+          {
             "id": "2026-10-31-restore-your-albums",
             "date": "2026-10-31",
             "title": "Restore your archived albums",
