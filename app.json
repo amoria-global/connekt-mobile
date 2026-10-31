@@ -139,6 +139,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-31-archived-albums",
+            "date": "2026-10-31",
+            "title": "Archived albums, explained",
+            "items": [
+              {
+                "icon": "archive-outline",
+                "title": "Archived albums",
+                "body": "An archived album now says when it was archived and what it costs to restore, with a confirmation before anything is charged. Archived albums are marked in your list and have their own filter."
+              }
+            ]
+          },
+          {
             "id": "2026-10-30-offer-calls",
             "date": "2026-10-30",
             "title": "Offers that ring like a call",
@@ -203,18 +215,6 @@
                 "icon": "logo-google",
                 "title": "Continue with Google",
                 "body": "The Google button is back on the sign-in screen, next to Apple, so you can sign in with your Google account again."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-30-good-news-update-screen",
-            "date": "2026-10-30",
-            "title": "A clearer update screen",
-            "items": [
-              {
-                "icon": "download-outline",
-                "title": "Good news, in one glance",
-                "body": "This screen now opens with what is new, shown as a short list with an icon for each change, so you can read it quickly before you tap Update now."
               }
             ]
           }

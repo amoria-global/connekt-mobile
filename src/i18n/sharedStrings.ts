@@ -1005,6 +1005,11 @@ export const SHARED_STRINGS: Record<string, { fr: string; es: string }> = {
   'Needs changes': { fr: 'Modifications requises', es: 'Requiere cambios' },
   'Add Photos': { fr: 'Ajouter des photos', es: 'Añadir fotos' },
   'This album is locked': { fr: 'Cet album est verrouillé', es: 'Este álbum está bloqueado' },
+  'This album is archived': { fr: 'Cet album est archivé', es: 'Este álbum está archivado' },
+  'Restore this album?': { fr: 'Restaurer cet album ?', es: '¿Restaurar este álbum?' },
+  'Restore': { fr: 'Restaurer', es: 'Restaurar' },
+  'Restore on web': { fr: 'Restaurer sur le web', es: 'Restaurar en la web' },
+  'Archived': { fr: 'Archivé', es: 'Archivado' },
   'Unlock this album to view and download all high-resolution photos.': {
     fr: 'Déverrouillez cet album pour voir et télécharger toutes les photos en haute résolution.',
     es: 'Desbloquea este álbum para ver y descargar todas las fotos en alta resolución.',
