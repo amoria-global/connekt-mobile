@@ -1,34 +1,30 @@
 /**
- * Push notifications (system tray) via expo-notifications.
+ * Push notifications (system tray) via expo-notifications and Firebase Cloud Messaging (Android) / APNs (iOS).
  *
  * Flow:
- *   1. registerForPushNotifications() — request permission, ensure an
- *      Android channel, fetch the Expo push token, and hand it to the
- *      backend (registerPushToken). Call this once the user is signed in.
- *   2. The backend stores the token and fires an Expo push
- *      (https://exp.host/--/api/v2/push/send) when events change — those
- *      land in the OS notification tray automatically across FCM (Android)
- *      and APNs (iOS).
+ *   1. registerForPushNotifications() — request permission, ensure Android
+ *      channels and categories, fetch the push token (Expo push token or
+ *      direct Firebase FCM token), and hand it to the backend (registerPushToken).
+ *   2. The backend stores the token and fires pushes via Expo Push Service and
+ *      Firebase Cloud Messaging HTTP v1 — those land in the OS notification
+ *      tray and wake the lock screen automatically.
  *   3. addNotificationResponseListener() and consumeInitialNotificationResponse()
  *      route a tapped notification (from foreground, background, lock screen,
  *      or terminated state) directly into the relevant offer or destination.
- *
- * Foreground notifications are shown as a banner too (setNotificationHandler),
- * while offer and booking alerts use a single authoritative in-app alert when
- * the app is open so they never double-sound.
  */
 import { Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { registerPushToken, unregisterPushToken } from './api';
+import { isIncomingCallAvailable } from '@/features/hybrid/incomingCall';
 import { showSystemBannerInForeground } from './inAppAlerts';
 // The notification LED is the brand colour, whatever the app's scheme.
 import { lightPalette } from '@/theme';
 
-// With the app open, booking, payment, and opportunity pushes are shown by
-// their in-app watchers/modals, so the phone's banner is skipped for those to
-// avoid alerting twice. Everything else still shows as a banner with sound.
+// Always present system banner, sound, and MAX priority so Android never calls
+// builder.setSilent(true) or downgrades priority to PRIORITY_DEFAULT (even when
+// MainActivity is resumed over the lock screen via android:showWhenLocked="true").
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const show = showSystemBannerInForeground(
@@ -39,6 +35,7 @@ Notifications.setNotificationHandler({
       shouldShowList: true,
       shouldPlaySound: show,
       shouldSetBadge: true,
+      priority: Notifications.AndroidNotificationPriority.MAX,
     };
   },
 });
@@ -52,19 +49,21 @@ const handledResponseKeys = new Set<string>();
  * token. Android drops a push addressed to a channel the device doesn't have,
  * so the backend only targets a channel listed here and falls back to
  * "default" otherwise.
- *
- * A channel's importance and sound can't be changed once created, and the
- * released app (2.2.0) created "default" at DEFAULT importance (no heads-up
- * banner, system sound). Booking changes therefore use a new channel,
- * booking_updates, instead of trying to upgrade "default".
  */
-export const NOTIFICATION_CHANNELS = ['default', 'booking_updates', 'urgent_booking_alerts', 'urgent_alerts_v2'] as const;
+export const NOTIFICATION_CHANNELS = [
+  'default',
+  'booking_updates',
+  'urgent_booking_alerts',
+  'urgent_alerts_v2',
+] as const;
 
-/** Kept for backwards-compatible imports; never advertised so the server always sends standard OS notifications. */
+/** Sent to the server with the token on Android builds with the native IncomingCall module. */
 export const INCOMING_CALL_CAPABILITY = 'incoming_call_v1';
 
 export function reportedChannels(): string {
-  return NOTIFICATION_CHANNELS.join(',');
+  const list: string[] = [...NOTIFICATION_CHANNELS];
+  if (isIncomingCallAvailable()) list.push(INCOMING_CALL_CAPABILITY);
+  return list.join(',');
 }
 
 export function getCurrentPushToken(): string | null {
@@ -74,11 +73,6 @@ export function getCurrentPushToken(): string | null {
 /**
  * Forget that this device registered, so the next signed-in user registers
  * their own token.
- *
- * Without this the latch survived a sign-out: the second account on a shared
- * phone registered nothing and received no notifications at all, while the
- * first account's pushes kept arriving on a device they had signed out of.
- * Call on logout and whenever a session expires.
  */
 export function resetPushRegistration(): void {
   registered = false;
@@ -230,23 +224,33 @@ async function fetchExpoToken(): Promise<string | undefined> {
   const projectId = resolveProjectId();
   try {
     const res = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-    return res.data;
+    if (res?.data) return res.data;
   } catch {
     try {
       const fallbackRes = await Notifications.getExpoPushTokenAsync();
-      return fallbackRes.data;
+      if (fallbackRes?.data) return fallbackRes.data;
     } catch (innerErr) {
       console.warn('[push] getExpoPushTokenAsync fallback failed:', innerErr);
-      return undefined;
     }
   }
+  // Fallback to native Firebase FCM device token on Android so direct Firebase HTTP v1 pushes work
+  if (Platform.OS === 'android' && typeof Notifications.getDevicePushTokenAsync === 'function') {
+    try {
+      const deviceRes = await Notifications.getDevicePushTokenAsync();
+      if (deviceRes?.data && typeof deviceRes.data === 'string') {
+        return deviceRes.data;
+      }
+    } catch (deviceErr) {
+      console.warn('[push] getDevicePushTokenAsync fallback failed:', deviceErr);
+    }
+  }
+  return undefined;
 }
 
 /**
- * Requests permission and registers this device's Expo push token with the
+ * Requests permission and registers this device's push token with the
  * backend. Safe to call more than once (no-ops after the first success) and
- * on any platform (returns null where push isn't available, e.g. simulators
- * or web).
+ * on any platform.
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
@@ -278,21 +282,20 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
     // Check device hardware for remote push token acquisition
     if (!Device.isDevice) {
-      console.log('[push] Running on simulator/emulator — remote push tokens require physical hardware. Channels & local notifications are enabled.');
+      console.log(
+        '[push] Running on simulator/emulator — remote push tokens require physical hardware. Channels & local notifications are enabled.',
+      );
       return null;
     }
 
     const token = await fetchExpoToken();
     if (!token) {
-      console.warn('[push] Could not obtain Expo push token.');
+      console.warn('[push] Could not obtain push token.');
       return null;
     }
 
     console.log('[push] Push token obtained:', token);
 
-    // Latch only AFTER the backend has accepted it. Setting it first meant a
-    // single network failure permanently convinced this install that it was
-    // registered, and it never tried again.
     await registerPushToken(
       token,
       Platform.OS,
@@ -310,7 +313,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
 
 /**
  * Listens for device push token rotations while signed in and updates the
- * backend with a fresh Expo push token.
+ * backend with a fresh push token.
  */
 export function startPushTokenRefreshListener(): () => void {
   if (Platform.OS === 'web' || typeof Notifications.addPushTokenListener !== 'function') {
@@ -336,8 +339,6 @@ export function startPushTokenRefreshListener(): () => void {
 
 /**
  * Schedules a local test notification to trigger in `delaySeconds` seconds.
- * Allows the user to tap "Test", immediately lock their phone, and verify
- * that the screen lights up with banner, sound, and vibration on the lock screen.
  */
 export async function scheduleTestLockScreenNotification(delaySeconds = 5): Promise<string> {
   await ensureAndroidChannels();
@@ -348,6 +349,7 @@ export async function scheduleTestLockScreenNotification(delaySeconds = 5): Prom
       title: 'Connekyt Notification 🔔',
       body: 'Lock-screen notifications are working! Tap to open Connekyt.',
       sound: 'connekyt_ringtone.wav',
+      priority: Notifications.AndroidNotificationPriority.MAX,
       data: { type: 'TEST', timestamp: Date.now() },
       categoryIdentifier: 'BOOKING_REQUEST',
     },
@@ -361,7 +363,6 @@ export async function scheduleTestLockScreenNotification(delaySeconds = 5): Prom
 
 /**
  * Schedules a simulated incoming booking request alert to trigger in `delaySeconds` seconds.
- * Fires with full booking metadata, custom ringtone, and lock-screen "View & respond" button.
  */
 export async function scheduleTestBookingAlert(delaySeconds = 5): Promise<string> {
   await ensureAndroidChannels();
@@ -372,6 +373,7 @@ export async function scheduleTestBookingAlert(delaySeconds = 5): Promise<string
       title: 'New Booking Request 🔔',
       body: 'Sarah Jenkins requested a 4-hour Wedding photography package. Tap to respond.',
       sound: 'connekyt_ringtone.wav',
+      priority: Notifications.AndroidNotificationPriority.MAX,
       data: {
         type: 'BOOKING',
         kind: 'BOOKING_REQUEST',
@@ -405,7 +407,7 @@ export type NotificationDiagnostic = {
 };
 
 /**
- * Inspects system notification permissions, physical device status, Expo push token,
+ * Inspects system notification permissions, physical device status, push token,
  * backend registration, and Android/iOS lock-screen readiness.
  */
 export async function checkNotificationDiagnostics(): Promise<NotificationDiagnostic> {
@@ -470,10 +472,7 @@ export async function checkNotificationDiagnostics(): Promise<NotificationDiagno
 export const RINGING_CHANNEL = 'urgent_alerts_v2';
 
 /**
- * Whether ringing alerts break through Do Not Disturb. Android only lets the
- * user grant this, per channel ("Override Do Not Disturb"); the channel's
- * bypassDnd reflects their choice. null when it can't be read (not Android,
- * or the channel isn't created yet).
+ * Whether ringing alerts break through Do Not Disturb.
  */
 export async function ringingBypassesDnd(): Promise<boolean | null> {
   if (Platform.OS !== 'android') return null;
@@ -486,8 +485,7 @@ export async function ringingBypassesDnd(): Promise<boolean | null> {
 }
 
 /**
- * Opens the system settings page for the ringing channel, where the user can
- * turn on "Override Do Not Disturb". Falls back to the app's settings page.
+ * Opens the system settings page for the ringing channel.
  */
 export async function openRingingChannelSettings(): Promise<void> {
   const pkg = Constants.expoConfig?.android?.package ?? 'com.amoria.connekyt.app';
@@ -514,8 +512,7 @@ export function resetHandledNotificationResponses(): void {
 }
 
 /**
- * Processes a cold-start / terminated notification response (if the app was
- * launched by tapping a notification or its action button) exactly once.
+ * Processes a cold-start / terminated notification response exactly once.
  */
 export async function consumeInitialNotificationResponse(
   onOpen: (data: Record<string, unknown>, actionIdentifier?: string) => void | Promise<void>,
@@ -542,8 +539,6 @@ export async function consumeInitialNotificationResponse(
 /**
  * Fires `onOpen` with the notification's `data` payload and optional action
  * identifier when the user interacts with a push (from tray or lock screen).
- * Deduplicates against `consumeInitialNotificationResponse` so cold-start taps
- * never fire twice. Returns an unsubscribe function.
  */
 export function addNotificationResponseListener(
   onOpen: (data: Record<string, unknown>, actionIdentifier?: string) => void | Promise<void>,
