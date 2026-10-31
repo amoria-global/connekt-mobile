@@ -49,7 +49,7 @@ import {
   type MoneyItem,
 } from '@/features/wallet/moneyView';
 import { useAsync } from '@/hooks/useAsync';
-import { useWalletSync } from '@/features/wallet/useLiveWallet';
+import { useLoadingDots, useWalletSync } from '@/features/wallet/useLiveWallet';
 import { LiveAmount } from '@/features/wallet/LiveAmount';
 import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 import { formatPrice } from '@/utils/format';
@@ -120,6 +120,7 @@ export default function WalletScreen() {
   const { data, loading, error, refresh, refreshQuietly } = useAsync(fetchData);
   // Every 10 seconds the balance is fetched again; `syncing` swaps each figure for a loading placeholder meanwhile.
   const syncing = useWalletSync(refreshQuietly) && !!data;
+  const dots = useLoadingDots(syncing);
 
   // Older ledger pages are appended on request; the first page stays owned by the refresh above.
   const pages = useMovementPages(data?.history);
@@ -298,7 +299,7 @@ export default function WalletScreen() {
                 {/* Photographers: amount on the left and Withdraw beside it, as in the prototype, so the hero is a row and not a tall stack. */}
                 <View style={tabbed ? styles.heroRow : undefined}>
                   <LiveAmount
-                    syncing={syncing && !balanceHidden}
+                    syncing={syncing}
                     width="60%"
                     height={tabbed ? 30 : 40}
                     style={[styles.heroAmount, tabbed && styles.heroAmountCompact]}
@@ -338,7 +339,7 @@ export default function WalletScreen() {
                       {tr(pendingLabel)}
                     </Text>
                     <LiveAmount
-                      syncing={syncing && !balanceHidden}
+                      syncing={syncing}
                       width={64}
                       height={14}
                       style={styles.pendingStripAmount}
@@ -359,7 +360,7 @@ export default function WalletScreen() {
                       {balanceHidden
                         ? '••••'
                         : syncing
-                          ? '...'
+                          ? dots
                           : formatPrice(stats.pendingChip.value, data?.wallet.currency)}
                     </Text>
                   </View>
@@ -421,11 +422,11 @@ export default function WalletScreen() {
             // The analytics blocks carry their own side margins, so cancel the scroll's padding.
             <View style={styles.walletBleed}>
               {isPhotographer ? (
-                <WalletAnalytics wallet={data?.wallet ?? null} />
+                <WalletAnalytics wallet={data?.wallet ?? null} syncing={syncing} />
               ) : isCoordinator ? (
-                <CoordinatorWalletAnalytics wallet={data?.wallet ?? null} />
+                <CoordinatorWalletAnalytics wallet={data?.wallet ?? null} syncing={syncing} />
               ) : (
-                <ClientWalletAnalytics wallet={data?.wallet ?? null} />
+                <ClientWalletAnalytics wallet={data?.wallet ?? null} syncing={syncing} />
               )}
             </View>
           ) : null}
