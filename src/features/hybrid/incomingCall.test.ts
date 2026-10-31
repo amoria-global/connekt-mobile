@@ -1,18 +1,3 @@
-jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
-jest.mock('expo', () => ({
-  requireOptionalNativeModule: () => null,
-  requireNativeModule: () => ({}),
-}));
-jest.mock('@/theme', () => ({ colors: { brand: { primary: '#D4AF37' } } }));
-jest.mock('expo-notifications', () => ({
-  setNotificationHandler: jest.fn(),
-  AndroidImportance: { DEFAULT: 3, HIGH: 4, MAX: 5 },
-  AndroidNotificationVisibility: { PUBLIC: 1 },
-  AndroidNotificationPriority: { MAX: 'max' },
-}));
-jest.mock('expo-device', () => ({ isDevice: true }));
-jest.mock('expo-constants', () => ({ expoConfig: {} }));
-
 import {
   canDrawOverOtherApps,
   canMinimizeApp,
