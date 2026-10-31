@@ -139,6 +139,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-31-offer-buttons",
+            "date": "2026-10-31",
+            "title": "A shorter offer screen",
+            "items": [
+              {
+                "icon": "resize-outline",
+                "title": "Less to scroll",
+                "body": "The offer screen is shorter now: the Viewing as switch is gone, so there is less to scroll before you answer."
+              },
+              {
+                "icon": "swap-horizontal-outline",
+                "title": "Answers side by side",
+                "body": "Accept offer and Accept with my delivery package policy sit side by side, with Reject offer on its own row below."
+              }
+            ]
+          },
+          {
             "id": "2026-10-31-offer-screens",
             "date": "2026-10-31",
             "title": "Clearer offer screens",
@@ -213,18 +230,6 @@
                 "icon": "hourglass-outline",
                 "title": "A clear loading moment",
                 "body": "Each wallet figure shows a short loading placeholder while it updates, then the new balance appears in its place."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-30-album-links-open",
-            "date": "2026-10-30",
-            "title": "Album links open in the app",
-            "items": [
-              {
-                "icon": "images-outline",
-                "title": "Open a shared album link",
-                "body": "A link to a free album now opens that album in the app, ready to claim, instead of an empty screen. A link the app does not know takes you home instead of a blank page."
               }
             ]
           }
