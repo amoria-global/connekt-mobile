@@ -45,16 +45,16 @@ export function CandidateCard({ candidate: c, onOpen, width }: Props) {
           </View>
         ) : null}
       </View>
-      <Text style={styles.name} numberOfLines={1}>{c.name}</Text>
-      <Text style={styles.role} numberOfLines={1}>{role}</Text>
-      {c.primarySpecialty ? <Text style={styles.specialty} numberOfLines={2}>{c.primarySpecialty}</Text> : null}
+      <Text style={styles.name}>{c.name}</Text>
+      <Text style={styles.role}>{role}</Text>
+      {c.primarySpecialty ? <Text style={styles.specialty}>{c.primarySpecialty}</Text> : null}
       <View style={styles.row}>
         <Ionicons name="location-outline" size={12} color={colors.textMuted} />
-        <Text style={styles.meta} numberOfLines={1}>{c.distanceLabel || c.city || tr('Distance not shown')}</Text>
+        <Text style={styles.meta}>{c.distanceLabel || c.city || tr('Distance not shown')}</Text>
       </View>
       <View style={styles.row}>
         <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-        <Text style={[styles.meta, { color: colors.success }]} numberOfLines={1}>{status}</Text>
+        <Text style={[styles.meta, { color: colors.success }]}>{status}</Text>
       </View>
     </Pressable>
   );
@@ -70,6 +70,6 @@ const useStyles = makeStyles((c) => ({
   name: { fontSize: fontSize.sm, fontWeight: fontWeight.extrabold, color: c.text },
   role: { fontSize: 11, color: c.textMuted },
   specialty: { fontSize: 11.5, color: c.textSoft },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  row: { flexDirection: 'row', alignItems: 'flex-start', gap: 4 },
   meta: { flex: 1, fontSize: 11, color: c.textSoft },
 }));
