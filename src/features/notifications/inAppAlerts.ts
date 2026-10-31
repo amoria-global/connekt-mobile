@@ -1,11 +1,14 @@
 /**
  * Which new notifications alert inside the open app, and how.
  *
- * With the app open, the phone's own banner for booking and payment pushes
- * is suppressed (push.ts) and InAppNotificationWatcher shows its own banner
- * and sound instead, so the alert also works when no push arrives (no push
- * credentials, Expo Go, push turned off). Opportunities and direct booking
- * requests are left to their full-screen alerts, which ring by themselves.
+ * System push notifications always show their banner, sound, and lock-screen
+ * alert (`showSystemBannerInForeground` returns `true`) so Android never marks
+ * notifications silent (`setSilent(true)`) or downgrades their priority when
+ * `.MainActivity` has `android:showWhenLocked="true"`.
+ *
+ * In addition, `InAppNotificationWatcher` polls the notifications section and
+ * alerts with `'ring'` for new incoming offers (`OPPORTUNITY`, `HYBRID_OPPORTUNITY`)
+ * and booking requests, and `'chime'` for booking/payment updates.
  */
 
 export type InAppAlertKind = 'ring' | 'chime';
@@ -20,17 +23,16 @@ export type AlertCandidate = {
 /** Titles that ring; mirrors NotificationService.RINGING_TITLES on the backend. */
 const RINGING_TITLES = new Set(['New Booking Request']);
 
-/** Types the opportunity alert handles; the watcher stays out of their way. */
-const OPPORTUNITY_TYPES = new Set(['OPPORTUNITY', 'HYBRID_OPPORTUNITY']);
+/** Types for incoming shoot offers that ring and wake the lock screen. */
+export const OPPORTUNITY_TYPES = new Set(['OPPORTUNITY', 'HYBRID_OPPORTUNITY']);
 
-/** Types whose foreground push banner the watcher replaces. */
-export const WATCHED_TYPES = new Set(['BOOKING', 'PAYMENT']);
+/** Types that chime in-app and post to booking_updates. */
+export const WATCHED_TYPES = new Set(['BOOKING', 'PAYMENT', 'HYBRID_UPDATE']);
 
 export function inAppAlertKind(n: AlertCandidate): InAppAlertKind | null {
   const type = (n.rawType ?? '').toUpperCase();
-  if (OPPORTUNITY_TYPES.has(type)) return null;
-  // Booking requests get the full-screen incoming request, which rings itself.
-  if (RINGING_TITLES.has(n.title ?? '')) return null;
+  if (OPPORTUNITY_TYPES.has(type)) return 'ring';
+  if (RINGING_TITLES.has(n.title ?? '')) return 'ring';
   if (WATCHED_TYPES.has(type)) return 'chime';
   return null;
 }
@@ -41,9 +43,11 @@ export function freshUnread<T extends AlertCandidate>(seen: Set<string> | null, 
   return items.filter((n) => !n.read && !seen.has(n.id));
 }
 
-/** Should the phone's own banner show for this push while the app is open? */
-export function showSystemBannerInForeground(data: Record<string, unknown> | undefined): boolean {
-  const type = typeof data?.type === 'string' ? data.type.toUpperCase() : '';
-  // Offers ring through their own full-screen call; a second system sound on top of it is what kept beeping.
-  return !WATCHED_TYPES.has(type) && !OPPORTUNITY_TYPES.has(type);
+/**
+ * Always allow the OS notification banner and sound to present so Android
+ * never sets `setSilent(true)` or downgrades priority to `PRIORITY_DEFAULT`,
+ * including when `MainActivity` is resumed over the lock screen (`showWhenLocked`).
+ */
+export function showSystemBannerInForeground(_data?: Record<string, unknown> | undefined): boolean {
+  return true;
 }

@@ -15,11 +15,11 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 /**
- * High-importance notification helper for incoming offers on Android.
+ * High-priority lock-screen & display wake-up alert for incoming offers on Android.
  *
- * Displays a standard heads-up / lock-screen notification with custom ringtone and vibration pattern
- * on the `incoming_offer_call_v1` channel, and deep-links to `connekt://bookings?tab=opportunities&candidate={id}`
- * when the user taps the notification. Never auto-launches the app or uses fake calling / full-screen intents.
+ * Acquires a screen wake-lock (`ACQUIRE_CAUSES_WAKEUP`), posts a full-screen lock-screen
+ * notification with custom ringtone and vibration pattern on `incoming_offer_call_v1`,
+ * and deep-links to `connekt://bookings?tab=opportunities&candidate={id}` on tap.
  */
 class IncomingCallModule : Module() {
   private val context: Context
@@ -86,7 +86,9 @@ class IncomingCallModule : Module() {
       try {
         context.startActivity(request)
       } catch (_: Exception) {
-        context.startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(
+          Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
       }
     }
 
@@ -95,11 +97,27 @@ class IncomingCallModule : Module() {
     }
   }
 
+  private fun wakeDisplay() {
+    try {
+      val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+      @Suppress("DEPRECATION")
+      val wakeLock = power.newWakeLock(
+        PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+          PowerManager.ACQUIRE_CAUSES_WAKEUP or
+          PowerManager.ON_AFTER_RELEASE,
+        "connekyt:incoming_offer_wake",
+      )
+      wakeLock.acquire(15_000L)
+    } catch (_: Exception) {
+      // Ignore if WAKE_LOCK unavailable
+    }
+  }
+
   private fun ensureChannel() {
     if (Build.VERSION.SDK_INT < 26) return
     if (manager.getNotificationChannel(CHANNEL_ID) != null) return
     val channel = NotificationChannel(CHANNEL_ID, "Incoming offers", NotificationManager.IMPORTANCE_HIGH).apply {
-      description = "High-priority alerts when a new event offer arrives"
+      description = "Rings and wakes the lock screen when a new event offer arrives"
       lockscreenVisibility = Notification.VISIBILITY_PUBLIC
       enableVibration(true)
       vibrationPattern = longArrayOf(0, 600, 350, 600, 350, 600)
@@ -107,27 +125,40 @@ class IncomingCallModule : Module() {
       val sound = if (raw != 0) {
         Uri.parse("android.resource://" + context.packageName + "/" + raw)
       } else {
-        Settings.System.DEFAULT_NOTIFICATION_URI
+        Settings.System.DEFAULT_RINGTONE_URI
       }
       setSound(
         sound,
         AudioAttributes.Builder()
-          .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+          .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
           .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
           .build(),
       )
+      try {
+        setBypassDnd(true)
+      } catch (_: Exception) {
+      }
     }
     manager.createNotificationChannel(channel)
   }
 
   private fun show(id: String, title: String, body: String) {
     ensureChannel()
-    val deepLinkUri = Uri.parse("connekt://bookings?tab=opportunities&candidate=" + Uri.encode(id))
-    val launch = Intent(Intent.ACTION_VIEW, deepLinkUri).apply {
-      setPackage(context.packageName)
-      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-      putExtra("incoming_offer_id", id)
-    }
+    wakeDisplay()
+
+    val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
+      ?: Intent(
+        Intent.ACTION_VIEW,
+        Uri.parse("connekt://bookings?tab=opportunities&candidate=" + Uri.encode(id)),
+      ).apply { setPackage(context.packageName) }
+
+    launch.addFlags(
+      Intent.FLAG_ACTIVITY_NEW_TASK or
+        Intent.FLAG_ACTIVITY_CLEAR_TOP or
+        Intent.FLAG_ACTIVITY_SINGLE_TOP,
+    )
+    launch.putExtra("incoming_offer_id", id)
+
     val pending = PendingIntent.getActivity(
       context,
       id.hashCode(),
@@ -139,19 +170,31 @@ class IncomingCallModule : Module() {
       Notification.Builder(context, CHANNEL_ID)
     } else {
       @Suppress("DEPRECATION")
-      Notification.Builder(context).setPriority(Notification.PRIORITY_HIGH)
+      Notification.Builder(context).setPriority(Notification.PRIORITY_MAX)
     }
     builder
       .setSmallIcon(context.applicationInfo.icon)
       .setContentTitle(title)
       .setContentText(body)
-      .setCategory(Notification.CATEGORY_MESSAGE)
+      .setCategory(Notification.CATEGORY_CALL)
       .setVisibility(Notification.VISIBILITY_PUBLIC)
+      .setOngoing(true)
       .setAutoCancel(true)
       .setContentIntent(pending)
-    if (Build.VERSION.SDK_INT >= 26) builder.setTimeoutAfter(ALERT_TIMEOUT_MS)
+      .setFullScreenIntent(pending, true)
+    if (Build.VERSION.SDK_INT >= 26) builder.setTimeoutAfter(RING_MS)
 
-    manager.notify(id, NOTIFICATION_ID, builder.build())
+    val notification = builder.build()
+    notification.flags = notification.flags or Notification.FLAG_INSISTENT
+    manager.notify(id, NOTIFICATION_ID, notification)
+
+    if (Settings.canDrawOverlays(context)) {
+      try {
+        context.startActivity(launch)
+      } catch (_: Exception) {
+        // The full-screen notification above is still shown on the lock screen.
+      }
+    }
   }
 
   private fun cancelAll() {
@@ -165,6 +208,6 @@ class IncomingCallModule : Module() {
   private companion object {
     const val CHANNEL_ID = "incoming_offer_call_v1"
     const val NOTIFICATION_ID = 4201
-    const val ALERT_TIMEOUT_MS = 7_200_000L
+    const val RING_MS = 47_000L
   }
 }

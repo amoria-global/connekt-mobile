@@ -1,14 +1,11 @@
 /**
- * In-app banner and sound for new booking and payment notifications while
- * the app is open.
+ * In-app banner, system tray notification, and lock-screen display wake-up
+ * for new notifications appearing in the Notifications section.
  *
- * Booking changes only showed up on the bell: with the app open the phone's
- * banner depends on a push arriving, and on devices without working push
- * (no APNs credentials, Expo Go) nothing alerted at all. This polls the
- * notifications list while the app is in the foreground, checks right away
- * when a push lands, and for each new unread booking or payment notification
- * shows a banner (tap to open it) and plays the ringtone for a booking request
- * or the chime for other changes. See inAppAlerts.ts for the rules.
+ * Polls `/customer/notifications` (and checks immediately when a push arrives)
+ * so every new unread notification (incoming offers, booking requests, booking
+ * updates, payments, etc.) shows both the in-app banner and a real Android/iOS
+ * system notification on the lock screen with display wake-up.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, AppState, Platform, Pressable, Text, Vibration, View } from 'react-native';
@@ -18,12 +15,20 @@ import * as Notifications from 'expo-notifications';
 import { createAudioPlayer, setAudioModeAsync } from '@/utils/safeAudio';
 import { Ionicons } from '@expo/vector-icons';
 import { useRole } from '@/features/auth/role';
+import { showIncomingCall } from '@/features/hybrid/incomingCall';
+import { showIncomingOpportunity } from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { listNotifications, type AppNotification } from './api';
-import { freshUnread, inAppAlertKind, type InAppAlertKind } from './inAppAlerts';
+import {
+  freshUnread,
+  inAppAlertKind,
+  OPPORTUNITY_TYPES,
+  type InAppAlertKind,
+} from './inAppAlerts';
+import { RINGING_CHANNEL } from './push';
 import { notificationTarget } from './routing';
 import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme, onFill } from '@/theme';
 
-const POLL_MS = 15_000;
+const POLL_MS = 8_000;
 const BANNER_MS = 6_000;
 
 const SOUNDS: Record<InAppAlertKind, number> = {
@@ -48,6 +53,68 @@ function playOnce(kind: InAppAlertKind) {
   }
 }
 
+async function ensureSystemNotificationForItem(n: AppNotification, kind: InAppAlertKind): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const rawType = (n.rawType ?? '').toUpperCase();
+  const isOffer = OPPORTUNITY_TYPES.has(rawType);
+  const refId = String(n.referenceId || n.id);
+
+  if (kind === 'ring') {
+    showIncomingCall(refId, n.title, n.message);
+  }
+
+  try {
+    const presented = await Notifications.getPresentedNotificationsAsync();
+    const alreadyInTray = presented.some((item) => {
+      const d = (item.request.content.data ?? {}) as Record<string, unknown>;
+      return (
+        String(d.notificationId ?? '') === String(n.id) ||
+        (refId && (String(d.candidateId ?? '') === refId || String(d.referenceId ?? '') === refId))
+      );
+    });
+    if (alreadyInTray) return;
+
+    const channelId =
+      Platform.OS === 'android'
+        ? kind === 'ring'
+          ? RINGING_CHANNEL
+          : 'booking_updates'
+        : undefined;
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: n.title,
+        body: n.message,
+        sound: kind === 'ring' ? 'connekyt_ringtone.wav' : 'connekyt_chime.wav',
+        priority: Notifications.AndroidNotificationPriority.MAX,
+        categoryIdentifier: isOffer
+          ? 'OPPORTUNITY_ALERT'
+          : kind === 'ring'
+            ? 'BOOKING_REQUEST'
+            : undefined,
+        data: {
+          notificationId: n.id,
+          type: n.rawType,
+          kind: isOffer ? 'INCOMING_OFFER' : kind === 'ring' ? 'BOOKING_REQUEST' : undefined,
+          candidateId: isOffer ? n.referenceId : undefined,
+          referenceId: n.referenceId,
+          link: n.link,
+        },
+      },
+      trigger:
+        Platform.OS === 'android'
+          ? {
+              type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+              seconds: 1,
+              channelId,
+            }
+          : null,
+    });
+  } catch {
+    // Best-effort tray notification
+  }
+}
+
 export function InAppNotificationWatcher() {
   const { role } = useRole();
   const router = useRouter();
@@ -61,7 +128,9 @@ export function InAppNotificationWatcher() {
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hide = useCallback(() => {
-    Animated.timing(slide, { toValue: -160, duration: 200, useNativeDriver: true }).start(() => setBanner(null));
+    Animated.timing(slide, { toValue: -160, duration: 200, useNativeDriver: true }).start(() =>
+      setBanner(null),
+    );
   }, [slide]);
 
   const show = useCallback(
@@ -80,6 +149,16 @@ export function InAppNotificationWatcher() {
       const fresh = freshUnread(seen.current, items).filter((n) => inAppAlertKind(n) !== null);
       seen.current = new Set(items.map((n) => String(n.id)));
       if (fresh.length === 0) return;
+
+      for (const item of fresh) {
+        const kind = inAppAlertKind(item) ?? 'chime';
+        const rawType = (item.rawType ?? '').toUpperCase();
+        if (OPPORTUNITY_TYPES.has(rawType)) {
+          showIncomingOpportunity(item.referenceId, 'ringing');
+        }
+        void ensureSystemNotificationForItem(item, kind);
+      }
+
       const kinds = fresh.map((n) => inAppAlertKind(n));
       playOnce(kinds.includes('ring') ? 'ring' : 'chime');
       show(fresh[0]);
@@ -94,15 +173,16 @@ export function InAppNotificationWatcher() {
     const appState = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         void check();
-        if (!timer) timer = setInterval(check, POLL_MS);
-      } else if (timer) {
-        clearInterval(timer);
-        timer = null;
+      }
+      if (!timer) {
+        timer = setInterval(check, POLL_MS);
       }
     });
     // A push just landed: look now instead of waiting for the next poll.
     const received =
-      Platform.OS === 'web' ? null : Notifications.addNotificationReceivedListener(() => void check());
+      Platform.OS === 'web'
+        ? null
+        : Notifications.addNotificationReceivedListener(() => void check());
     return () => {
       if (timer) clearInterval(timer);
       appState.remove();
@@ -117,7 +197,10 @@ export function InAppNotificationWatcher() {
   return (
     <Animated.View
       pointerEvents="box-none"
-      style={[styles.wrap, { paddingTop: insets.top + spacing.sm, transform: [{ translateY: slide }] }]}
+      style={[
+        styles.wrap,
+        { paddingTop: insets.top + spacing.sm, transform: [{ translateY: slide }] },
+      ]}
     >
       <Pressable
         style={[styles.card, ring && { borderColor: colors.primary }]}
@@ -134,7 +217,9 @@ export function InAppNotificationWatcher() {
         accessibilityRole="button"
         accessibilityLabel={`${banner.title}. ${banner.message}. Open`}
       >
-        <View style={[styles.icon, { backgroundColor: ring ? colors.primary : colors.surfaceMuted }]}>
+        <View
+          style={[styles.icon, { backgroundColor: ring ? colors.primary : colors.surfaceMuted }]}
+        >
           <Ionicons
             name={ring ? 'notifications' : 'checkmark-circle-outline'}
             size={18}
