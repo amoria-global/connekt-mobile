@@ -7,26 +7,28 @@
  *      backend (registerPushToken). Call this once the user is signed in.
  *   2. The backend stores the token and fires an Expo push
  *      (https://exp.host/--/api/v2/push/send) when events change — those
- *      land in the OS notification tray automatically.
- *   3. addNotificationResponseListener() routes a tapped notification into
- *      the app (defaults to the Notifications screen).
+ *      land in the OS notification tray automatically across FCM (Android)
+ *      and APNs (iOS).
+ *   3. addNotificationResponseListener() and consumeInitialNotificationResponse()
+ *      route a tapped notification (from foreground, background, lock screen,
+ *      or terminated state) directly into the relevant offer or destination.
  *
- * Foreground notifications are shown as a banner too (setNotificationHandler).
+ * Foreground notifications are shown as a banner too (setNotificationHandler),
+ * while offer and booking alerts use a single authoritative in-app alert when
+ * the app is open so they never double-sound.
  */
 import { Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import Constants from 'expo-constants';
-import { registerPushToken } from './api';
-import { isIncomingCallAvailable } from '@/features/hybrid/incomingCall';
+import { registerPushToken, unregisterPushToken } from './api';
 import { showSystemBannerInForeground } from './inAppAlerts';
 // The notification LED is the brand colour, whatever the app's scheme.
 import { lightPalette } from '@/theme';
 
-// With the app open, booking and payment pushes are shown by
-// InAppNotificationWatcher (its own banner and sound), so the phone's banner
-// is skipped for those to avoid alerting twice. Everything else still shows
-// as a banner with sound.
+// With the app open, booking, payment, and opportunity pushes are shown by
+// their in-app watchers/modals, so the phone's banner is skipped for those to
+// avoid alerting twice. Everything else still shows as a banner with sound.
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
     const show = showSystemBannerInForeground(
@@ -42,6 +44,8 @@ Notifications.setNotificationHandler({
 });
 
 let registered = false;
+let currentPushToken: string | null = null;
+const handledResponseKeys = new Set<string>();
 
 /**
  * Android channels this app creates, reported to the backend with the push
@@ -56,14 +60,15 @@ let registered = false;
  */
 export const NOTIFICATION_CHANNELS = ['default', 'booking_updates', 'urgent_booking_alerts', 'urgent_alerts_v2'] as const;
 
-/** Sent to the server with the token. Builds with the native incoming-call screen add the capability, and only then
- * does the server send them offers as call pushes instead of ordinary notifications. */
+/** Kept for backwards-compatible imports; never advertised so the server always sends standard OS notifications. */
 export const INCOMING_CALL_CAPABILITY = 'incoming_call_v1';
 
 export function reportedChannels(): string {
-  const list: string[] = [...NOTIFICATION_CHANNELS];
-  if (isIncomingCallAvailable()) list.push(INCOMING_CALL_CAPABILITY);
-  return list.join(',');
+  return NOTIFICATION_CHANNELS.join(',');
+}
+
+export function getCurrentPushToken(): string | null {
+  return currentPushToken;
 }
 
 /**
@@ -77,6 +82,23 @@ export function reportedChannels(): string {
  */
 export function resetPushRegistration(): void {
   registered = false;
+  currentPushToken = null;
+}
+
+/**
+ * Invalidates this device's push token on the backend and resets local
+ * registration state. Call before clearing the auth token on logout.
+ */
+export async function unregisterFromPushNotifications(): Promise<void> {
+  const tokenToRemove = currentPushToken;
+  registered = false;
+  currentPushToken = null;
+  if (!tokenToRemove || Platform.OS === 'web') return;
+  try {
+    await unregisterPushToken(tokenToRemove);
+  } catch {
+    // Non-fatal on logout if offline
+  }
 }
 
 /**
@@ -163,7 +185,7 @@ export async function ensureAndroidChannels(): Promise<void> {
 }
 
 /**
- * Registers interactive notification categories for lock-screen 1-tap actions.
+ * Registers interactive notification categories for lock-screen and banner actions.
  */
 export async function ensureNotificationCategories(): Promise<void> {
   try {
@@ -177,7 +199,7 @@ export async function ensureNotificationCategories(): Promise<void> {
       },
       {
         identifier: 'ACTION_DECLINE',
-        buttonTitle: 'Decline',
+        buttonTitle: 'Reject',
         options: {
           opensAppToForeground: true,
           isDestructive: true,
@@ -196,6 +218,30 @@ export async function ensureNotificationCategories(): Promise<void> {
   }
 }
 
+function resolveProjectId(): string {
+  return (
+    (Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined)?.projectId ??
+    (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig?.projectId ??
+    'd81fbfa6-f576-4450-97c6-c443332179be'
+  );
+}
+
+async function fetchExpoToken(): Promise<string | undefined> {
+  const projectId = resolveProjectId();
+  try {
+    const res = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+    return res.data;
+  } catch {
+    try {
+      const fallbackRes = await Notifications.getExpoPushTokenAsync();
+      return fallbackRes.data;
+    } catch (innerErr) {
+      console.warn('[push] getExpoPushTokenAsync fallback failed:', innerErr);
+      return undefined;
+    }
+  }
+}
+
 /**
  * Requests permission and registers this device's Expo push token with the
  * backend. Safe to call more than once (no-ops after the first success) and
@@ -204,7 +250,7 @@ export async function ensureNotificationCategories(): Promise<void> {
  */
 export async function registerForPushNotifications(): Promise<string | null> {
   try {
-    if (registered) return null;
+    if (registered && currentPushToken) return currentPushToken;
     if (Platform.OS === 'web') return null;
 
     // Ensure channels and interactive action categories
@@ -236,26 +282,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       return null;
     }
 
-    const projectId =
-      (Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined)?.projectId ??
-      (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig?.projectId ??
-      'd81fbfa6-f576-4450-97c6-c443332179be';
-
-    let token: string | undefined;
-    try {
-      const res = await Notifications.getExpoPushTokenAsync(
-        projectId ? { projectId } : undefined,
-      );
-      token = res.data;
-    } catch {
-      try {
-        const fallbackRes = await Notifications.getExpoPushTokenAsync();
-        token = fallbackRes.data;
-      } catch (innerErr) {
-        console.warn('[push] getExpoPushTokenAsync fallback failed:', innerErr);
-      }
-    }
-
+    const token = await fetchExpoToken();
     if (!token) {
       console.warn('[push] Could not obtain Expo push token.');
       return null;
@@ -272,12 +299,39 @@ export async function registerForPushNotifications(): Promise<string | null> {
       Platform.OS === 'android' ? reportedChannels() : undefined,
     );
     registered = true;
+    currentPushToken = token;
     console.log('[push] Successfully registered push token with backend.');
     return token;
   } catch (err) {
     console.warn('[push] Failed to register for push notifications:', err);
     return null;
   }
+}
+
+/**
+ * Listens for device push token rotations while signed in and updates the
+ * backend with a fresh Expo push token.
+ */
+export function startPushTokenRefreshListener(): () => void {
+  if (Platform.OS === 'web' || typeof Notifications.addPushTokenListener !== 'function') {
+    return () => {};
+  }
+  const sub = Notifications.addPushTokenListener(async () => {
+    try {
+      const nextToken = await fetchExpoToken();
+      if (!nextToken || nextToken === currentPushToken) return;
+      await registerPushToken(
+        nextToken,
+        Platform.OS,
+        Platform.OS === 'android' ? reportedChannels() : undefined,
+      );
+      registered = true;
+      currentPushToken = nextToken;
+    } catch (err) {
+      console.warn('[push] Failed to refresh push token with backend:', err);
+    }
+  });
+  return () => sub.remove();
 }
 
 /**
@@ -358,17 +412,13 @@ export async function checkNotificationDiagnostics(): Promise<NotificationDiagno
   const settings = await Notifications.getPermissionsAsync();
   const permissionGranted = settings.granted || settings.status === 'granted';
 
-  let pushToken: string | null = null;
+  let pushToken: string | null = currentPushToken;
   let isRegistered = registered;
 
   if (permissionGranted && Device.isDevice) {
     try {
-      const projectId =
-        (Constants.expoConfig?.extra?.eas as { projectId?: string } | undefined)?.projectId ??
-        (Constants as unknown as { easConfig?: { projectId?: string } }).easConfig?.projectId ??
-        'd81fbfa6-f576-4450-97c6-c443332179be';
-      const res = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
-      pushToken = res.data;
+      const token = await fetchExpoToken();
+      pushToken = token ?? null;
       if (!isRegistered && pushToken) {
         await registerPushToken(
           pushToken,
@@ -376,6 +426,7 @@ export async function checkNotificationDiagnostics(): Promise<NotificationDiagno
           Platform.OS === 'android' ? reportedChannels() : undefined,
         );
         registered = true;
+        currentPushToken = pushToken;
         isRegistered = true;
       }
     } catch (e) {
@@ -450,17 +501,62 @@ export async function openRingingChannelSettings(): Promise<void> {
   }
 }
 
+function responseDedupKey(response: Notifications.NotificationResponse): string {
+  const id = response?.notification?.request?.identifier ?? '';
+  const action = response?.actionIdentifier ?? Notifications.DEFAULT_ACTION_IDENTIFIER;
+  const data = (response?.notification?.request?.content?.data ?? {}) as Record<string, unknown>;
+  const ref = String(data.candidateId ?? data.referenceId ?? data.eventId ?? data.link ?? '');
+  return `${id}:${action}:${ref}`;
+}
+
+export function resetHandledNotificationResponses(): void {
+  handledResponseKeys.clear();
+}
+
+/**
+ * Processes a cold-start / terminated notification response (if the app was
+ * launched by tapping a notification or its action button) exactly once.
+ */
+export async function consumeInitialNotificationResponse(
+  onOpen: (data: Record<string, unknown>, actionIdentifier?: string) => void | Promise<void>,
+): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  if (typeof Notifications.getLastNotificationResponseAsync !== 'function') return false;
+  try {
+    const response = await Notifications.getLastNotificationResponseAsync();
+    if (!response) return false;
+    const key = responseDedupKey(response);
+    if (handledResponseKeys.has(key)) return false;
+    handledResponseKeys.add(key);
+    const data = (response.notification?.request?.content?.data ?? {}) as Record<string, unknown>;
+    if (typeof Notifications.clearLastNotificationResponseAsync === 'function') {
+      await Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    }
+    await onOpen(data, response.actionIdentifier);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Fires `onOpen` with the notification's `data` payload and optional action
  * identifier when the user interacts with a push (from tray or lock screen).
- * Returns an unsubscribe function.
+ * Deduplicates against `consumeInitialNotificationResponse` so cold-start taps
+ * never fire twice. Returns an unsubscribe function.
  */
 export function addNotificationResponseListener(
-  onOpen: (data: Record<string, unknown>, actionIdentifier?: string) => void,
+  onOpen: (data: Record<string, unknown>, actionIdentifier?: string) => void | Promise<void>,
 ): () => void {
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-    const data = (response.notification.request.content.data ?? {}) as Record<string, unknown>;
-    onOpen(data, response.actionIdentifier);
+    const key = responseDedupKey(response);
+    if (handledResponseKeys.has(key)) return;
+    handledResponseKeys.add(key);
+    if (typeof Notifications.clearLastNotificationResponseAsync === 'function') {
+      void Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    }
+    const data = (response.notification?.request?.content?.data ?? {}) as Record<string, unknown>;
+    void onOpen(data, response.actionIdentifier);
   });
   return () => sub.remove();
 }

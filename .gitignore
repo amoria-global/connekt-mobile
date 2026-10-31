@@ -40,6 +40,7 @@ yarn-error.*
 # point. It must never be committed.
 google-play-service-account.json
 *-service-account.json
+*-firebase-adminsdk-*.json
 
 # typescript
 *.tsbuildinfo

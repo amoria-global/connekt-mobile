@@ -262,6 +262,13 @@ export async function registerPushToken(token: string, platform: string, channel
  * Triggers a backend test push notification to this account's registered devices.
  * Uses POST /customer/notifications/test-push
  */
+export async function unregisterPushToken(token: string): Promise<void> {
+  if (!token) return;
+  await api.delete('/customer/notifications/push-token', {
+    body: { token },
+  });
+}
+
 export async function sendBackendTestPush(title?: string, body?: string): Promise<void> {
   await api.post('/customer/notifications/test-push', {
     title: title || 'Connekyt Notification Test',
