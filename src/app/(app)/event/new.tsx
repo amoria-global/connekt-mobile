@@ -5,7 +5,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, type FieldErrors } from 'react-hook-form';
 import { WishInvitesField } from '@/features/wishes/WishInvitesField';
 import { useScrollToField } from '@/features/wishes/useScrollToField';
 import { invitesOn, wishInvitesError } from '@/features/wishes/wishInvites';
@@ -85,14 +85,14 @@ const schema = z.object({
   eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date'),
   startTime: z.string().regex(/^\d{1,2}:\d{2}$/, 'Pick a start time'),
   endTime: z.string().optional(),
-  venueName: z.string().min(1, 'Where is it happening?'),
+  venueName: z.string().optional(),
   address: z.string().optional(),
   city: z.string().optional(),
   country: z.string().optional(),
   price: z.string().optional(),
   maxGuests: z.string().optional(),
-  organizer: z.string().min(1, "Who's organizing this event?"),
-  description: z.string().min(10, 'Add a short description (10+ characters)'),
+  organizer: z.string().optional(),
+  description: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -480,11 +480,39 @@ export default function NewEventScreen() {
     );
   };
 
+  const onInvalid = (fieldErrors: FieldErrors<FormValues>) => {
+    if (
+      fieldErrors.venueName ||
+      fieldErrors.address ||
+      fieldErrors.city ||
+      fieldErrors.country ||
+      fieldErrors.maxGuests ||
+      fieldErrors.organizer
+    ) {
+      setShowMore(true);
+    }
+    const firstKey = Object.keys(fieldErrors)[0] as keyof FormValues;
+    const msg = fieldErrors[firstKey]?.message;
+    if (msg) {
+      Alert.alert('Required field', msg);
+    }
+  };
+
   const submit = () => {
     const missing = wishInvitesError(wishInvites);
     setWishInvitesErr(missing ?? null);
-    if (missing) scrollToField();
-    void handleSubmit(onSubmit)();
+    if (missing) {
+      scrollToField();
+      Alert.alert('Wish invites', 'Please choose whether viewers can invite others to send wishes.');
+      return;
+    }
+    if (!cover && !(isEditing && existingCover)) {
+      setCoverError('A cover photo is required');
+      scrollRef.current?.scrollTo({ y: 0, animated: true });
+      Alert.alert('Cover photo required', 'Please add a cover photo for your event.');
+      return;
+    }
+    void handleSubmit(onSubmit, onInvalid)();
   };
 
   const onSubmit = async (values: FormValues) => {
@@ -502,7 +530,7 @@ export default function NewEventScreen() {
     // below the minimum. Non-coordinators ("the rest") have digital purchases disabled.
     // Coordinators self-stream a private event under the same rule as clients.
     if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
-      setServerError(`A private event needs a live stream fee of at least ${MIN_RWF} ${selectedCurrency}.`);
+      const err = `A private event needs a live stream fee of at least ${MIN_RWF} ${selectedCurrency}.`; setServerError(err); Alert.alert('Live stream fee required', err);
       return;
     }
     if (!isCoordinator) {
@@ -636,7 +664,7 @@ export default function NewEventScreen() {
 
       router.replace(`/event/${event.id}`);
     } catch (err) {
-      setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
+      const errMsg = isApiError(err) ? err.message : 'Something went wrong. Please try again.'; setServerError(errMsg); Alert.alert('Could not save event', errMsg);
     }
   };
 
@@ -1275,7 +1303,7 @@ export default function NewEventScreen() {
               <View style={styles.moreSection}>
                 {/* Location breakdown */}
                 <Controller control={control} name="venueName" render={({ field: { onChange, onBlur, value } }) => (
-                  <Input label={tr('b3_evnew_venue_label')} placeholder={tr('b3_evnew_venue_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                  <Input label={tr('b3_evnew_venue_label')} placeholder={tr('b3_evnew_venue_ph')} value={value} onChangeText={onChange} onBlur={onBlur} error={errors.venueName?.message} />
                 )} />
                 <Pressable
                   onPress={() => setInPerson((v) => !v)}
@@ -1345,7 +1373,7 @@ export default function NewEventScreen() {
 
                 {/* Organizer */}
                 <Controller control={control} name="organizer" render={({ field: { onChange, onBlur, value } }) => (
-                  <Input label={tr('b3_evnew_organizer_label')} placeholder={tr('b3_evnew_organizer_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                  <Input label={tr('b3_evnew_organizer_label')} placeholder={tr('b3_evnew_organizer_ph')} value={value} onChangeText={onChange} onBlur={onBlur} error={errors.organizer?.message} />
                 )} />
 
                 {/* Assign photographer — public events only; a private event is
@@ -1409,7 +1437,7 @@ export default function NewEventScreen() {
               control={control}
               name="description"
               render={({ field: { onChange, onBlur, value } }) => (
-                <Input label={tr('b3_evnew_desc_label')} placeholder={tr('b3_evnew_desc_ph')} value={value} onChangeText={onChange} onBlur={onBlur} multiline style={styles.multiline} />
+                <Input label={tr('b3_evnew_desc_label')} placeholder={tr('b3_evnew_desc_ph')} value={value} onChangeText={onChange} onBlur={onBlur} multiline style={styles.multiline} error={errors.description?.message} />
               )}
             />
 
