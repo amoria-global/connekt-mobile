@@ -23,6 +23,16 @@ export function archivedMessage(opts: { lockedAt?: string | null; price?: string
     : `${lead} Restore it to view and download again.`;
 }
 
+/**
+ * What the photographer who owns an archived album sees. They keep read-only access to their own photos; clients, buyers
+ * and the public do not, until it is restored. Restoring is paid on the Connekyt website.
+ */
+export function ownerArchivedMessage(lockedAt?: string | null): string {
+  const date = archivedOn(lockedAt);
+  const lead = date ? `This album was archived on ${date}.` : 'This album was archived.';
+  return `${lead} You can still see your photos, but clients and buyers cannot. Restore it on the Connekyt website to open it again.`;
+}
+
 /** The confirmation shown before the owner is taken to pay. */
 export function restoreConfirmMessage(title: string, price?: string | null): string {
   const cost = price ? `You will pay ${price}` : 'You will pay the archive fee';
