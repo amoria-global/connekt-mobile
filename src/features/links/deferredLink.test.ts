@@ -44,6 +44,11 @@ describe('which screen a saved link opens', () => {
     ['/user/events/photobooks/b1', '/(app)/photobook/b1'],
     ['/user/gallery/album?id=a1', '/(app)/album/a1'],
     ['/user/photographer/collaborate/join/tok123', '/(app)/collaborate/join/tok123'],
+    ['/offers/off123', '/(app)/bookings?tab=opportunities&candidate=off123'],
+    ['/opportunities/opp456', '/(app)/bookings?tab=opportunities&candidate=opp456'],
+    ['/jobs/job789', '/(app)/bookings?tab=opportunities&candidate=job789'],
+    ['/bookings/ev999', '/(app)/event/ev999'],
+    ['/events/ev999/candidates', '/(app)/event/candidates?id=ev999'],
   ])('%s opens %s', (path, href) => expect(webPathToAppHref(path)).toBe(href));
 
   it.each([

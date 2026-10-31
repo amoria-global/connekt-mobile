@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Stack, useRootNavigationState, useRouter, useSegments, type Href } from 'expo-router';
+import * as Linking from 'expo-linking';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { Platform, StyleSheet, TextInput, View } from 'react-native';
@@ -22,7 +23,18 @@ import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-goog
 import { SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { useAuth } from '@/store/auth';
 import { takePendingScanEvent } from '@/features/events/scanIntent';
-import { resolveDeferredLink, takePendingDestination } from '@/features/links/deferredLink';
+import {
+  resolveDeferredLink,
+  setPendingDestination,
+  takePendingDestination,
+  webPathToAppHref,
+} from '@/features/links/deferredLink';
+import {
+  addNotificationResponseListener,
+  consumeInitialNotificationResponse,
+} from '@/features/notifications/push';
+import { notificationTarget, shouldNavigateToTarget } from '@/features/notifications/routing';
+import { showIncomingOpportunity } from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { isPhotographerType } from '@/features/auth/role';
 import { takePendingInviteHref } from '@/features/workspace/pendingInvite';
 import { useCurrency } from '@/store/currency';
@@ -180,6 +192,80 @@ function useProtectedRoute() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigationState?.key]);
 
+  // Preserve notification taps when unauthenticated so the user navigates to the offer/destination after login.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (!navigationState?.key) return;
+    if (status !== 'unauthenticated') return;
+
+    const saveUnauthTap = async (data: Record<string, unknown>) => {
+      const target = notificationTarget({
+        type: typeof data.type === 'string' ? data.type : undefined,
+        referenceId: typeof data.referenceId === 'string' ? data.referenceId : undefined,
+        eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+        candidateId:
+          typeof data.candidateId === 'string'
+            ? data.candidateId
+            : typeof data.offerId === 'string'
+              ? data.offerId
+              : typeof data.opportunityId === 'string'
+                ? data.opportunityId
+                : undefined,
+        link: typeof data.link === 'string' ? data.link : undefined,
+        deepLink: typeof data.deepLink === 'string' ? data.deepLink : undefined,
+      });
+      await setPendingDestination(String(target));
+    };
+
+    void consumeInitialNotificationResponse(saveUnauthTap);
+    return addNotificationResponseListener(saveUnauthTap);
+  }, [navigationState?.key, status]);
+
+  // Handle Android App Links & iOS Universal Links for /offers/{id}, /opportunities/{id}, /bookings/{id}, /jobs/{id}.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (!navigationState?.key) return;
+    if (status === 'idle' || status === 'loading') return;
+
+    const handleIncomingUrl = (rawUrl: string | null) => {
+      if (!rawUrl) return;
+      let pathAndQuery = rawUrl;
+      try {
+        if (/^https?:\/\//i.test(rawUrl)) {
+          const parsed = new URL(rawUrl);
+          pathAndQuery = `${parsed.pathname}${parsed.search}`;
+        }
+      } catch {
+        // Keep rawUrl if URL parsing fails
+      }
+      // Only intercept web deep-link aliases (/offers/*, /opportunities/*, /jobs/*, /bookings/{id}, /user/*)
+      // that Expo Router doesn't natively map to a file route.
+      const isAliasRoute = /^\/(?:offers|opportunities|jobs|user\/photographer\/opportunities)\/|^\/bookings\/[^/?#]+/i.test(
+        pathAndQuery,
+      );
+      if (!isAliasRoute) return;
+
+      const mapped = webPathToAppHref(pathAndQuery);
+      if (!mapped) return;
+
+      if (useAuth.getState().status === 'authenticated') {
+        if (shouldNavigateToTarget(mapped)) {
+          router.push(mapped as Href);
+        }
+        const candMatch = mapped.match(/[?&]candidate=([^&#]+)/);
+        if (candMatch?.[1]) {
+          showIncomingOpportunity(decodeURIComponent(candMatch[1]), 'details');
+        }
+      } else {
+        void setPendingDestination(mapped);
+      }
+    };
+
+    Linking.getInitialURL().then(handleIncomingUrl).catch(() => undefined);
+    const sub = Linking.addEventListener('url', (event) => handleIncomingUrl(event.url));
+    return () => sub.remove();
+  }, [navigationState?.key, status, router]);
+
   useEffect(() => {
     if (!navigationState?.key) return;
     if (status === 'idle' || status === 'loading') return;
@@ -215,12 +301,16 @@ function useProtectedRoute() {
           router.replace(href as Href);
           return;
         }
-        // The page a shared link or QR was going to before the app was installed (see features/links/deferredLink).
+        // The page a shared link, QR, or unauthenticated notification tap was going to (see features/links/deferredLink).
         takePendingDestination()
           .catch(() => null)
           .then((href) => {
             if (href) {
               router.replace(href as Href);
+              const candMatch = href.match(/[?&]candidate=([^&#]+)/);
+              if (candMatch?.[1]) {
+                showIncomingOpportunity(decodeURIComponent(candMatch[1]), 'details');
+              }
               return;
             }
             takePendingScanEvent()

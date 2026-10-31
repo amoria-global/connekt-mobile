@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { setOnAuthExpired } from '@/api/client';
 import * as authApi from '@/features/auth/api';
 import type { AuthSession, LoginCredentials, User } from '@/features/auth/types';
-import { resetPushRegistration } from '@/features/notifications/push';
+import { resetPushRegistration, unregisterFromPushNotifications } from '@/features/notifications/push';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
 import { useWorkspace } from '@/store/workspace';
@@ -83,6 +83,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    await unregisterFromPushNotifications();
     await authApi.logout();
     // The next account on this device must register its own push token.
     resetPushRegistration();
