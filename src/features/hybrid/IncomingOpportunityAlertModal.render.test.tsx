@@ -1,6 +1,6 @@
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { IncomingOpportunityAlertModal } from './IncomingOpportunityAlertModal';
 import type { PhotographerOpportunity } from './types';
@@ -71,9 +71,9 @@ describe('offer details, as the photographer sees it', () => {
     expect(all).toContain('Wedding · Kigali');
     expect(all).toContain('RWF 970,000');
     expect(all).toContain('Offer details');
-    expect(all).toContain('Accept');
-    expect(all).toContain('Accept with my delivery terms');
-    expect(all).toContain('Decline');
+    expect(all).toContain('Accept offer');
+    expect(all).toContain('Accept with my delivery package policy');
+    expect(all).toContain('Reject offer');
     expect(all).toContain('Diamond · RWF 89,997');
   });
 
@@ -84,7 +84,19 @@ describe('offer details, as the photographer sees it', () => {
     expect(all).not.toMatch(/requires client agreement/);
     expect(all).not.toMatch(/Client selects a professional/);
     expect(all).not.toMatch(/C O N N E K Y T/);
-    expect(all).not.toMatch(/Reject offer/);
+    expect(all).not.toMatch(/Viewing as/);
+    expect(all).not.toMatch(/Accept with my delivery terms/);
+  });
+
+  it('keeps the two accept buttons together in one row and Reject offer on its own', () => {
+    const { r } = render('details');
+    const holds = (v: TestRenderer.ReactTestInstance, label: string) =>
+      v.findAll((n) => n.props.accessibilityLabel === label).length > 0;
+    // A container that holds both accept buttons but not Reject offer is the row they share.
+    const sharedRow = r.root
+      .findAllByType(View)
+      .filter((v) => holds(v, 'Accept offer') && holds(v, 'Accept with my delivery package policy') && !holds(v, 'Reject offer'));
+    expect(sharedRow.length > 0).toBe(true);
   });
 
   it('lets long values wrap instead of cutting them off', () => {
