@@ -28,6 +28,7 @@ export const EVENT_TYPE_PRESETS: EventTypePreset[] = [
   { key: 'Wedding', label: 'Wedding', icon: 'heart-outline' },
   { key: 'Birthday', label: 'Birthday', icon: 'gift-outline' },
   { key: 'Corporate', label: 'Corporate', icon: 'business-outline' },
+  { key: 'Conference', label: 'Conference', icon: 'people-outline' },
   { key: 'Commercial', label: 'Commercial', icon: 'megaphone-outline' },
   { key: 'Fashion', label: 'Fashion', icon: 'shirt-outline' },
   { key: 'Other', label: 'Other', icon: 'ellipsis-horizontal' },
@@ -49,14 +50,14 @@ export const POPULAR_VENUES_BY_CITY: Record<string, string[]> = {
   Huye: ['Credo Hotel Huye', 'Galileo Hotel', 'Huye Stadium'],
 };
 
-export const PHOTO_QUANTITY_PRESETS = [0, 100, 200] as const;
-export const PHOTO_CUSTOM_OPTIONS = [30, 50, 150, 250, 300, 400, 500] as const;
+export const PHOTO_QUANTITY_PRESETS = [0, 300, 400, 600] as const;
+export const PHOTO_CUSTOM_OPTIONS = [100, 150, 200, 250, 500, 800, 1000] as const;
 
 export const SHORT_VIDEO_QTY_PRESETS = [0, 2, 5] as const;
 export const SHORT_VIDEO_CUSTOM_OPTIONS = [1, 3, 4, 6, 8, 10] as const;
 export const SHORT_VIDEO_DURATIONS = ['15s', '30s', '60s'] as const;
 
-export const LONG_VIDEO_QTY_PRESETS = [0, 1, 2] as const;
+export const LONG_VIDEO_QTY_PRESETS = [1, 2] as const;
 export const LONG_VIDEO_CUSTOM_OPTIONS = [3, 4, 5] as const;
 export const LONG_VIDEO_DURATIONS = ['5 min', '15 min', '30 min'] as const;
 
@@ -70,7 +71,21 @@ export const PHOTO_BOOK_SIZES = [
   '30 × 30 cm Square',
 ] as const;
 
-export const PHOTO_BOOK_PAGES = ['20 pages', '30 pages', '40 pages', '60 pages'] as const;
+/** How many photos go into a photo book. */
+export const PHOTO_BOOK_PHOTO_PRESETS = [300, 400, 500] as const;
+export const PHOTO_BOOK_PHOTO_CUSTOM_OPTIONS = [100, 150, 200, 250, 600, 800, 1000] as const;
+
+/**
+ * The width and height, in centimetres, written in a size label such as "A4 (21 × 29.7 cm)" or "60 × 90 cm".
+ * The booking cards draw a paper of those proportions beside each size.
+ */
+export function paperDimensions(label: string): { w: number; h: number } | null {
+  const m = (label || '').match(/(\d+(?:\.\d+)?)\s*×\s*(\d+(?:\.\d+)?)/);
+  if (!m) return null;
+  const w = parseFloat(m[1]);
+  const h = parseFloat(m[2]);
+  return w > 0 && h > 0 ? { w, h } : null;
+}
 
 export const PHOTO_ALBUM_SIZES = [
   '30 × 30 cm',
@@ -144,7 +159,7 @@ export type HybridOfferDraft = {
 
   photoBooksQty: number;
   photoBookSize: string;
-  photoBookPages: string;
+  photoBookPhotos: number;
 
   photoAlbumsQty: number;
   photoAlbumSize: string;
@@ -175,16 +190,16 @@ export const DEFAULT_OFFER_DRAFT: HybridOfferDraft = {
   eventTypeKey: 'Wedding',
   eventTypeId: '',
   date: '',
-  startTime: '12:00',
-  endTime: '18:00',
+  startTime: '06:00',
+  endTime: '22:00',
   city: 'Kigali',
   venue: '',
 
   coverageMode: 'BOTH',
-  editedPhotos: 100,
+  editedPhotos: 300,
   shortVideosQty: 2,
   shortVideosDuration: '30s',
-  longVideosQty: 0,
+  longVideosQty: 1,
   longVideosDuration: '15 min',
   instantUpdates: true,
 
@@ -193,7 +208,7 @@ export const DEFAULT_OFFER_DRAFT: HybridOfferDraft = {
 
   photoBooksQty: 1,
   photoBookSize: 'A4 (21 × 29.7 cm)',
-  photoBookPages: '20 pages',
+  photoBookPhotos: 300,
 
   photoAlbumsQty: 0,
   photoAlbumSize: '30 × 30 cm',
@@ -238,28 +253,27 @@ export function getDeadlineCalendarDays(deadline: string): number {
 }
 
 /**
- * Returns true if the event is a Wedding, Corporate, Commercial, or Large event
- * (>= 7 hours).
+ * Organisations booking commercial, conference (corporate) or wedding coverage, and large events, are
+ * recommended a higher budget and a fast delivery. The hours of the event play no part in this.
  */
-export function isMajorOrLargeEvent(draft: HybridOfferDraft, durationMinutes: number): boolean {
-  const hours = Math.max(1, Math.round((durationMinutes || 360) / 60));
+export function isMajorOrLargeEvent(draft: HybridOfferDraft, _durationMinutes?: number): boolean {
   const key = (draft.eventTypeKey || '').toLowerCase();
-  const isMajorType =
+  if (key.includes('large')) return true;
+  if (draft.clientType !== 'ORGANIZATION') return false;
+  return (
     key.includes('wedding') ||
+    key.includes('conference') ||
     key.includes('corporate') ||
-    key.includes('commercial') ||
-    key.includes('large');
-  const isLargeDuration = hours >= 7;
-  return isMajorType || isLargeDuration;
+    key.includes('commercial')
+  );
 }
 
 /**
- * Returns true when a Wedding, Corporate, Commercial, or Large event requests
- * digital delivery in less than 4 days — triggering the 7,000,000 RWF minimum
- * budget and pricing floor.
+ * True when such an event wants its photos in 4 days or less. Then the estimate starts from RWF 7,000,000.
+ * That is a recommendation only: the client can offer any budget they like.
  */
 export function isExpressMajorEvent(draft: HybridOfferDraft, durationMinutes: number): boolean {
-  return isMajorOrLargeEvent(draft, durationMinutes) && getDeadlineCalendarDays(draft.digitalDeadline) < 4;
+  return isMajorOrLargeEvent(draft, durationMinutes) && getDeadlineCalendarDays(draft.digitalDeadline) <= 4;
 }
 
 function parseDurationSeconds(raw: string): number {
@@ -318,8 +332,6 @@ export function estimateOfferPriceRwf(
   isExpressMajorFloor: boolean;
   minimumAllowedBudget: number;
 } {
-  const exactHours = Math.max(0.5, (durationMinutes || 360) / 60);
-  const isSmallEventTariff = exactHours < 7;
   const isExpressMajorFloor = isExpressMajorEvent(draft, durationMinutes);
 
   // Baseline from uploaded photographer packages (or calibrated RWF market averages)
@@ -329,6 +341,9 @@ export function estimateOfferPriceRwf(
     benchmarks?.avgDurationHours && benchmarks.avgDurationHours > 0
       ? benchmarks.avgDurationHours
       : 6;
+  // The hours a client asks for do not change the estimate: it is priced as the usual package day.
+  const exactHours = basePkgHours;
+  const isSmallEventTariff = exactHours < 7;
   const basePkgPhotos =
     benchmarks?.avgIncludedPhotos && benchmarks.avgIncludedPhotos > 0
       ? benchmarks.avgIncludedPhotos
@@ -390,11 +405,8 @@ export function estimateOfferPriceRwf(
     const shortDurFactor = Math.max(0.65, Math.min(2.6, shortSec / 30));
     const shortCost = draft.shortVideosQty * extraVideoRate * shortDurFactor;
 
-    const longMin = parseDurationMinutes(draft.longVideosDuration);
-    const longDurFactor = Math.max(0.85, Math.min(3.8, 0.7 + (longMin / 15) * 0.55));
-    const longCost = draft.longVideosQty * extraVideoRate * 2.1 * longDurFactor;
-
-    const totalVideoCost = shortCost + longCost;
+    // Long videos are not part of the estimate.
+    const totalVideoCost = shortCost;
     const includedVideoCredit = Math.min(totalVideoCost, basePkgVideos * extraVideoRate);
     digitalScope += Math.max(0, totalVideoCost - includedVideoCredit);
   }
@@ -429,9 +441,9 @@ export function estimateOfferPriceRwf(
       : sizeStr.includes('a5')
         ? 45000
         : 60000;
-    const pages = parseLeadingInt(draft.photoBookPages, 20);
-    const pageMult = Math.max(0.8, 1.0 + (pages - 20) * 0.018);
-    printBaseCost += Math.round(draft.photoBooksQty * bookUnit * pageMult);
+    const photos = Math.max(1, draft.photoBookPhotos || 300);
+    const photoMult = Math.max(0.8, 1.0 + (photos - 300) * 0.0015);
+    printBaseCost += Math.round(draft.photoBooksQty * bookUnit * photoMult);
   }
 
   if (draft.photoAlbumsQty > 0) {
@@ -542,7 +554,8 @@ export function estimateOfferPriceRwf(
     priority,
     isSmallEventTariff,
     isExpressMajorFloor,
-    minimumAllowedBudget: isExpressMajorFloor ? EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF : 50000,
+    // Never a requirement: any budget from RWF 50,000 can be offered.
+    minimumAllowedBudget: 50000,
   };
 }
 
@@ -562,10 +575,10 @@ export function formatInstantWishesSummary(
   return draft.instantWishesAndMemories ? 'Yes' : 'Not requested';
 }
 
-export function formatPhotoBookSummary(draft: Pick<HybridOfferDraft, 'photoBooksQty' | 'photoBookSize' | 'photoBookPages'>): string {
+export function formatPhotoBookSummary(draft: Pick<HybridOfferDraft, 'photoBooksQty' | 'photoBookSize' | 'photoBookPhotos'>): string {
   if (!draft.photoBooksQty || draft.photoBooksQty <= 0) return 'None';
   const shortSize = draft.photoBookSize.split(' ')[0] || draft.photoBookSize;
-  return `${draft.photoBooksQty} • ${shortSize} • ${draft.photoBookPages}`;
+  return `${draft.photoBooksQty} • ${shortSize} • ${draft.photoBookPhotos} photos`;
 }
 
 export function formatPhotoAlbumSummary(draft: Pick<HybridOfferDraft, 'photoAlbumsQty' | 'photoAlbumSize' | 'photoAlbumPrints'>): string {
@@ -658,7 +671,7 @@ export function formatOfferDeliverablesSummaryLines(
   const completePrintParts: string[] = [];
   if (draft.photoBooksQty > 0) {
     const shortSize = draft.photoBookSize.split(' ')[0] || draft.photoBookSize;
-    const pb = `${draft.photoBooksQty} ${shortSize} photo book${draft.photoBooksQty === 1 ? '' : 's'} (${draft.photoBookPages})`;
+    const pb = `${draft.photoBooksQty} ${shortSize} photo book${draft.photoBooksQty === 1 ? '' : 's'} (${draft.photoBookPhotos} photos)`;
     printParts.push(pb);
     completePrintParts.push(pb);
   }
@@ -757,7 +770,7 @@ export function parseOpportunityOfferBrief(opp: PhotographerOpportunity): Parsed
     longVideosLabel: 'None',
     liveStreamLabel: 'Not requested',
     instantWishesLabel: 'Not requested',
-    photoBookLabel: '1 • A4 • 20 pages',
+    photoBookLabel: '1 • A4 • 300 photos',
     photoAlbumLabel: '1 • 30 × 30 cm • 50 prints',
     wallPortraitsLabel: '2 • 60 × 90 cm • Framed',
     instantUpdatesLabel: 'Not requested',
@@ -818,7 +831,7 @@ export function parseOpportunityOfferBrief(opp: PhotographerOpportunity): Parsed
 export function serializeDraftOfferDescription(
   draft: HybridOfferDraft,
   durationMinutes: number,
-  step: 1 | 2 | 3 | 4
+  step: 1 | 2 | 3 | 4 | 5
 ): string {
   const brief = serializeOfferBrief(draft, durationMinutes);
   const stateJson = JSON.stringify({ step, draft });
@@ -831,7 +844,7 @@ export function serializeDraftOfferDescription(
  */
 export function deserializeDraftOfferDescription(
   description?: string | null
-): { step: 1 | 2 | 3 | 4; draft: HybridOfferDraft } | null {
+): { step: 1 | 2 | 3 | 4 | 5; draft: HybridOfferDraft } | null {
   if (!description) return null;
   const idx = description.indexOf('[DRAFT_STATE]');
   if (idx < 0) return null;
@@ -844,8 +857,8 @@ export function deserializeDraftOfferDescription(
     };
     if (!parsed || typeof parsed !== 'object' || !parsed.draft) return null;
     const rawStep = Number(parsed.step);
-    const step: 1 | 2 | 3 | 4 =
-      rawStep === 2 || rawStep === 3 || rawStep === 4 ? rawStep : 1;
+    const step: 1 | 2 | 3 | 4 | 5 =
+      rawStep === 2 || rawStep === 3 || rawStep === 4 || rawStep === 5 ? rawStep : 1;
     return {
       step,
       draft: {

@@ -46,13 +46,14 @@ import {
   DIGITAL_DEADLINE_PRESETS,
   EDITING_STYLES,
   EVENT_TYPE_PRESETS,
-  EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF,
   LONG_VIDEO_CUSTOM_OPTIONS,
   LONG_VIDEO_DURATIONS,
   LONG_VIDEO_QTY_PRESETS,
   PHOTO_ALBUM_PRINTS,
   PHOTO_ALBUM_SIZES,
-  PHOTO_BOOK_PAGES,
+  PHOTO_BOOK_PHOTO_CUSTOM_OPTIONS,
+  PHOTO_BOOK_PHOTO_PRESETS,
+  paperDimensions,
   PHOTO_BOOK_SIZES,
   PHOTO_CUSTOM_OPTIONS,
   PHOTO_QUANTITY_PRESETS,
@@ -98,13 +99,14 @@ import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 import { glassTile } from '@/components/ui/GlassCard';
 import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
 
-export type BookingStep = 'select' | 1 | 2 | 3 | 4;
+export type BookingStep = 'select' | 1 | 2 | 3 | 4 | 5;
 
 const WIZARD_STEPS = [
   { n: 1, title: 'EVENT DETAILS', short: 'Event details' },
   { n: 2, title: 'COVERAGE & PRINT PRODUCTS', short: 'Coverage & print' },
-  { n: 3, title: 'DELIVERY & PRICE ESTIMATE', short: 'Delivery & budget' },
-  { n: 4, title: 'REVIEW & PUBLISH', short: 'Review & publish' },
+  { n: 3, title: 'DELIVERY & BUDGET', short: 'Delivery & budget' },
+  { n: 4, title: 'RECOMMENDED PRICING', short: 'Recommended pricing' },
+  { n: 5, title: 'REVIEW & PUBLISH', short: 'Review & publish' },
 ] as const;
 
 const HOME_DELIVERY_AREAS_BY_CITY: Record<string, string[]> = {
@@ -166,7 +168,7 @@ type PickerSheetKey =
   | 'longVideoDurationCustom'
   | 'photoBooksCustom'
   | 'photoBookSize'
-  | 'photoBookPages'
+  | 'photoBookPhotosCustom'
   | 'photoAlbumsCustom'
   | 'photoAlbumSize'
   | 'photoAlbumPrints'
@@ -207,6 +209,51 @@ const prettyDate = (iso: string) => {
     ? new Date(t).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
     : iso;
 };
+/** A small picture of the paper for a size ("A4 (21 × 29.7 cm)", "60 × 90 cm"), drawn in its proportions. */
+function PaperFormat({ label, kind }: { label: string; kind: 'book' | 'portrait' }) {
+  const { colors } = useTheme();
+  const dims = paperDimensions(label);
+  const MAX = 46;
+  const ratio = dims ? dims.w / dims.h : 0.7;
+  const w = ratio >= 1 ? MAX : Math.max(18, Math.round(MAX * ratio));
+  const h = ratio >= 1 ? Math.max(18, Math.round(MAX / ratio)) : MAX;
+  const code = label.match(/^[A-Za-z]\d+/)?.[0] ?? (dims ? `${dims.w}×${dims.h}` : '');
+  return (
+    <View accessible accessibilityLabel={`${label} paper`} style={{ alignItems: 'center', gap: 3 }}>
+      <View
+        style={{
+          width: w,
+          height: h,
+          borderRadius: 3,
+          borderWidth: 1.5,
+          borderColor: colors.primary,
+          backgroundColor: colors.tint,
+          overflow: 'hidden',
+          flexDirection: 'row',
+        }}
+      >
+        {kind === 'book' ? (
+          <View style={{ width: 5, backgroundColor: colors.primary, opacity: 0.4 }} />
+        ) : (
+          <View
+            style={{
+              flex: 1,
+              margin: Math.max(3, Math.round(w * 0.14)),
+              borderRadius: 2,
+              backgroundColor: colors.card,
+              borderWidth: 1,
+              borderColor: colors.border,
+            }}
+          />
+        )}
+      </View>
+      <Text style={{ fontSize: 10, fontWeight: fontWeight.bold, color: colors.textSoft }} numberOfLines={1}>
+        {code}
+      </Text>
+    </View>
+  );
+}
+
 function nextWeekday(weekday: number, weeksAhead = 0): Date {
   const d = new Date();
   const diff = (weekday - d.getDay() + 7) % 7 || 7;
@@ -277,7 +324,7 @@ export function BookingModeSelector({
   const [draftSaveState, setDraftSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [resumePromptDraft, setResumePromptDraft] = useState<{
     eventId: string;
-    step: 1 | 2 | 3 | 4;
+    step: 1 | 2 | 3 | 4 | 5;
     draft: HybridOfferDraft;
     title?: string;
   } | null>(null);
@@ -463,47 +510,29 @@ export function BookingModeSelector({
     previewBaseline,
   ]);
 
-  // Enforce the 7,000,000 RWF minimum budget floor automatically when Wedding/Corporate/Commercial/Large event + < 4 days digital delivery is selected
-  useEffect(() => {
-    if (priceEstimate.isExpressMajorFloor) {
-      const currentMin = parseAmountNumber(draft.minBudgetInput);
-      const currentMax = parseAmountNumber(draft.maxBudgetInput);
-      if (currentMin < EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF || currentMax < EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF) {
-        const minFormatted = formatAmountWithCommas(String(EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF));
-        const maxFormatted = formatAmountWithCommas(String(Math.max(8500000, currentMax)));
-        setDraft((prev) => ({
-          ...prev,
-          minBudgetInput: minFormatted,
-          maxBudgetInput: maxFormatted,
-        }));
-      }
-    }
-  }, [priceEstimate.isExpressMajorFloor, draft.minBudgetInput, draft.maxBudgetInput]);
-
   // Client's typed/selected min & max budget range
   const hasExplicitZeroMin = draft.minBudgetInput.trim() === '0';
   const clientMinBudget = useMemo(() => {
     const minP = parseAmountNumber(draft.minBudgetInput);
     const maxP = parseAmountNumber(draft.maxBudgetInput);
-    if (hasExplicitZeroMin && !priceEstimate.isExpressMajorFloor) {
+    if (hasExplicitZeroMin) {
       return 0;
     }
-    const raw = minP || maxP || (priceEstimate.isExpressMajorFloor ? EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF : 0);
+    const raw = minP || maxP || 0;
     return Math.max(priceEstimate.minimumAllowedBudget, raw);
-  }, [draft.minBudgetInput, draft.maxBudgetInput, hasExplicitZeroMin, priceEstimate.minimumAllowedBudget, priceEstimate.isExpressMajorFloor]);
+  }, [draft.minBudgetInput, draft.maxBudgetInput, hasExplicitZeroMin, priceEstimate.minimumAllowedBudget]);
 
   const clientMaxBudget = useMemo(() => {
     const maxP = parseAmountNumber(draft.maxBudgetInput);
     const minP = parseAmountNumber(draft.minBudgetInput);
-    const raw = maxP || minP || (priceEstimate.isExpressMajorFloor ? 8500000 : 100000);
+    const raw = maxP || minP || 100000;
     return Math.max(clientMinBudget, raw);
-  }, [draft.minBudgetInput, draft.maxBudgetInput, clientMinBudget, priceEstimate.isExpressMajorFloor]);
+  }, [draft.minBudgetInput, draft.maxBudgetInput, clientMinBudget]);
 
   const isOpenFlexibleBudget =
     draft.budgetMode === 'FLEXIBLE' &&
     !draft.minBudgetInput.trim() &&
-    !draft.maxBudgetInput.trim() &&
-    !priceEstimate.isExpressMajorFloor;
+    !draft.maxBudgetInput.trim();
 
   const clientRangeDisplay = useMemo(() => {
     if (isOpenFlexibleBudget) return tr('Flexible');
@@ -587,7 +616,7 @@ export function BookingModeSelector({
         allowWishInvites: draft.instantWishesAndMemories,
         photoBooksQty: draft.photoBooksQty,
         photoBookSize: draft.photoBookSize,
-        photoBookPages: draft.photoBookPages,
+        photoBookPhotos: draft.photoBookPhotos,
         photoAlbumsQty: draft.photoAlbumsQty,
         photoAlbumSize: draft.photoAlbumSize,
         photoAlbumPrints: draft.photoAlbumPrints,
@@ -626,7 +655,7 @@ export function BookingModeSelector({
     draft.instantWishesAndMemories,
     draft.photoBooksQty,
     draft.photoBookSize,
-    draft.photoBookPages,
+    draft.photoBookPhotos,
     draft.photoAlbumsQty,
     draft.photoAlbumSize,
     draft.photoAlbumPrints,
@@ -655,7 +684,7 @@ export function BookingModeSelector({
   }, [visible, step, fetchPreview]);
 
   const persistDraftToServer = useCallback(
-    async (draftToSave: HybridOfferDraft, stepToSave: 1 | 2 | 3 | 4): Promise<string | null> => {
+    async (draftToSave: HybridOfferDraft, stepToSave: 1 | 2 | 3 | 4 | 5): Promise<string | null> => {
       if (!user) return createdEventId;
       const resolvedType =
         options?.eventTypes.find((t) => t.id === draftToSave.eventTypeId)?.name ||
@@ -800,10 +829,6 @@ export function BookingModeSelector({
     if (minP > 0 && maxP > 0 && minP > maxP) {
       return tr('Minimum budget cannot be higher than maximum budget.');
     }
-    const checkAmt = maxP || minP;
-    if (priceEstimate.isExpressMajorFloor && checkAmt > 0 && checkAmt < EXPRESS_MAJOR_EVENT_MIN_BUDGET_RWF) {
-      return tr('For Wedding, Corporate, Commercial, or large events with delivery under 4 days, minimum budget starts from RWF 7,000,000.');
-    }
     return null;
   };
 
@@ -834,6 +859,7 @@ export function BookingModeSelector({
     else if (step === 2) setStep(1);
     else if (step === 3) setStep(2);
     else if (step === 4) setStep(3);
+    else if (step === 5) setStep(4);
     scrollToTop();
   };
 
@@ -842,9 +868,9 @@ export function BookingModeSelector({
     setDraft((prev) => ({
       ...prev,
       coverageMode: mode,
-      editedPhotos: mode === 'VIDEO' ? 0 : prev.editedPhotos === 0 ? 100 : prev.editedPhotos,
+      editedPhotos: mode === 'VIDEO' ? 0 : prev.editedPhotos === 0 ? 300 : prev.editedPhotos,
       shortVideosQty: mode === 'PHOTOGRAPHY' ? 0 : prev.shortVideosQty === 0 ? 2 : prev.shortVideosQty,
-      longVideosQty: mode === 'PHOTOGRAPHY' ? 0 : prev.longVideosQty,
+      longVideosQty: mode === 'PHOTOGRAPHY' ? 0 : Math.max(1, prev.longVideosQty),
     }));
   };
 
@@ -866,9 +892,9 @@ export function BookingModeSelector({
     };
     setHasDirtyChanges(true);
     setDraft(nextDraft);
-    setStep(4);
+    setStep(5);
     scrollToTop();
-    void persistDraftToServer(nextDraft, 4);
+    void persistDraftToServer(nextDraft, 5);
   };
 
   const handlePublishMyOfferAnyway = () => {
@@ -881,9 +907,9 @@ export function BookingModeSelector({
     };
     setHasDirtyChanges(true);
     setDraft(nextDraft);
-    setStep(4);
+    setStep(5);
     scrollToTop();
-    void persistDraftToServer(nextDraft, 4);
+    void persistDraftToServer(nextDraft, 5);
   };
 
   const publish = async () => {
@@ -1164,7 +1190,7 @@ export function BookingModeSelector({
     );
   } else if (step === 1 && options) {
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 1 OF 4: EVENT DETAILS
+    // STEP 1 OF 5: EVENT DETAILS
     // ═══════════════════════════════════════════════════════════════════════
     const tomorrow = (() => {
       const d = new Date();
@@ -1389,7 +1415,7 @@ export function BookingModeSelector({
     );
   } else if (step === 2 && options) {
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 2 OF 4: COVERAGE & PRINT PRODUCTS
+    // STEP 2 OF 5: COVERAGE & PRINT PRODUCTS
     // ═══════════════════════════════════════════════════════════════════════
     const showPhotos = draft.coverageMode === 'PHOTOGRAPHY' || draft.coverageMode === 'BOTH';
     const showVideos = draft.coverageMode === 'VIDEO' || draft.coverageMode === 'BOTH';
@@ -1692,8 +1718,9 @@ export function BookingModeSelector({
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.printProductTitle}>{tr('PHOTO BOOKS')}</Text>
-                <Text style={styles.printProductSub}>{tr('Quantity • Size • Page count')}</Text>
+                <Text style={styles.printProductSub}>{tr('Quantity • Size • Number of photos')}</Text>
               </View>
+              <PaperFormat label={draft.photoBookSize} kind="book" />
             </View>
             <QtyPillGroup
               presets={PRINT_QTY_PRESETS}
@@ -1702,16 +1729,23 @@ export function BookingModeSelector({
               onCustomPress={() => setActiveSheet('photoBooksCustom')}
             />
             {draft.photoBooksQty > 0 ? (
-              <View style={styles.printDropdownsRow}>
-                <DropdownPill
-                  label={draft.photoBookSize}
-                  onPress={() => setActiveSheet('photoBookSize')}
-                />
-                <DropdownPill
-                  label={draft.photoBookPages}
-                  onPress={() => setActiveSheet('photoBookPages')}
-                />
-              </View>
+              <>
+                <View style={styles.printDropdownsRow}>
+                  <DropdownPill
+                    label={draft.photoBookSize}
+                    onPress={() => setActiveSheet('photoBookSize')}
+                  />
+                </View>
+                <View style={styles.subDurationRow}>
+                  <Text style={styles.subDurationLabel}>{tr('Number of photos')}</Text>
+                  <QtyPillGroup
+                    presets={PHOTO_BOOK_PHOTO_PRESETS}
+                    value={draft.photoBookPhotos}
+                    onSelect={(n) => updateDraft('photoBookPhotos', n)}
+                    onCustomPress={() => setActiveSheet('photoBookPhotosCustom')}
+                  />
+                </View>
+              </>
             ) : null}
           </View>
 
@@ -1756,6 +1790,7 @@ export function BookingModeSelector({
                 <Text style={styles.printProductTitle}>{tr('WALL PORTRAITS')}</Text>
                 <Text style={styles.printProductSub}>{tr('Quantity • Size • Framed or unframed')}</Text>
               </View>
+              <PaperFormat label={draft.wallPortraitSize} kind="portrait" />
             </View>
             <QtyPillGroup
               presets={PRINT_QTY_PRESETS}
@@ -1825,24 +1860,22 @@ export function BookingModeSelector({
     );
   } else if (step === 3 && options) {
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 3 OF 4: DELIVERY & PRICE ESTIMATE + RECOMMENDED PRICING
+    // STEP 3 OF 5: DELIVERY & BUDGET
     // ═══════════════════════════════════════════════════════════════════════
     const isCustomDigitalDeadline = !(DIGITAL_DEADLINE_PRESETS as readonly string[]).includes(
       draft.digitalDeadline,
     );
     const isProposePrintDate = draft.printProductionTime === 'Propose production & handover date';
     const isHomeDelivery = draft.printCollectionMethod === 'Deliver to my home address';
-    const summaryLines = formatOfferDeliverablesSummaryLines(draft, minutes);
-    const completeDelta = priceEstimate.recommended - clientMaxBudget;
     const backendBudgetPresets = (options?.budgetPresets ?? []).filter(
       (p): p is { label: string; min: number; max: number } =>
         typeof p.min === 'number' && typeof p.max === 'number' && p.max > 0,
     );
+    const everydayBudgetRanges = backendBudgetPresets.length > 0 ? backendBudgetPresets : STANDARD_BUDGET_RANGES;
+    // The higher ranges lead when 7,000,000 RWF is recommended; the everyday ones stay available.
     const budgetRangesList = priceEstimate.isExpressMajorFloor
-      ? EXPRESS_MAJOR_BUDGET_RANGES
-      : backendBudgetPresets.length > 0
-        ? backendBudgetPresets
-        : STANDARD_BUDGET_RANGES;
+      ? [...EXPRESS_MAJOR_BUDGET_RANGES, ...everydayBudgetRanges]
+      : everydayBudgetRanges;
 
     const plus7Date = addDaysIso(draft.date, 7);
     const plus14Date = addDaysIso(draft.date, 14);
@@ -1895,13 +1928,13 @@ export function BookingModeSelector({
               </Pressable>
             </View>
 
-            {/* Only show the active warning when < 4 days express floor is triggered */}
+            {/* A suggestion only: the client can offer any budget */}
             {priceEstimate.isExpressMajorFloor ? (
-              <View style={[styles.infoBanner, styles.warningBanner]}>
-                <Ionicons name="warning" size={15} color={colors.pending} />
-                <Text style={[styles.infoBannerText, { color: colors.text, fontWeight: fontWeight.bold }]}>
+              <View style={styles.infoBanner}>
+                <Ionicons name="information-circle" size={15} color={colors.primary} />
+                <Text style={styles.infoBannerText}>
                   {tr(
-                    'Express delivery (< 4 days) for Wedding, Corporate, Commercial, or large events starts from RWF 7,000,000.',
+                    'We recommend RWF 7,000,000 or more for commercial, conference and wedding coverage with photos in 4 days or less. This is only a suggestion.',
                   )}
                 </Text>
               </View>
@@ -2062,7 +2095,7 @@ export function BookingModeSelector({
             <InfoPopover
               infoKey="budgetRange"
               text={tr(
-                'Choose one of the suggested budget ranges or select Flexible to enter your own custom minimum and maximum budget in RWF. Small events under 7 hours use uploaded photographer tariffs.',
+                'Choose one of the suggested budget ranges or select Flexible to enter your own custom minimum and maximum budget in RWF.',
               )}
             />
 
@@ -2165,6 +2198,17 @@ export function BookingModeSelector({
           </View>
         </View>
 
+      </View>
+    );
+  } else if (step === 4 && options) {
+    // ═══════════════════════════════════════════════════════════════════════
+    // STEP 4 OF 5: RECOMMENDED PRICING (its own page)
+    // ═══════════════════════════════════════════════════════════════════════
+    const summaryLines = formatOfferDeliverablesSummaryLines(draft, minutes);
+    const completeDelta = priceEstimate.recommended - clientMaxBudget;
+
+    body = (
+      <View style={{ gap: spacing.md }}>
         {/* CARD 2: RECOMMENDED PRICING & COMPARE MATCHING PACKAGES (Cool Vertical Display with Tightened Spacing) */}
         <View style={styles.recPricingContainer}>
           {/* Header with ⓘ */}
@@ -2438,12 +2482,12 @@ export function BookingModeSelector({
         </View>
       </View>
     );
-  } else if (step === 4 && options) {
+  } else if (step === 5 && options) {
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 4 OF 4: CLEAN, EXECUTIVE REVIEW & PUBLISH
+    // STEP 5 OF 5: CLEAN, EXECUTIVE REVIEW & PUBLISH
     // ═══════════════════════════════════════════════════════════════════════
     const resolvedEventType = eventTypeObj?.name || draft.eventTypeKey || 'Event';
-    const coverageHoursStr = durationText(minutes) || '6 hours';
+    const coverageHoursStr = durationText(minutes) || '16 hours';
     const printHandoverStr = formatPrintHandoverSummary(draft);
 
     body = (
@@ -2811,17 +2855,18 @@ export function BookingModeSelector({
           onSelect: (v) => updateDraft('photoBookSize', v),
           onCustomApply: (v) => updateDraft('photoBookSize', v),
         };
-      case 'photoBookPages':
+      case 'photoBookPhotosCustom':
         return {
-          title: tr('Photo book page count'),
-          items: [...PHOTO_BOOK_PAGES],
-          selected: draft.photoBookPages,
+          title: tr('Photo book: number of photos'),
+          items: PHOTO_BOOK_PHOTO_CUSTOM_OPTIONS.map(String),
+          selected: String(draft.photoBookPhotos),
           allowCustomInput: true,
-          customPlaceholder: tr('Enter custom page count (e.g. 50 pages)...'),
-          onSelect: (v) => updateDraft('photoBookPages', v),
+          numericOnly: true,
+          customPlaceholder: tr('Enter the exact number of photos (e.g. 350)...'),
+          onSelect: (v) => updateDraft('photoBookPhotos', Number(v)),
           onCustomApply: (v) => {
-            const clean = /^\d+$/.test(v.trim()) ? `${v.trim()} pages` : v.trim();
-            updateDraft('photoBookPages', clean);
+            const n = parseInt(v.replace(/\D/g, ''), 10);
+            if (Number.isFinite(n) && n > 0) updateDraft('photoBookPhotos', n);
           },
         };
       case 'photoAlbumsCustom':
@@ -3030,7 +3075,7 @@ export function BookingModeSelector({
                   />
                 ))}
               </View>
-              <Text style={styles.stepCounterText}>{`${step} of 4`}</Text>
+              <Text style={styles.stepCounterText}>{`${step} of ${WIZARD_STEPS.length}`}</Text>
             </View>
           </View>
         ) : null}
@@ -3077,7 +3122,7 @@ export function BookingModeSelector({
                   <Text style={styles.backBtnText}>{tr('Back')}</Text>
                 </Pressable>
 
-                {step === 1 || step === 2 ? (
+                {step === 1 || step === 2 || step === 3 ? (
                   <Pressable
                     onPress={next}
                     disabled={!options}
@@ -3087,7 +3132,7 @@ export function BookingModeSelector({
                     <Text style={styles.primaryText}>{tr('Continue')}</Text>
                     <Ionicons name="arrow-forward" size={16} color={onFill} />
                   </Pressable>
-                ) : step === 4 ? (
+                ) : step === 5 ? (
                   <Pressable
                     onPress={publish}
                     disabled={!canPublish}
@@ -3178,7 +3223,7 @@ export function BookingModeSelector({
                       }`}
                   </Text>
                   <Text style={{ fontSize: fontSize.xs, color: colors.textMuted }}>
-                    {`${tr('Saved on Step')} ${resumePromptDraft.step} ${tr('of 4')} • ${
+                    {`${tr('Saved on Step')} ${resumePromptDraft.step} ${tr('of')} ${WIZARD_STEPS.length} • ${
                       resumePromptDraft.draft.date
                         ? prettyDate(resumePromptDraft.draft.date)
                         : tr('Date not set')
@@ -3332,9 +3377,15 @@ export function BookingModeSelector({
                       accessibilityState={{ checked: on }}
                       style={[styles.listRow, on && { backgroundColor: colors.tint }]}
                     >
+                      {activeSheet === 'photoBookSize' || activeSheet === 'wallPortraitSize' ? (
+                        <View style={{ width: 56, alignItems: 'center', marginRight: spacing.sm }}>
+                          <PaperFormat label={item} kind={activeSheet === 'photoBookSize' ? 'book' : 'portrait'} />
+                        </View>
+                      ) : null}
                       <Text
                         style={[
                           styles.listText,
+                          { flex: 1 },
                           on && { color: colors.primary, fontWeight: fontWeight.bold },
                         ]}
                       >
