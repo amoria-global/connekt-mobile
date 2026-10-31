@@ -78,6 +78,8 @@ export type MatchPreviewPayload = {
   photoBooksQty?: number;
   photoBookSize?: string;
   photoBookPages?: string;
+  /** How many photos go into one photo book. */
+  photoBookPhotos?: number;
   photoAlbumsQty?: number;
   photoAlbumSize?: string;
   photoAlbumPrints?: string;
@@ -166,7 +168,7 @@ export type HybridDraftPayload = {
   hasLiveStream?: boolean;
   allowWishInvites?: boolean;
   minimumPhotos?: number;
-  draftStep?: 1 | 2 | 3 | 4;
+  draftStep?: 1 | 2 | 3 | 4 | 5;
 };
 
 export type HybridDraftResponse = {
