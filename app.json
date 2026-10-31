@@ -139,6 +139,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-31-offer-screens",
+            "date": "2026-10-31",
+            "title": "Clearer offer screens",
+            "items": [
+              {
+                "icon": "color-palette-outline",
+                "title": "Offers in the app look",
+                "body": "The offer screens for photographers now use the same colours and fonts as the rest of Connekyt, in dark and light."
+              },
+              {
+                "icon": "text-outline",
+                "title": "Nothing is cut off",
+                "body": "Long details such as delivery dates and print products now wrap onto the next line instead of being cut short."
+              },
+              {
+                "icon": "chatbubble-ellipses-outline",
+                "title": "Plainer wording",
+                "body": "Buttons now read Accept, Accept with my delivery terms and Decline, and extra explanations were removed."
+              }
+            ]
+          },
+          {
             "id": "2026-10-31-archived-albums",
             "date": "2026-10-31",
             "title": "Archived albums, explained",
@@ -203,18 +225,6 @@
                 "icon": "images-outline",
                 "title": "Open a shared album link",
                 "body": "A link to a free album now opens that album in the app, ready to claim, instead of an empty screen. A link the app does not know takes you home instead of a blank page."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-30-google-sign-in-back",
-            "date": "2026-10-30",
-            "title": "Google sign-in is back",
-            "items": [
-              {
-                "icon": "logo-google",
-                "title": "Continue with Google",
-                "body": "The Google button is back on the sign-in screen, next to Apple, so you can sign in with your Google account again."
               }
             ]
           }
