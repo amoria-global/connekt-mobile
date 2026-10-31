@@ -53,7 +53,9 @@ import {
   type AlbumImage,
 } from '@/features/gallery/api';
 import { albumDateText, photoCountText } from '@/features/gallery/albumFacts';
-import { archivedMessage, restoreConfirmMessage } from '@/features/gallery/archivedCopy';
+import { archivedMessage, ownerArchivedMessage, restoreConfirmMessage } from '@/features/gallery/archivedCopy';
+import * as WebBrowser from 'expo-web-browser';
+import { env } from '@/config/env';
 import { PhotoViewer } from '@/features/gallery/PhotoViewer';
 import { PhotoCell, PhotoGridSkeleton } from '@/features/gallery/PhotoGrid';
 import { chipColors } from '@/features/photobooks/statusChip';
@@ -620,8 +622,23 @@ export default function AlbumDetailScreen() {
               </View>
             ) : null}
 
+            {/* The owner of an archived album keeps their photos but cannot change them; restoring is done on the website. */}
+            {isPhotographer && data?.locked && !data.isContent ? (
+              <View style={styles.lockedCard}>
+                <View style={styles.lockedIconBox}>
+                  <Ionicons name="lock-closed" size={26} color={colors.primary} />
+                </View>
+                <Text style={styles.lockedTitle}>{tr('This album is archived')}</Text>
+                <Text style={styles.lockedMsg}>{ownerArchivedMessage(data.lockedAt)}</Text>
+                <Button
+                  title={tr('Restore on web')}
+                  onPress={() => { void WebBrowser.openBrowserAsync(`${env.dashboardBaseUrl}/user/photographer/events`); }}
+                />
+              </View>
+            ) : null}
+
             {/* Photographer Executive Action Strip */}
-            {isPhotographer ? (
+            {isPhotographer && !data?.locked ? (
               <View style={styles.actionStrip}>
                 <Pressable
                   style={[styles.primaryActionBtn, busy === 'add' && styles.btnDisabled]}
