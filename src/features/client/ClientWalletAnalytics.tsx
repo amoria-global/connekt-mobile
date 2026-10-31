@@ -11,6 +11,7 @@
  *     The backend sums payments across currencies, so the spending curve is relative only and
  *     carries no currency label. Event counts are real counts and are labelled.
  */
+import { useLoadingDots } from '@/features/wallet/useLiveWallet';
 import { useCallback, useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,7 +41,8 @@ const PERIODS: readonly { key: PeriodKey; label: string }[] = [
   { key: 'month', label: 'Month' },
 ];
 
-export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) {
+export function ClientWalletAnalytics({ wallet, syncing = false }: { wallet: WalletDTO | null; syncing?: boolean }) {
+  const dots = useLoadingDots(syncing);
   const [period, setPeriod] = useState<PeriodKey>('month');
   const router = useRouter();
   const styles = useStyles();
@@ -73,7 +75,7 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
           </View>
         </View>
         <Text style={styles.big} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
-          {moneyText(stats?.hero.value, currency)}
+          {syncing ? dots : moneyText(stats?.hero.value, currency)}
         </Text>
       </Card>
       <View style={styles.row}>
@@ -81,7 +83,7 @@ export function ClientWalletAnalytics({ wallet }: { wallet: WalletDTO | null }) 
           label="Processing"
           icon="time-outline"
           tone="warning"
-          value={moneyText(stats ? (stats.pendingChip?.value ?? 0) : undefined, currency)}
+          value={syncing ? dots : moneyText(stats ? (stats.pendingChip?.value ?? 0) : undefined, currency)}
           caption="Not yet settled"
         />
       </View>

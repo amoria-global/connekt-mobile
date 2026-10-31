@@ -30,6 +30,7 @@ import { PayNowSheet } from '@/features/payments/PayNowSheet';
 import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
+import { useLiveMoney, useLoadingDots } from '@/features/wallet/useLiveWallet';
 import {
   getCoordinatorAnalytics,
   getCoordinatorPendingPayments,
@@ -112,6 +113,9 @@ export function CoordinatorHome() {
   const categories = useAsync(useCallback(() => listEventCategories(), []));
   const pending = useAsync(useCallback(() => getCoordinatorPendingPayments(), []));
   const wallet = useAsync(useCallback(() => getWallet(), []));
+  // Revenue and the balance are fetched again every 10 seconds; the figures show dots while that runs.
+  const moneySyncing = useLiveMoney([wallet, analytics, pending]);
+  const moneyDots = useLoadingDots(moneySyncing);
   const trendsState = useAsync(useCallback(() => getCoordinatorTrends(period), [period]));
   const perfState = useAsync(useCallback(() => getCoordinatorPerformance(period), [period]));
   const trends: TrendsMap = useMemo(() => trendsState.data ?? {}, [trendsState.data]);
@@ -157,7 +161,7 @@ export function CoordinatorHome() {
   const open = (path: string) => router.push(path as never);
   const openEvent = (e: EventItem) => open(`/event/${e.id}`);
   const figure = (v: number | undefined) => (aFailed ? 'N/A' : String(v ?? 0));
-  const revenueText = !a || !currency ? 'N/A' : moneyText(a.totalRevenue, currency, hidden);
+  const revenueText = moneySyncing ? moneyDots : !a || !currency ? 'N/A' : moneyText(a.totalRevenue, currency, hidden);
 
   const overview = [
     { key: 'rev', label: 'Revenue', value: revenueText, icon: 'wallet-outline' as const, tone: 'primary' as const, to: '/wallet' },
