@@ -82,15 +82,6 @@
     "pathVariables" : [ "id" ]
   }, {
     "method" : "GET",
-    "path" : "/admin/archives",
-    "controller" : "AdminArchiveController#index"
-  }, {
-    "method" : "GET",
-    "path" : "/admin/archives/delete/{id}",
-    "controller" : "AdminArchiveController#delete",
-    "pathVariables" : [ "id" ]
-  }, {
-    "method" : "GET",
     "path" : "/admin/bonuses",
     "controller" : "AdminBonusPageController#index"
   }, {
@@ -451,6 +442,10 @@
     "method" : "GET",
     "path" : "/admin/kyc",
     "controller" : "AdminKycPageController#index"
+  }, {
+    "method" : "GET",
+    "path" : "/admin/locked-albums",
+    "controller" : "AdminLockedAlbumsController#index"
   }, {
     "method" : "GET",
     "path" : "/admin/notifications",
@@ -990,10 +985,6 @@
     "method" : "GET",
     "path" : "/admin/withdrawals",
     "controller" : "AdminWithdrawalController#index"
-  }, {
-    "method" : "GET",
-    "path" : "/api/admin/archives/all",
-    "controller" : "AdminArchiveApiController#getArchives"
   }, {
     "method" : "GET",
     "path" : "/api/admin/bookings/all",
@@ -3152,53 +3143,6 @@
     } ]
   }, {
     "method" : "GET",
-    "path" : "/api/remote/coordinator/archives",
-    "controller" : "CoordinatorController#getArchives",
-    "params" : [ {
-      "name" : "page",
-      "required" : false
-    }, {
-      "name" : "size",
-      "required" : false
-    } ]
-  }, {
-    "method" : "POST",
-    "path" : "/api/remote/coordinator/archives",
-    "controller" : "CoordinatorController#createArchive",
-    "params" : [ {
-      "name" : "title",
-      "required" : true
-    }, {
-      "name" : "description",
-      "required" : false
-    }, {
-      "name" : "archiveType",
-      "required" : false
-    }, {
-      "name" : "eventId",
-      "required" : false
-    } ],
-    "parts" : [ {
-      "name" : "file",
-      "required" : false,
-      "file" : true
-    } ],
-    "consumes" : [ "multipart/form-data" ]
-  }, {
-    "method" : "DELETE",
-    "path" : "/api/remote/coordinator/archives/{archiveId}",
-    "controller" : "CoordinatorController#deleteArchive",
-    "pathVariables" : [ "archiveId" ]
-  }, {
-    "method" : "PUT",
-    "path" : "/api/remote/coordinator/archives/{archiveId}",
-    "controller" : "CoordinatorController#updateArchive",
-    "body" : {
-      "type" : "Map"
-    },
-    "pathVariables" : [ "archiveId" ]
-  }, {
-    "method" : "GET",
     "path" : "/api/remote/coordinator/balance",
     "controller" : "CoordinatorController#getSystemBalance"
   }, {
@@ -3871,14 +3815,6 @@
       "name" : "to",
       "required" : false
     } ]
-  }, {
-    "method" : "PUT",
-    "path" : "/api/remote/customer/archives/{archiveId}",
-    "controller" : "CustomerArchiveController#updateArchive",
-    "body" : {
-      "type" : "Map"
-    },
-    "pathVariables" : [ "archiveId" ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/customer/events",
@@ -5060,7 +4996,7 @@
     "controller" : "HybridBookingController#getMatchPreview",
     "body" : {
       "type" : "MatchPreviewRequestDTO",
-      "properties" : [ "allowWishInvites", "city", "clientType", "coverageMode", "currency", "digitalDeliveryDays", "editedPhotos", "editingStyle", "endTime", "eventDate", "eventId", "hasLiveStream", "instantUpdates", "latitude", "locationCoverage", "longVideosDuration", "longVideosQty", "longitude", "maxBudget", "minBudget", "photoAlbumPrints", "photoAlbumSize", "photoAlbumsQty", "photoBookPages", "photoBookSize", "photoBooksQty", "photographerSpecialty", "photographerType", "printCollectionMethod", "printProductionTime", "printProposedDate", "shortVideosDuration", "shortVideosQty", "specialty", "startTime", "usageRights", "wallPortraitFrame", "wallPortraitSize", "wallPortraitsQty" ]
+      "properties" : [ "allowWishInvites", "city", "clientType", "coverageMode", "currency", "digitalDeliveryDays", "editedPhotos", "editingStyle", "endTime", "eventDate", "eventId", "hasLiveStream", "instantUpdates", "latitude", "locationCoverage", "longVideosDuration", "longVideosQty", "longitude", "maxBudget", "minBudget", "photoAlbumPrints", "photoAlbumSize", "photoAlbumsQty", "photoBookPages", "photoBookPhotos", "photoBookSize", "photoBooksQty", "photographerSpecialty", "photographerType", "printCollectionMethod", "printProductionTime", "printProposedDate", "shortVideosDuration", "shortVideosQty", "specialty", "startTime", "usageRights", "wallPortraitFrame", "wallPortraitSize", "wallPortraitsQty" ]
     }
   }, {
     "method" : "PATCH",
@@ -5480,7 +5416,7 @@
     "controller" : "HybridBookingController#getMatchPreview",
     "body" : {
       "type" : "MatchPreviewRequestDTO",
-      "properties" : [ "allowWishInvites", "city", "clientType", "coverageMode", "currency", "digitalDeliveryDays", "editedPhotos", "editingStyle", "endTime", "eventDate", "eventId", "hasLiveStream", "instantUpdates", "latitude", "locationCoverage", "longVideosDuration", "longVideosQty", "longitude", "maxBudget", "minBudget", "photoAlbumPrints", "photoAlbumSize", "photoAlbumsQty", "photoBookPages", "photoBookSize", "photoBooksQty", "photographerSpecialty", "photographerType", "printCollectionMethod", "printProductionTime", "printProposedDate", "shortVideosDuration", "shortVideosQty", "specialty", "startTime", "usageRights", "wallPortraitFrame", "wallPortraitSize", "wallPortraitsQty" ]
+      "properties" : [ "allowWishInvites", "city", "clientType", "coverageMode", "currency", "digitalDeliveryDays", "editedPhotos", "editingStyle", "endTime", "eventDate", "eventId", "hasLiveStream", "instantUpdates", "latitude", "locationCoverage", "longVideosDuration", "longVideosQty", "longitude", "maxBudget", "minBudget", "photoAlbumPrints", "photoAlbumSize", "photoAlbumsQty", "photoBookPages", "photoBookPhotos", "photoBookSize", "photoBooksQty", "photographerSpecialty", "photographerType", "printCollectionMethod", "printProductionTime", "printProposedDate", "shortVideosDuration", "shortVideosQty", "specialty", "startTime", "usageRights", "wallPortraitFrame", "wallPortraitSize", "wallPortraitsQty" ]
     }
   }, {
     "method" : "POST",
