@@ -332,7 +332,7 @@ export default function EventCandidatesScreen() {
               accessibilityRole="button"
             >
               <Ionicons name="cube-outline" size={18} color={colors.primary} />
-              <Text style={styles.detailActionText}>View packages and delivery policy</Text>
+              <Text style={styles.detailActionText}>Packages and delivery</Text>
               <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
             </Pressable>
           </View>
@@ -356,7 +356,7 @@ export default function EventCandidatesScreen() {
         {packagesFor ? (
           <View style={{ gap: spacing.md }}>
             <View style={styles.detailBox}>
-              <Text style={styles.tierTitle}>DELIVERY POLICY</Text>
+              <Text style={styles.tierTitle}>DELIVERY</Text>
               <Text style={styles.detailTitle}>
                 {packagesFor.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'Their package delivery' : 'As you requested'}
               </Text>
@@ -368,7 +368,7 @@ export default function EventCandidatesScreen() {
             </View>
             {packagesFor.matchedPackageName ? (
               <View style={styles.detailBox}>
-                <Text style={styles.tierTitle}>MATCHED TO YOUR EVENT</Text>
+                <Text style={styles.tierTitle}>SUITED TO YOUR EVENT</Text>
                 <Text style={styles.detailTitle}>{packagesFor.matchedPackageName}</Text>
                 <Text style={styles.hint}>
                   {[
@@ -385,7 +385,7 @@ export default function EventCandidatesScreen() {
             {!packagesLoading && packages.length === 0 ? <Text style={styles.hint}>No other packages are listed yet.</Text> : null}
             {packages.map((pk) => (
               <View key={String(pk.id)} style={[styles.detailAction, pk.id === packagesFor.matchedPackageId && { borderColor: colors.primary }]}>
-                <Text style={styles.detailActionText} numberOfLines={2}>{pk.name}</Text>
+                <Text style={styles.detailActionText}>{pk.name}</Text>
                 {pk.price != null ? <Text style={styles.hint}>{formatPrice(pk.price, pk.currency)}</Text> : null}
               </View>
             ))}
