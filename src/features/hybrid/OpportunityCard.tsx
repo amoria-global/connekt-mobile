@@ -40,6 +40,17 @@ const prettyDate = (d: string, lang: string) => {
 
 const formatRwf = (n?: number | null) => `RWF ${Math.round(n || 450000).toLocaleString('en-US')}`;
 
+/** "kigali" reads "Kigali": a capital at the start of each word. */
+const titleCase = (text: string) => text.replace(/(^|[\s·•-]+)([a-z])/g, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
+
+/** Venue and city, without saying the same place twice. */
+const placeLine = (venue?: string | null, city?: string | null): string | null => {
+  const v = venue ? titleCase(venue.trim()) : '';
+  const c = city ? titleCase(city.trim()) : '';
+  if (v && c && v.toLowerCase() !== c.toLowerCase() && !v.toLowerCase().includes(c.toLowerCase())) return `${v} • ${c}`;
+  return v || c || null;
+};
+
 export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, busy, highlighted }: Props) {
   const { colors } = useTheme();
   const { language, t } = useLanguage();
@@ -52,8 +63,8 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
   const brief = parseOpportunityOfferBrief(o);
   const clientOfferRwf = o.maxBudget || o.minBudget || 450000;
   const dateStr = o.eventDate ? prettyDate(o.eventDate, language) : t('oppDateTbc');
-  const locStr = o.venue ? `${o.venue}${o.city ? ` • ${o.city}` : ''}` : o.city || t('oppLocationSharedOnBooking');
-  const eventTypeLabel = o.eventType || o.eventTitle || 'Event';
+  const locStr = placeLine(o.venue, o.city) ?? t('oppLocationSharedOnBooking');
+  const eventTypeLabel = titleCase(o.eventType || o.eventTitle || 'Event');
 
   const handleOpenOrApprove = () => {
     if (onPress) {
@@ -205,7 +216,6 @@ function SummaryLine({
       <Ionicons name={icon} size={13} color={colors.primary} style={{ marginTop: 1 }} />
       <Text
         style={[styles.summaryText, strong && { fontWeight: fontWeight.extrabold, color: colors.text }]}
-        numberOfLines={2}
       >
         {text}
       </Text>
