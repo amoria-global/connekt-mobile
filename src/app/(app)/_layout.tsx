@@ -1,11 +1,16 @@
 import { MatchingInProgressHost } from '@/features/hybrid/MatchingInProgress';
-import { approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
 import {
-    addNotificationResponseListener,
-    registerForPushNotifications,
+  addNotificationResponseListener,
+  consumeInitialNotificationResponse,
+  registerForPushNotifications,
+  startPushTokenRefreshListener,
 } from '@/features/notifications/push';
-import { notificationTarget } from '@/features/notifications/routing';
-import { GlobalOpportunityCallNotifier, showIncomingOpportunity } from '@/features/hybrid/GlobalOpportunityCallNotifier';
+import { notificationTarget, shouldNavigateToTarget } from '@/features/notifications/routing';
+import {
+  clearOfferNotifications,
+  GlobalOpportunityCallNotifier,
+  showIncomingOpportunity,
+} from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { InAppNotificationWatcher } from '@/features/notifications/InAppNotificationWatcher';
 import { BookingRequestCallNotifier } from '@/features/bookings/BookingRequestCallNotifier';
 import { showIncomingRequest } from '@/features/bookings/incomingRequests';
@@ -23,6 +28,12 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { Platform, View } from 'react-native';
+
+function extractCandidateIdFromLink(raw?: unknown): string | undefined {
+  if (typeof raw !== 'string') return undefined;
+  const match = raw.match(/\/(?:opportunities|offers)\/([^/?#]+)/i);
+  return match?.[1] ? decodeURIComponent(match[1]) : undefined;
+}
 
 export default function AppLayout() {
   const { isDark, colors: c } = useTheme();
@@ -47,10 +58,9 @@ export default function AppLayout() {
     if (isShared && isBlockedInSharedWorkspace(pathname)) router.replace('/');
   }, [isShared, pathname, router]);
 
-  // Signed-in: register for push notifications and route taps. The (app)
-  // group only mounts once authenticated, so this runs at the right time.
-  // Push is native-only — skip on web (expo-notifications has no web push
-  // and only logs "not supported" warnings there).
+  // Signed-in: register for push notifications and route taps (including cold-start taps from terminated state).
+  // The (app) group only mounts once authenticated, so this runs once navigation is ready.
+  // Push is native-only — skip on web (expo-notifications has no web push).
   useEffect(() => {
     if (Platform.OS === 'web') return;
     // Silent mode is strictly respected (no sound if mute switch on, vibration only).
@@ -59,25 +69,46 @@ export default function AppLayout() {
       interruptionMode: 'mixWithOthers',
     });
     registerForPushNotifications();
-    const unsubscribe = addNotificationResponseListener(async (data, actionIdentifier) => {
+    const stopTokenRefresh = startPushTokenRefreshListener();
+
+    const handleNotificationOpen = async (data: Record<string, unknown>, actionIdentifier?: string) => {
       const candidateId =
         typeof data.candidateId === 'string'
           ? data.candidateId
-          : typeof data.referenceId === 'string'
-            ? data.referenceId
-            : undefined;
+          : typeof data.offerId === 'string'
+            ? data.offerId
+            : typeof data.opportunityId === 'string'
+              ? data.opportunityId
+              : typeof data.referenceId === 'string'
+                ? data.referenceId
+                : extractCandidateIdFromLink(data.link) ?? extractCandidateIdFromLink(data.deepLink);
 
-      // Tapping Accept, Decline, or an Opportunity notification opens the photographer's incoming Offer Details page with the 3 response options
+      // Tapping Accept, Reject, or an Opportunity/Offer notification opens the photographer's Offer Details
+      // and executes server-validated Accept/Reject when an action button was tapped.
       const isOpportunityPush =
         actionIdentifier === 'ACTION_APPROVE' ||
         actionIdentifier === 'ACTION_DECLINE' ||
         data.type === 'OPPORTUNITY' ||
         data.type === 'HYBRID_OPPORTUNITY' ||
-        (typeof data.link === 'string' && data.link.includes('/opportunities'));
+        data.type === 'OFFER' ||
+        (typeof data.link === 'string' &&
+          (data.link.includes('/opportunities') || data.link.includes('/offers'))) ||
+        (typeof data.deepLink === 'string' &&
+          (data.deepLink.includes('/opportunities') || data.deepLink.includes('/offers')));
 
       if (isOpportunityPush && candidateId) {
-        router.push(`/bookings?tab=opportunities&candidate=${encodeURIComponent(candidateId)}` as never);
-        showIncomingOpportunity(candidateId, 'details');
+        void clearOfferNotifications(candidateId);
+        const action =
+          actionIdentifier === 'ACTION_APPROVE'
+            ? 'approve'
+            : actionIdentifier === 'ACTION_DECLINE'
+              ? 'reject'
+              : undefined;
+        const target = `/bookings?tab=opportunities&candidate=${encodeURIComponent(candidateId)}`;
+        if (shouldNavigateToTarget(target)) {
+          router.push(target as never);
+        }
+        showIncomingOpportunity(candidateId, 'details', action);
         return;
       }
 
@@ -104,19 +135,27 @@ export default function AppLayout() {
         }
       }
 
-      // Deep-link to the exact entity the notification is about.
-      router.push(
-        notificationTarget({
-          type: typeof data.type === 'string' ? data.type : undefined,
-          referenceId: typeof data.referenceId === 'string' ? data.referenceId : undefined,
-          eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
-          link: typeof data.link === 'string' ? data.link : undefined,
-          deepLink: typeof data.deepLink === 'string' ? data.deepLink : undefined,
-        }),
-      );
-    });
-    return unsubscribe;
-  }, [router]);
+      // Deep-link to the exact entity the notification is about, deduplicating rapid multi-event fires.
+      const target = notificationTarget({
+        type: typeof data.type === 'string' ? data.type : undefined,
+        referenceId: typeof data.referenceId === 'string' ? data.referenceId : undefined,
+        eventId: typeof data.eventId === 'string' ? data.eventId : undefined,
+        candidateId,
+        link: typeof data.link === 'string' ? data.link : undefined,
+        deepLink: typeof data.deepLink === 'string' ? data.deepLink : undefined,
+      });
+      if (shouldNavigateToTarget(String(target))) {
+        router.push(target);
+      }
+    };
+
+    void consumeInitialNotificationResponse(handleNotificationOpen);
+    const unsubscribe = addNotificationResponseListener(handleNotificationOpen);
+    return () => {
+      unsubscribe();
+      stopTokenRefresh();
+    };
+  }, [isPhotographer, router]);
 
   const sheetHeaderRight = () => (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

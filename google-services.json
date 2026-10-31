@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "989615334270",
+    "project_id": "amoria-connekyt-6ce29",
+    "storage_bucket": "amoria-connekyt-6ce29.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:989615334270:android:48a0d97cf3baf4a82cc92f",
+        "android_client_info": {
+          "package_name": "com.amoria.connekyt.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCI83Wotm5ju-Utfijk2kAgQ5uHuASSzSs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

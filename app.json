@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.2.2",
+    "version": "2.3.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -20,9 +20,22 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.connekyt.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "associatedDomains": [
+        "applinks:connekyt.com",
+        "applinks:dashboard.connekyt.com"
+      ],
+      "entitlements": {
+        "aps-environment": "production",
+        "com.apple.developer.usernotifications.time-sensitive": true
+      },
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": [
+          "audio",
+          "remote-notification"
+        ],
         "NSCameraUsageDescription": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live.",
         "NSMicrophoneUsageDescription": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message.",
         "NSPhotoLibraryAddUsageDescription": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library."
@@ -35,6 +48,29 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.amoria.connekyt.app",
+      "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/offers" },
+            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/opportunities" },
+            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/bookings" },
+            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/jobs" },
+            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/events" },
+            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/wish" },
+            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/user" },
+            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/offers" },
+            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/opportunities" },
+            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/bookings" },
+            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/jobs" },
+            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/events" },
+            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/user" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "versionCode": 2,
       "permissions": [
         "android.permission.CAMERA",
