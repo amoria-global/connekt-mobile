@@ -138,6 +138,38 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-10-31-booking-flow",
+            "date": "2026-10-31",
+            "title": "A simpler booking flow",
+            "items": [
+              {
+                "icon": "time-outline",
+                "title": "A longer default day",
+                "body": "New events now start with 16 hours of coverage, and the hours you choose do not change the price estimate."
+              },
+              {
+                "icon": "options-outline",
+                "title": "Simpler choices",
+                "body": "Edited photos offer 0, 300, 400, 600 or your own number, long videos start at 1, and photo books are chosen by number of photos."
+              },
+              {
+                "icon": "albums-outline",
+                "title": "See the paper size",
+                "body": "Photo books and wall portraits now show a picture of the paper size on the card and beside each size in the list."
+              },
+              {
+                "icon": "pricetag-outline",
+                "title": "Recommended pricing on its own page",
+                "body": "Recommended pricing now has its own page, between your budget and the final review."
+              },
+              {
+                "icon": "bulb-outline",
+                "title": "A suggestion, not a rule",
+                "body": "We suggest RWF 7,000,000 or more for organisations booking commercial, conference or wedding coverage in 4 days or less. You can offer any budget."
+              }
+            ]
+          },
+          {
             "id": "2026-10-31-offer-buttons",
             "date": "2026-10-31",
             "title": "A shorter offer screen",
@@ -202,18 +234,6 @@
                 "icon": "hourglass-outline",
                 "title": "A clear loading moment",
                 "body": "Each wallet figure shows a short loading placeholder while it updates, then the new balance appears in its place."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-30-album-links-open",
-            "date": "2026-10-30",
-            "title": "Album links open in the app",
-            "items": [
-              {
-                "icon": "images-outline",
-                "title": "Open a shared album link",
-                "body": "A link to a free album now opens that album in the app, ready to claim, instead of an empty screen. A link the app does not know takes you home instead of a blank page."
               }
             ]
           }
