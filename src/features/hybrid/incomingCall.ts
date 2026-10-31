@@ -21,7 +21,7 @@ type IncomingCallNative = {
   setKeepReady?(enabled: boolean): void;
 };
 
-const native = Platform.OS === 'android' ? requireOptionalNativeModule<IncomingCallNative>('IncomingCall') : null;
+const native = Platform.OS !== 'web' ? requireOptionalNativeModule<IncomingCallNative>('IncomingCall') : null;
 
 /** True only in a build that has the native module. Also what the app reports to the server as its capability. */
 export function isIncomingCallAvailable(): boolean {

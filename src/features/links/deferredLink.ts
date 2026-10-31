@@ -85,6 +85,15 @@ export function webPathToAppHref(path: string): string | null {
     return INVITE_CODE.test(inviteCode) ? `/(public)/find-photos?code=${encodeURIComponent(inviteCode)}` : '/(public)/find-photos';
   }
   if (p.startsWith('/user/browse-photos/')) return '/(public)/browse-photos';
+  const offer = p.match(/^\/(?:user\/photographer\/)?(?:opportunities|offers|jobs)(?:\/([^/]+))?$/);
+  if (offer) {
+    if (!offer[1]) return '/(app)/bookings?tab=opportunities';
+    return ID.test(offer[1]) ? `/(app)/bookings?tab=opportunities&candidate=${encodeURIComponent(offer[1])}` : null;
+  }
+  const booking = p.match(/^\/bookings\/([^/]+)$/);
+  if (booking && ID.test(booking[1])) return `/(app)/event/${booking[1]}`;
+  const candidates = p.match(/^\/events\/([^/]+)\/candidates$/);
+  if (candidates && ID.test(candidates[1])) return `/(app)/event/candidates?id=${candidates[1]}`;
   return null;
 }
 

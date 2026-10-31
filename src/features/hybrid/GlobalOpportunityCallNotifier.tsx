@@ -2,21 +2,19 @@
  * GlobalOpportunityCallNotifier — App-wide incoming shoot alert listener.
  * Mounted in `(app)/_layout.tsx` so that when a photographer is using the app
  * on ANY screen or tab (Home, Events, Bookings, Wallet, Chat, etc.), an incoming
- * shoot match request rings full-screen like an incoming phone call for 47 seconds,
- * and stays available for 2 hours before permanently disappearing.
+ * shoot match request alerts in-app, and when a push notification or its
+ * Accept/Reject action is tapped, the latest offer state is fetched from the
+ * server and handled or displayed.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { AppState, BackHandler, Platform, type AppStateStatus } from 'react-native';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
 import { showMatchingInProgress } from './MatchingInProgress';
 import {
   cancelAllIncomingCalls,
   cancelIncomingCall,
-  canMinimizeApp,
-  minimizeApp,
 } from './incomingCall';
-import { useCallReadiness } from './useCallReadiness';
 import { RINGING_CHANNEL } from '@/features/notifications/push';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/auth';
@@ -35,18 +33,25 @@ import {
   OPPORTUNITY_AVAILABILITY_WINDOW_MS,
 } from './IncomingOpportunityAlertModal';
 
-type ShowListener = (candidateId?: string, stage?: 'ringing' | 'details') => void;
+export type OpportunityNotificationAction = 'approve' | 'reject';
+
+type ShowListener = (
+  candidateId?: string,
+  stage?: 'ringing' | 'details',
+  action?: OpportunityNotificationAction,
+) => void;
 const showListeners = new Set<ShowListener>();
 
 /**
- * Trigger the incoming opportunity modal immediately (e.g. when a push notification
- * or its Accept/Decline action button is tapped).
+ * Trigger the incoming opportunity modal or action immediately (e.g. when a push
+ * notification or its Accept/Reject action button is tapped).
  */
 export function showIncomingOpportunity(
   candidateId?: string,
   stage: 'ringing' | 'details' = 'details',
+  action?: OpportunityNotificationAction,
 ): void {
-  showListeners.forEach((fn) => fn(candidateId, stage));
+  showListeners.forEach((fn) => fn(candidateId, stage, action));
 }
 
 function isWithinTwoHourWindow(opp: PhotographerOpportunity): boolean {
@@ -67,8 +72,8 @@ function isWithinTwoHourWindow(opp: PhotographerOpportunity): boolean {
   return true;
 }
 
-/** Takes this offer's alerts off the phone, so nothing for it keeps sounding after an answer. */
-async function clearOfferNotifications(candidateId: string): Promise<void> {
+/** Takes this offer's alerts off the phone, so nothing for it keeps sounding after an answer or expiry. */
+export async function clearOfferNotifications(candidateId: string): Promise<void> {
   cancelIncomingCall(candidateId);
   if (Platform.OS === 'web') return;
   try {
@@ -119,9 +124,58 @@ export function GlobalOpportunityCallNotifier() {
   }, []);
   const notifiedTrayIdsRef = useRef<Set<string>>(new Set());
 
+  const handleApprove = useCallback(
+    async (
+      opp: PhotographerOpportunity,
+      deliveryPolicy: OpportunityDeliveryPolicy = 'CLIENT',
+    ) => {
+      try {
+        isBusyRef.current = true;
+        await approveOpportunity(opp.candidateId, { deliveryPolicy });
+        markDismissed(opp.candidateId);
+        setActiveOpportunity(null);
+        showMatchingInProgress();
+      } catch (e: any) {
+        // 409: the invite closed, or the calendar now overlaps and it was released. Don't keep ringing for it.
+        if (e?.status === 409 || e?.status === 404 || e?.status === 410) {
+          markDismissed(opp.candidateId);
+          setActiveOpportunity(null);
+        }
+        Alert.alert('Approval error', e?.message || 'Could not approve this opportunity.');
+      } finally {
+        isBusyRef.current = false;
+      }
+    },
+    [markDismissed],
+  );
+
+  const handleReject = useCallback(
+    async (opp: PhotographerOpportunity) => {
+      try {
+        isBusyRef.current = true;
+        await rejectOpportunity(opp.candidateId);
+        markDismissed(opp.candidateId);
+        setActiveOpportunity(null);
+        Alert.alert(
+          'Offer Rejected',
+          'Offer declined.',
+        );
+      } catch (e: any) {
+        if (e?.status === 409 || e?.status === 404 || e?.status === 410) {
+          markDismissed(opp.candidateId);
+          setActiveOpportunity(null);
+        }
+        Alert.alert('Decline error', e?.message || 'Could not decline this opportunity.');
+      } finally {
+        isBusyRef.current = false;
+      }
+    },
+    [markDismissed],
+  );
+
   const ensureTrayNotification = useCallback(async (opp: PhotographerOpportunity) => {
     if (Platform.OS === 'web') return;
-    // In the foreground the modal is already ringing, and the server's own push covers the tray.
+    // In the foreground the modal is already ringing, and in background the server's push covers the tray.
     if (AppState.currentState === 'active') return;
     if (notifiedTrayIdsRef.current.has(opp.candidateId)) return;
     notifiedTrayIdsRef.current.add(opp.candidateId);
@@ -131,8 +185,8 @@ export function GlobalOpportunityCallNotifier() {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: `Incoming Shoot Offer: ${opp.eventTitle}`,
-          body: `${when} · ${where} · Tap Accept or Decline to review offer details`,
-          sound: 'default',
+          body: `${when} · ${where} · Tap Accept or Reject to review offer details`,
+          sound: 'connekyt_ringtone.wav',
           priority: Notifications.AndroidNotificationPriority.MAX,
           categoryIdentifier: 'OPPORTUNITY_ALERT',
           data: {
@@ -158,21 +212,63 @@ export function GlobalOpportunityCallNotifier() {
   }, []);
 
   const checkOpportunities = useCallback(
-    async (focusCandidateId?: string, requestedStage?: 'ringing' | 'details') => {
+    async (
+      focusCandidateId?: string,
+      requestedStage?: 'ringing' | 'details',
+      requestedAction?: OpportunityNotificationAction,
+    ) => {
       if (!env.hybridBookingEnabled || !isEligible || isBusyRef.current) return;
       try {
         if (focusCandidateId) {
           dismissedRef.current = dismissedRef.current.filter((id) => id !== focusCandidateId);
+          void clearOfferNotifications(focusCandidateId);
           try {
             const directOpp = await getOpportunity(focusCandidateId);
             if (isBusyRef.current) return;
-            if (directOpp && directOpp.candidateId && isOpenStatus(directOpp.status) && isWithinTwoHourWindow(directOpp)) {
+            if (directOpp && directOpp.candidateId) {
+              const open = isOpenStatus(directOpp.status) && isWithinTwoHourWindow(directOpp);
+              if (!open) {
+                markDismissed(directOpp.candidateId);
+                setActiveOpportunity((prev) => (prev?.candidateId === directOpp.candidateId ? null : prev));
+                if (requestedAction) {
+                  Alert.alert(
+                    'Offer no longer open',
+                    'This offer has already expired or been answered.',
+                  );
+                }
+                return;
+              }
+              if (requestedAction === 'approve') {
+                await handleApprove(directOpp, 'CLIENT');
+                return;
+              }
+              if (requestedAction === 'reject') {
+                await handleReject(directOpp);
+                return;
+              }
               setModalStage(requestedStage ?? 'details');
               setActiveOpportunity(directOpp);
               return;
             }
-          } catch {
-            // Fall back to list check
+          } catch (err: any) {
+            const status = err?.status;
+            if (status === 404 || status === 410) {
+              markDismissed(focusCandidateId);
+              Alert.alert(
+                'Offer unavailable',
+                'This offer is no longer available or has been removed.',
+              );
+              return;
+            }
+            if (status === 403 || status === 401) {
+              markDismissed(focusCandidateId);
+              Alert.alert(
+                'Offer unavailable',
+                err?.message || 'You do not have access to this offer.',
+              );
+              return;
+            }
+            // For transient errors, fall back to list check below
           }
         }
 
@@ -193,6 +289,7 @@ export function GlobalOpportunityCallNotifier() {
 
         if (!Array.isArray(opps) || opps.length === 0) {
           if (activeOpportunity && !focusCandidateId) {
+            void clearOfferNotifications(activeOpportunity.candidateId);
             setActiveOpportunity(null);
           }
           return;
@@ -209,6 +306,16 @@ export function GlobalOpportunityCallNotifier() {
           );
 
         if (pending) {
+          if (focusCandidateId && pending.candidateId === focusCandidateId) {
+            if (requestedAction === 'approve') {
+              await handleApprove(pending, 'CLIENT');
+              return;
+            }
+            if (requestedAction === 'reject') {
+              await handleReject(pending);
+              return;
+            }
+          }
           void ensureTrayNotification(pending);
           setActiveOpportunity((prev) => {
             if (prev?.candidateId === pending.candidateId) {
@@ -219,13 +326,16 @@ export function GlobalOpportunityCallNotifier() {
             return pending;
           });
         } else if (!focusCandidateId) {
+          if (activeOpportunity) {
+            void clearOfferNotifications(activeOpportunity.candidateId);
+          }
           setActiveOpportunity(null);
         }
       } catch {
         // Background polling is non-blocking
       }
     },
-    [isEligible, activeOpportunity, ensureTrayNotification],
+    [isEligible, activeOpportunity, ensureTrayNotification, handleApprove, handleReject, markDismissed],
   );
 
   // The timer below must outlive re-renders, so it calls the latest check through a ref instead of restarting.
@@ -237,7 +347,11 @@ export function GlobalOpportunityCallNotifier() {
   // Silent poll every 5 seconds while the app is in the foreground, plus on resume, on push receipt and on explicit trigger.
   useEffect(() => {
     if (!env.hybridBookingEnabled || !isEligible) return;
-    const check = (cid?: string, st?: 'ringing' | 'details') => void checkRef.current(cid, st);
+    const check = (
+      cid?: string,
+      st?: 'ringing' | 'details',
+      act?: OpportunityNotificationAction,
+    ) => void checkRef.current(cid, st, act);
 
     let interval: ReturnType<typeof setInterval> | null = null;
     const start = () => {
@@ -249,7 +363,6 @@ export function GlobalOpportunityCallNotifier() {
       interval = null;
     };
 
-    // The open app rings by itself, so a call alert still sounding from the lock screen is switched off.
     if (AppState.currentState === 'active') cancelAllIncomingCalls();
     check();
     if (AppState.currentState === 'active') start();
@@ -279,11 +392,13 @@ export function GlobalOpportunityCallNotifier() {
             if (cid) {
               notifiedTrayIdsRef.current.add(cid);
             }
-            check(cid, 'ringing');
+            if (AppState.currentState === 'active') {
+              check(cid, 'ringing');
+            }
           });
 
-    const onShow: ShowListener = (cid, st) => {
-      check(cid, st ?? 'details');
+    const onShow: ShowListener = (cid, st, act) => {
+      check(cid, st ?? 'details', act);
     };
     showListeners.add(onShow);
 
@@ -294,58 +409,6 @@ export function GlobalOpportunityCallNotifier() {
       showListeners.delete(onShow);
     };
   }, [isEligible]);
-
-  // Ready to ring like a call: permissions asked once, and a quiet service keeps the app ready in the background.
-  useCallReadiness(isEligible);
-
-  // Back at the first screen tucks the app away instead of closing it, so it stays ready for the next offer.
-  useEffect(() => {
-    if (!isEligible || Platform.OS !== 'android' || !canMinimizeApp()) return undefined;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (router.canGoBack()) return false;
-      return minimizeApp();
-    });
-    return () => sub.remove();
-  }, [isEligible, router]);
-
-  const handleApprove = async (
-    opp: PhotographerOpportunity,
-    deliveryPolicy: OpportunityDeliveryPolicy = 'CLIENT',
-  ) => {
-    try {
-      isBusyRef.current = true;
-      await approveOpportunity(opp.candidateId, { deliveryPolicy });
-      markDismissed(opp.candidateId);
-      setActiveOpportunity(null);
-      showMatchingInProgress();
-    } catch (e: any) {
-      // 409: the invite closed, or the calendar now overlaps and it was released. Don't keep ringing for it.
-      if (e?.status === 409) {
-        markDismissed(opp.candidateId);
-        setActiveOpportunity(null);
-      }
-      Alert.alert('Approval error', e?.message || 'Could not approve this opportunity.');
-    } finally {
-      isBusyRef.current = false;
-    }
-  };
-
-  const handleReject = async (opp: PhotographerOpportunity) => {
-    try {
-      isBusyRef.current = true;
-      await rejectOpportunity(opp.candidateId);
-      markDismissed(opp.candidateId);
-      setActiveOpportunity(null);
-      Alert.alert(
-        'Offer Rejected',
-        'Offer declined.',
-      );
-    } catch (e: any) {
-      Alert.alert('Decline error', e?.message || 'Could not decline this opportunity.');
-    } finally {
-      isBusyRef.current = false;
-    }
-  };
 
   const handleDismiss = () => {
     if (activeOpportunity) {
