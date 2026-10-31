@@ -1,10 +1,13 @@
 /**
  * GlobalOpportunityCallNotifier — App-wide incoming shoot alert listener.
- * Mounted in `(app)/_layout.tsx` so that when a photographer is using the app
- * on ANY screen or tab (Home, Events, Bookings, Wallet, Chat, etc.), an incoming
- * shoot match request alerts in-app, and when a push notification or its
- * Accept/Reject action is tapped, the latest offer state is fetched from the
- * server and handled or displayed.
+ * Mounted in `(app)/_layout.tsx` so that when a photographer is signed in:
+ *   1. Incoming shoot match requests post a high-priority system notification on
+ *      `urgent_alerts_v2` (with Accept / Reject actions) and wake up the Android
+ *      lock screen & display via `showIncomingCall`.
+ *   2. While the app is open (or over the lock screen), `IncomingOpportunityAlertModal`
+ *      rings and displays the offer details.
+ *   3. Tapping the push notification or its Accept/Reject action button fetches
+ *      the latest offer state from the server and handles or displays it.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { AppState, Platform, type AppStateStatus } from 'react-native';
@@ -14,7 +17,9 @@ import { showMatchingInProgress } from './MatchingInProgress';
 import {
   cancelAllIncomingCalls,
   cancelIncomingCall,
+  showIncomingCall,
 } from './incomingCall';
+import { useCallReadiness } from './useCallReadiness';
 import { RINGING_CHANNEL } from '@/features/notifications/push';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/auth';
@@ -44,7 +49,8 @@ const showListeners = new Set<ShowListener>();
 
 /**
  * Trigger the incoming opportunity modal or action immediately (e.g. when a push
- * notification or its Accept/Reject action button is tapped).
+ * notification or its Accept/Reject action button is tapped, or when
+ * InAppNotificationWatcher detects a new OPPORTUNITY notification).
  */
 export function showIncomingOpportunity(
   candidateId?: string,
@@ -124,6 +130,9 @@ export function GlobalOpportunityCallNotifier() {
   }, []);
   const notifiedTrayIdsRef = useRef<Set<string>>(new Set());
 
+  // Keep Android foreground service ready so offers wake the lock screen even when backgrounded or idle.
+  useCallReadiness(isEligible);
+
   const handleApprove = useCallback(
     async (
       opp: PhotographerOpportunity,
@@ -173,24 +182,36 @@ export function GlobalOpportunityCallNotifier() {
     [markDismissed],
   );
 
+  /**
+   * Posts the incoming offer to the Android lock screen / system tray and wakes
+   * up the display via `showIncomingCall`. Runs regardless of `AppState.currentState`
+   * because `.MainActivity` has `android:showWhenLocked="true"`, which keeps
+   * `AppState.currentState` as `'active'` even when the phone is locked.
+   */
   const ensureTrayNotification = useCallback(async (opp: PhotographerOpportunity) => {
     if (Platform.OS === 'web') return;
-    // In the foreground the modal is already ringing, and in background the server's push covers the tray.
-    if (AppState.currentState === 'active') return;
     if (notifiedTrayIdsRef.current.has(opp.candidateId)) return;
     notifiedTrayIdsRef.current.add(opp.candidateId);
+
+    const where = opp.city || opp.venue || 'Rwanda';
+    const when = opp.eventDate || 'Upcoming date';
+    const title = `New nearby opportunity: ${opp.eventTitle}`;
+    const body = `${when} · ${where} · Tap Accept or Reject to respond`;
+
+    // Wake up the locked Android display and show the full-screen lock-screen alert
+    showIncomingCall(opp.candidateId, title, body);
+
     try {
-      const where = opp.city || opp.venue || 'Rwanda';
-      const when = opp.eventDate || 'Upcoming date';
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: `Incoming Shoot Offer: ${opp.eventTitle}`,
-          body: `${when} · ${where} · Tap Accept or Reject to review offer details`,
+          title,
+          body,
           sound: 'connekyt_ringtone.wav',
           priority: Notifications.AndroidNotificationPriority.MAX,
           categoryIdentifier: 'OPPORTUNITY_ALERT',
           data: {
             type: 'OPPORTUNITY',
+            kind: 'INCOMING_OFFER',
             candidateId: opp.candidateId,
             referenceId: opp.candidateId,
             eventId: opp.eventId,
@@ -221,7 +242,9 @@ export function GlobalOpportunityCallNotifier() {
       try {
         if (focusCandidateId) {
           dismissedRef.current = dismissedRef.current.filter((id) => id !== focusCandidateId);
-          void clearOfferNotifications(focusCandidateId);
+          if (requestedAction || requestedStage === 'details') {
+            void clearOfferNotifications(focusCandidateId);
+          }
           try {
             const directOpp = await getOpportunity(focusCandidateId);
             if (isBusyRef.current) return;
@@ -229,7 +252,9 @@ export function GlobalOpportunityCallNotifier() {
               const open = isOpenStatus(directOpp.status) && isWithinTwoHourWindow(directOpp);
               if (!open) {
                 markDismissed(directOpp.candidateId);
-                setActiveOpportunity((prev) => (prev?.candidateId === directOpp.candidateId ? null : prev));
+                setActiveOpportunity((prev) =>
+                  prev?.candidateId === directOpp.candidateId ? null : prev,
+                );
                 if (requestedAction) {
                   Alert.alert(
                     'Offer no longer open',
@@ -245,6 +270,9 @@ export function GlobalOpportunityCallNotifier() {
               if (requestedAction === 'reject') {
                 await handleReject(directOpp);
                 return;
+              }
+              if (requestedStage === 'ringing') {
+                void ensureTrayNotification(directOpp);
               }
               setModalStage(requestedStage ?? 'details');
               setActiveOpportunity(directOpp);
@@ -335,7 +363,14 @@ export function GlobalOpportunityCallNotifier() {
         // Background polling is non-blocking
       }
     },
-    [isEligible, activeOpportunity, ensureTrayNotification, handleApprove, handleReject, markDismissed],
+    [
+      isEligible,
+      activeOpportunity,
+      ensureTrayNotification,
+      handleApprove,
+      handleReject,
+      markDismissed,
+    ],
   );
 
   // The timer below must outlive re-renders, so it calls the latest check through a ref instead of restarting.
@@ -344,7 +379,8 @@ export function GlobalOpportunityCallNotifier() {
     checkRef.current = checkOpportunities;
   }, [checkOpportunities]);
 
-  // Silent poll every 5 seconds while the app is in the foreground, plus on resume, on push receipt and on explicit trigger.
+  // Poll every 5 seconds continuously (including while locked/backgrounded via KeepAliveService on Android),
+  // plus on resume, on push receipt, and on explicit trigger.
   useEffect(() => {
     if (!env.hybridBookingEnabled || !isEligible) return;
     const check = (
@@ -363,37 +399,48 @@ export function GlobalOpportunityCallNotifier() {
       interval = null;
     };
 
-    if (AppState.currentState === 'active') cancelAllIncomingCalls();
     check();
-    if (AppState.currentState === 'active') start();
+    start();
 
     const subscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (nextState === 'active') {
         cancelAllIncomingCalls();
         check();
-        start();
-      } else {
-        stop();
       }
+      if (!interval) start();
     });
 
     const pushReceived =
       Platform.OS === 'web'
         ? null
         : Notifications.addNotificationReceivedListener((notification) => {
-            const data = (notification.request.content.data ?? {}) as Record<string, unknown>;
+            const content = notification.request.content;
+            const data = (content.data ?? {}) as Record<string, unknown>;
             const type = typeof data.type === 'string' ? data.type.toUpperCase() : '';
+            const kind = typeof data.kind === 'string' ? data.kind.toUpperCase() : '';
             const cid =
               typeof data.candidateId === 'string'
                 ? data.candidateId
-                : type === 'OPPORTUNITY' && typeof data.referenceId === 'string'
+                : (type === 'OPPORTUNITY' ||
+                      type === 'HYBRID_OPPORTUNITY' ||
+                      kind === 'INCOMING_OFFER') &&
+                    typeof data.referenceId === 'string'
                   ? data.referenceId
                   : undefined;
             if (cid) {
               notifiedTrayIdsRef.current.add(cid);
-            }
-            if (AppState.currentState === 'active') {
+              showIncomingCall(
+                cid,
+                content.title || 'New nearby opportunity',
+                content.body || 'Tap to review and respond to this shoot offer.',
+              );
               check(cid, 'ringing');
+            } else if (
+              type === 'OPPORTUNITY' ||
+              type === 'HYBRID_OPPORTUNITY' ||
+              kind === 'INCOMING_OFFER'
+            ) {
+              check(undefined, 'ringing');
             }
           });
 
