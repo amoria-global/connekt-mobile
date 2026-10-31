@@ -184,7 +184,6 @@ export function IncomingOpportunityAlertModal({
   const [busyAction, setBusyAction] = useState<
     'accept_client' | 'accept_package' | 'reject' | null
   >(null);
-  const [viewingAs, setViewingAs] = useState<'photographer' | 'coordinator'>('photographer');
   const [showVenueSchedule, setShowVenueSchedule] = useState(false);
   const [expandedSection, setExpandedSection] = useState<
     'coordinator' | 'availability' | 'policies' | null
@@ -557,43 +556,6 @@ export function IncomingOpportunityAlertModal({
               </View>
             ) : null}
 
-            <View style={styles.viewingAsBar}>
-              <Text style={styles.viewingAsLabel}>{tr('Viewing as')}</Text>
-              <Pressable
-                onPress={() => setViewingAs('photographer')}
-                style={[styles.viewingAsTab, viewingAs === 'photographer' && styles.viewingAsTabActive]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: viewingAs === 'photographer' }}
-              >
-                <Ionicons
-                  name="camera-outline"
-                  size={16}
-                  color={viewingAs === 'photographer' ? onFill : colors.textSoft}
-                />
-                <Text style={[styles.viewingAsTabText, viewingAs === 'photographer' && styles.viewingAsTabTextActive]}>
-                  {tr('Photographer')}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => {
-                  setViewingAs('coordinator');
-                  setExpandedSection('coordinator');
-                }}
-                style={[styles.viewingAsTab, viewingAs === 'coordinator' && styles.viewingAsTabActive]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: viewingAs === 'coordinator' }}
-              >
-                <Ionicons
-                  name="calendar-outline"
-                  size={16}
-                  color={viewingAs === 'coordinator' ? onFill : colors.textSoft}
-                />
-                <Text style={[styles.viewingAsTabText, viewingAs === 'coordinator' && styles.viewingAsTabTextActive]}>
-                  {tr('Coordinator')}
-                </Text>
-              </Pressable>
-            </View>
-
             <View style={styles.requestedBanner}>
               <Ionicons name="videocam-outline" size={18} color={colors.accent} />
               <Text style={styles.requestedBannerText}>
@@ -767,48 +729,44 @@ export function IncomingOpportunityAlertModal({
             </View>
 
             <View style={styles.actions}>
-              <Pressable
-                style={({ pressed }) => [styles.primaryBtn, pressed && styles.btnPressed, locked && styles.btnDisabled]}
-                onPress={handleAcceptClientPolicy}
-                disabled={locked}
-                accessibilityRole="button"
-                accessibilityLabel={tr('Accept')}
-              >
-                <Ionicons name="checkmark-circle" size={22} color={onFill} />
-                <View style={styles.btnTextCol}>
-                  <Text style={styles.primaryBtnText}>
-                    {busyAction === 'accept_client' ? tr('Sending...') : tr('Accept')}
+              <View style={styles.actionsRow}>
+                <Pressable
+                  style={({ pressed }) => [styles.acceptBtn, pressed && styles.btnPressed, locked && styles.btnDisabled]}
+                  onPress={handleAcceptClientPolicy}
+                  disabled={locked}
+                  accessibilityRole="button"
+                  accessibilityLabel={tr('Accept offer')}
+                >
+                  <Ionicons name="checkmark-circle" size={22} color={onFill} />
+                  <Text style={styles.acceptBtnText}>
+                    {busyAction === 'accept_client' ? tr('Sending...') : tr('Accept offer')}
                   </Text>
-                  <Text style={styles.primaryBtnSub}>{tr("On the client's schedule")}</Text>
-                </View>
-              </Pressable>
+                </Pressable>
 
-              <Pressable
-                style={({ pressed }) => [styles.secondaryBtn, pressed && styles.btnPressed, locked && styles.btnDisabled]}
-                onPress={handleAcceptPackagePolicy}
-                disabled={locked}
-                accessibilityRole="button"
-                accessibilityLabel={tr('Accept with my delivery terms')}
-              >
-                <Ionicons name="cube-outline" size={22} color={colors.link} />
-                <View style={styles.btnTextCol}>
-                  <Text style={styles.secondaryBtnText}>
-                    {busyAction === 'accept_package' ? tr('Sending...') : tr('Accept with my delivery terms')}
+                <Pressable
+                  style={({ pressed }) => [styles.packageBtn, pressed && styles.btnPressed, locked && styles.btnDisabled]}
+                  onPress={handleAcceptPackagePolicy}
+                  disabled={locked}
+                  accessibilityRole="button"
+                  accessibilityLabel={tr('Accept with my delivery package policy')}
+                >
+                  <Ionicons name="cube-outline" size={22} color={colors.link} />
+                  <Text style={styles.packageBtnText}>
+                    {busyAction === 'accept_package' ? tr('Sending...') : tr('Accept with my delivery package policy')}
                   </Text>
-                  <Text style={styles.secondaryBtnSub}>{tr('On your package schedule')}</Text>
-                </View>
-              </Pressable>
+                </Pressable>
+              </View>
 
               <Pressable
                 style={({ pressed }) => [styles.declineBtn, pressed && styles.btnPressed, busyAction !== null && styles.btnDisabled]}
                 onPress={handleRejectOffer}
                 disabled={busyAction !== null}
                 accessibilityRole="button"
-                accessibilityLabel={tr('Decline')}
+                accessibilityLabel={tr('Reject offer')}
               >
                 <Ionicons name="close-circle-outline" size={20} color={colors.error} />
                 <Text style={styles.declineBtnText}>
-                  {busyAction === 'reject' ? tr('Sending...') : tr('Decline')}
+                  {busyAction === 'reject' ? tr('Sending...') : tr('Reject offer')}
                 </Text>
               </Pressable>
             </View>
@@ -888,30 +846,6 @@ const useStyles = makeStyles((c) => ({
   },
   timerChipText: { fontSize: 12, fontWeight: fontWeight.bold, color: c.primary, fontVariant: ['tabular-nums'] },
 
-  viewingAsBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surfaceMuted,
-  },
-  viewingAsLabel: { fontSize: 12, fontWeight: fontWeight.medium, color: c.textMuted, paddingHorizontal: 4 },
-  viewingAsTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    minHeight: 40,
-    borderRadius: radii.sm,
-  },
-  viewingAsTabActive: { backgroundColor: c.primary },
-  viewingAsTabText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.textSoft },
-  viewingAsTabTextActive: { color: onFill },
-
   requestedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -989,33 +923,33 @@ const useStyles = makeStyles((c) => ({
   expandText: { fontSize: fontSize.sm, lineHeight: 20, fontWeight: fontWeight.regular, color: c.textSoft },
 
   actions: { gap: spacing.sm, marginTop: spacing.xs },
-  primaryBtn: {
-    flexDirection: 'row',
+  actionsRow: { flexDirection: 'row', gap: spacing.sm },
+  acceptBtn: {
+    flex: 1,
     alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 56,
-    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 76,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radii.md,
     backgroundColor: c.primary,
   },
-  btnTextCol: { flex: 1, gap: 1 },
-  primaryBtnText: { fontFamily: fonts.display, fontSize: fontSize.md, color: onFill },
-  primaryBtnSub: { fontSize: 12, fontWeight: fontWeight.regular, color: onFill, opacity: 0.85 },
-  secondaryBtn: {
-    flexDirection: 'row',
+  acceptBtnText: { textAlign: 'center', fontFamily: fonts.display, fontSize: fontSize.sm, color: onFill },
+  packageBtn: {
+    flex: 1.2,
     alignItems: 'center',
-    gap: spacing.md,
-    minHeight: 56,
-    paddingHorizontal: spacing.lg,
+    justifyContent: 'center',
+    gap: 6,
+    minHeight: 76,
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: radii.md,
     borderWidth: 1.5,
     borderColor: c.primary,
     backgroundColor: c.tint,
   },
-  secondaryBtnText: { fontFamily: fonts.display, fontSize: fontSize.md, color: c.link },
-  secondaryBtnSub: { fontSize: 12, fontWeight: fontWeight.regular, color: c.textSoft },
+  packageBtnText: { textAlign: 'center', fontFamily: fonts.display, fontSize: fontSize.sm, color: c.link },
   declineBtn: {
     flexDirection: 'row',
     alignItems: 'center',
