@@ -100,7 +100,21 @@ if (hasNativeTaskManager()) {
       const title = String(payload.title ?? 'New event offer');
       const body = String(payload.body ?? 'A client posted an event for you. Tap to review and respond.');
 
-      if (showIncomingCall(id, title, body)) return;
+      if (showIncomingCall(id, title, body)) {
+        // The push already put an ordinary notification in the tray (native, no app code needed); the call
+        // screen replaces it so the offer is not alerted twice.
+        try {
+          for (const n of await Notifications.getPresentedNotificationsAsync()) {
+            const d = (n.request.content.data ?? {}) as Record<string, unknown>;
+            if (d.candidateId === id || d.referenceId === id) {
+              await Notifications.dismissNotificationAsync(n.request.identifier);
+            }
+          }
+        } catch {
+          // Best effort.
+        }
+        return;
+      }
 
       // The call screen could not be posted: fall back to a loud ordinary notification so the offer is never lost.
       try {
