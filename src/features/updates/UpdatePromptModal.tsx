@@ -140,8 +140,9 @@ export function UpdatePromptModal() {
   const activePreview = isPreviewing ? DEV_PREVIEW_STATES[devPreviewIndex] : null;
 
   const blocking = store.blocking || isPreviewing;
-  const isDownloading = activePreview ? activePreview.isDownloading : store.isDownloading;
-  const isChecking = activePreview ? activePreview.isChecking : store.isChecking;
+  const updateReady = activePreview ? activePreview.updateReady : store.updateReady;
+  const isDownloading = activePreview ? activePreview.isDownloading : !updateReady && store.isDownloading;
+  const isChecking = activePreview ? activePreview.isChecking : !updateReady && store.isChecking;
   const downloadProgress = activePreview ? activePreview.downloadProgress : store.downloadProgress;
   const errorMessage = activePreview ? activePreview.errorMessage : store.errorMessage;
   const releases = isPreviewing ? [] : store.releases;

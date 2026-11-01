@@ -109,20 +109,40 @@ export const useUpdatesStore = create<AppUpdatesState>((set) => ({
   devPreviewOpen: true,
 
   setStatus: (status) => set({ status }),
-  setChecking: (isChecking) => set({ isChecking, status: isChecking ? 'checking' : 'idle' }),
+  setChecking: (isChecking) =>
+    set((s) => ({
+      isChecking,
+      status: isChecking ? 'checking' : s.updateReady ? 'ready' : s.isDownloading ? 'downloading' : 'idle',
+    })),
   setDownloading: (isDownloading, progress = 0) =>
-    set({
+    set((s) => ({
       isDownloading,
-      downloadProgress: progress,
-      status: isDownloading ? 'downloading' : 'idle',
-    }),
+      isChecking: isDownloading ? false : s.isChecking,
+      downloadProgress: isDownloading ? progress : s.updateReady ? 1 : 0,
+      status: isDownloading ? 'downloading' : s.updateReady ? 'ready' : 'idle',
+    })),
   setUpdateAvailable: (isUpdateAvailable) =>
-    set({ isUpdateAvailable, status: isUpdateAvailable ? 'available' : 'idle' }),
+    set((s) => ({
+      isUpdateAvailable,
+      status: s.updateReady ? 'ready' : isUpdateAvailable ? 'available' : 'idle',
+    })),
   setUpdateReady: (updateReady) =>
-    set({ updateReady, status: updateReady ? 'ready' : 'idle' }),
+    set({
+      updateReady,
+      isDownloading: false,
+      isChecking: false,
+      downloadProgress: updateReady ? 1 : 0,
+      errorMessage: null,
+      status: updateReady ? 'ready' : 'idle',
+    }),
   setLastCheckedTime: (lastCheckedTime) => set({ lastCheckedTime }),
   setErrorMessage: (errorMessage) =>
-    set({ errorMessage, status: errorMessage ? 'error' : 'idle' }),
+    set((s) => ({
+      errorMessage,
+      isDownloading: errorMessage ? false : s.isDownloading,
+      isChecking: errorMessage ? false : s.isChecking,
+      status: errorMessage ? 'error' : s.updateReady ? 'ready' : 'idle',
+    })),
   setDevPreviewOpen: (devPreviewOpen) => set({ devPreviewOpen }),
   setReleases: (releases) => set({ releases }),
 }));
@@ -131,6 +151,39 @@ export const useUpdatesStore = create<AppUpdatesState>((set) => ({
 function stagedReleases(ctx: unknown): Release[] {
   const c = ctx as { downloadedManifest?: unknown; latestManifest?: unknown } | null | undefined;
   return releasesToShow(c?.downloadedManifest ?? c?.latestManifest);
+}
+
+function syncFromNativeContext(ctx: any) {
+  if (!ctx) return;
+  const store = useUpdatesStore.getState();
+
+  if (ctx.isUpdatePending || ctx.isUpdateAvailable) {
+    const notes = stagedReleases(ctx);
+    if (notes.length > 0) store.setReleases(notes);
+  }
+
+  if (ctx.isUpdatePending) {
+    store.setUpdateAvailable(true);
+    store.setUpdateReady(true);
+  } else if (ctx.downloadError) {
+    const msg =
+      typeof ctx.downloadError === 'object' && ctx.downloadError?.message
+        ? String(ctx.downloadError.message)
+        : typeof ctx.downloadError === 'string'
+          ? ctx.downloadError
+          : 'Unable to download the update.';
+    store.setUpdateAvailable(true);
+    store.setErrorMessage(msg);
+  } else if (ctx.isDownloading) {
+    store.setUpdateAvailable(true);
+    const nativeProgress = typeof ctx.downloadProgress === 'number' ? ctx.downloadProgress : 0;
+    store.setDownloading(true, Math.max(store.downloadProgress, nativeProgress));
+  } else if (ctx.isChecking) {
+    store.setChecking(true);
+  } else {
+    if (store.isDownloading) store.setDownloading(false, 0);
+    if (store.isChecking) store.setChecking(false);
+  }
 }
 
 // Setup listener on native state machine once module loads on native
@@ -164,23 +217,7 @@ function initNativeListener() {
   if (typeof Updates.addUpdatesStateChangeListener === 'function') {
     try {
       Updates.addUpdatesStateChangeListener((event: any) => {
-        const ctx = event?.context;
-        if (!ctx) return;
-        const store = useUpdatesStore.getState();
-
-        if (ctx.isUpdatePending || ctx.isUpdateAvailable) {
-          const notes = stagedReleases(ctx);
-          if (notes.length > 0) store.setReleases(notes);
-        }
-
-        if (ctx.isUpdatePending) {
-          store.setUpdateAvailable(true);
-          store.setUpdateReady(true);
-        } else if (ctx.isDownloading) {
-          store.setDownloading(true, ctx.downloadProgress ?? 0);
-        } else if (ctx.isChecking) {
-          store.setChecking(true);
-        }
+        syncFromNativeContext(event?.context);
       });
       listenerAttached = true;
     } catch {
@@ -225,7 +262,17 @@ export async function checkForUpdates(isManual = false): Promise<CheckUpdateResu
     return { available: false, ready: false, message: msg };
   }
 
+  // If the native startup check already finished downloading an update, mark ready immediately.
+  if ((Updates as any).latestContext?.isUpdatePending) {
+    const notes = stagedReleases((Updates as any).latestContext);
+    if (notes.length > 0) store.setReleases(notes);
+    store.setUpdateAvailable(true);
+    store.setUpdateReady(true);
+    return { available: true, ready: true, message: 'An update is downloaded and ready to install.' };
+  }
+
   if (store.updateReady) {
+    store.setUpdateReady(true);
     return { available: true, ready: true, message: 'An update is downloaded and ready to install.' };
   }
 
@@ -249,11 +296,18 @@ export async function checkForUpdates(isManual = false): Promise<CheckUpdateResu
       store.setReleases(releasesToShow((checkResult as { manifest?: unknown }).manifest));
       store.setChecking(false);
       store.setUpdateAvailable(true);
-      store.setDownloading(true);
+
+      if ((Updates as any).latestContext?.isUpdatePending) {
+        store.setUpdateReady(true);
+        store.setLastCheckedTime(new Date());
+        return { available: true, ready: true, message: 'A new update was downloaded and is ready to install.' };
+      }
+
+      store.setDownloading(true, 0);
 
       await Updates.fetchUpdateAsync();
 
-      store.setDownloading(false);
+      store.setDownloading(false, 1);
       store.setUpdateReady(true);
       store.setLastCheckedTime(new Date());
       return { available: true, ready: true, message: 'A new update was downloaded and is ready to install.' };
@@ -269,6 +323,7 @@ export async function checkForUpdates(isManual = false): Promise<CheckUpdateResu
     }
 
     store.setChecking(false);
+    store.setDownloading(false, 0);
     store.setLastCheckedTime(new Date());
     store.setStatus('up-to-date');
     return {
@@ -277,10 +332,21 @@ export async function checkForUpdates(isManual = false): Promise<CheckUpdateResu
       message: `You're on the latest version of Connekyt (v${store.currentVersion}).`,
     };
   } catch (err: any) {
+    // If the native ON_LOAD procedure finished downloading while JS check/fetch collided with it,
+    // treat the already-downloaded update as ready rather than showing an error.
+    if ((Updates as any).latestContext?.isUpdatePending || useUpdatesStore.getState().updateReady) {
+      const notes = stagedReleases((Updates as any).latestContext);
+      if (notes.length > 0) store.setReleases(notes);
+      store.setUpdateAvailable(true);
+      store.setUpdateReady(true);
+      store.setLastCheckedTime(new Date());
+      return { available: true, ready: true, message: 'Update downloaded and ready to install.' };
+    }
+
     const errorMsg = err?.message || 'Unable to check for updates. Please try again later.';
     store.setChecking(false);
     // Keep isUpdateAvailable: a download that failed is still a required update.
-    useUpdatesStore.setState({ isDownloading: false });
+    useUpdatesStore.setState({ isDownloading: false, isChecking: false });
     store.setErrorMessage(errorMsg);
     return { available: useUpdatesStore.getState().isUpdateAvailable, ready: false, error: errorMsg, message: errorMsg };
   } finally {
