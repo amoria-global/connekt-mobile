@@ -34,7 +34,10 @@ import {
   consumeInitialNotificationResponse,
 } from '@/features/notifications/push';
 import { notificationTarget, shouldNavigateToTarget } from '@/features/notifications/routing';
-import { showIncomingOpportunity } from '@/features/hybrid/GlobalOpportunityCallNotifier';
+import {
+  clearOfferNotifications,
+  showIncomingOpportunity,
+} from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { isPhotographerType } from '@/features/auth/role';
 import { takePendingInviteHref } from '@/features/workspace/pendingInvite';
 import { useCurrency } from '@/store/currency';
@@ -234,6 +237,8 @@ function useProtectedRoute() {
         if (/^https?:\/\//i.test(rawUrl)) {
           const parsed = new URL(rawUrl);
           pathAndQuery = `${parsed.pathname}${parsed.search}`;
+        } else if (/^[a-z][a-z0-9+.-]*:\/\//i.test(rawUrl)) {
+          pathAndQuery = rawUrl.replace(/^[a-z][a-z0-9+.-]*:\/\/+/i, '/');
         }
       } catch {
         // Keep rawUrl if URL parsing fails
@@ -254,7 +259,7 @@ function useProtectedRoute() {
         }
         const candMatch = mapped.match(/[?&]candidate=([^&#]+)/);
         if (candMatch?.[1]) {
-          showIncomingOpportunity(decodeURIComponent(candMatch[1]), 'details');
+          void clearOfferNotifications(decodeURIComponent(candMatch[1]));
         }
       } else {
         void setPendingDestination(mapped);
@@ -309,7 +314,7 @@ function useProtectedRoute() {
               router.replace(href as Href);
               const candMatch = href.match(/[?&]candidate=([^&#]+)/);
               if (candMatch?.[1]) {
-                showIncomingOpportunity(decodeURIComponent(candMatch[1]), 'details');
+                void clearOfferNotifications(decodeURIComponent(candMatch[1]));
               }
               return;
             }
