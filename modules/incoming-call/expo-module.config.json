@@ -1,9 +1,6 @@
 {
-  "platforms": ["android", "ios"],
+  "platforms": ["android"],
   "android": {
     "modules": ["expo.modules.incomingcall.IncomingCallModule"]
-  },
-  "ios": {
-    "modules": ["IncomingCallModule"]
   }
 }

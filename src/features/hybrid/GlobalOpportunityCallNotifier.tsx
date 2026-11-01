@@ -1,20 +1,18 @@
 /**
  * GlobalOpportunityCallNotifier — Handles incoming shoot offer device notifications and tapped actions.
  *
- * Notifications appear and ring in the OS device notification tray & lock screen
- * (`offerCallTask.ts` + `IncomingCallModule` + immediate OS tray notifications).
+ * Notifications appear and ring in the OS device notification tray & lock screen.
  * Opening the app UI never auto-shows popups or rings inside the app. Only when
  * the user explicitly taps the device notification (or its Accept / Reject action
  * button) does `showIncomingOpportunity` open the offer details or execute the action.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { AppState, type AppStateStatus, Platform } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
 import { showMatchingInProgress } from './MatchingInProgress';
 import { canDrawOverOtherApps, cancelIncomingCall, showIncomingCall } from './incomingCall';
 import { useCallReadiness } from './useCallReadiness';
-import { RINGING_CHANNEL } from '@/features/notifications/push';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/store/auth';
 import { useRole } from '@/features/auth/role';
@@ -122,70 +120,13 @@ export function GlobalOpportunityCallNotifier() {
   const [activeOpportunity, setActiveOpportunity] = useState<PhotographerOpportunity | null>(null);
   const isBusyRef = useRef(false);
   const dismissedRef = useRef<string[]>([]);
-  const notifiedTrayIdsRef = useRef<Set<string>>(new Set());
-  const seededRef = useRef(false);
-  const lastForegroundAtRef = useRef<number>(Date.now());
 
   const markDismissed = useCallback((id: string) => {
     if (!dismissedRef.current.includes(id)) dismissedRef.current = [...dismissedRef.current, id];
-    notifiedTrayIdsRef.current.add(id);
     void clearOfferNotifications(id);
   }, []);
 
-  // Keep Android foreground service ready so device notifications wake the lock screen in background.
   useCallReadiness(isEligible);
-
-  const postDeviceNotificationForOffer = useCallback(async (opp: PhotographerOpportunity) => {
-    if (Platform.OS === 'web') return;
-    if (notifiedTrayIdsRef.current.has(opp.candidateId)) return;
-    notifiedTrayIdsRef.current.add(opp.candidateId);
-
-    const title = opp.eventTitle ? `New Offer: ${opp.eventTitle}` : 'New Shoot Opportunity';
-    const place = opp.city || opp.venue;
-    const body = place
-      ? `${place} — Tap to review and respond.`
-      : 'A client has invited you to a shoot. Tap to review and respond.';
-
-    // When minimized/locked, wake the screen and ring via IncomingCallModule (if overlay auto-open is not active).
-    if (
-      Platform.OS === 'android' &&
-      AppState.currentState !== 'active' &&
-      canDrawOverOtherApps() !== true
-    ) {
-      showIncomingCall(opp.candidateId, title, body);
-    }
-
-    try {
-      const existing = await Notifications.getPresentedNotificationsAsync();
-      const alreadyShown = existing.some((n) => {
-        const d = (n.request.content.data ?? {}) as Record<string, unknown>;
-        return d.candidateId === opp.candidateId || d.referenceId === opp.candidateId;
-      });
-      if (alreadyShown) return;
-
-      await Notifications.scheduleNotificationAsync({
-        identifier: `offer-${opp.candidateId}`,
-        content: {
-          title,
-          body,
-          sound: 'connekyt_ringtone.wav',
-          priority: Notifications.AndroidNotificationPriority.MAX,
-          categoryIdentifier: 'OPPORTUNITY_ALERT',
-          data: {
-            type: 'OPPORTUNITY',
-            kind: 'INCOMING_OFFER',
-            candidateId: opp.candidateId,
-            referenceId: opp.candidateId,
-            eventId: opp.eventId,
-            link: `/opportunities/${opp.candidateId}`,
-          },
-        },
-        trigger: Platform.OS === 'android' ? { channelId: RINGING_CHANNEL } : null,
-      });
-    } catch {
-      // Non-fatal
-    }
-  }, []);
 
   const handleApprove = useCallback(
     async (
@@ -325,63 +266,31 @@ export function GlobalOpportunityCallNotifier() {
     [isEligible, markDismissed, handleApprove, handleReject],
   );
 
-  // Watch for newly created offers and post them to the OS Device Notifications tray
-  // (never opening any in-app popup UI or ringing when the user simply opens the app).
+  // When a push arrives while the app is minimized on Android, wake the display
+  // via IncomingCallModule (without auto-opening the app over other apps).
   useEffect(() => {
-    if (!env.hybridBookingEnabled || !isEligible || Platform.OS === 'web') return;
+    if (!env.hybridBookingEnabled || !isEligible || Platform.OS !== 'android') return;
+    if (typeof Notifications.addNotificationReceivedListener !== 'function') return;
 
-    let cancelled = false;
-
-    const pollDeviceNotifications = async () => {
-      if (cancelled) return;
-      try {
-        const opps = await listOpportunities('PENDING_RESPONSE');
-        if (cancelled || !Array.isArray(opps)) return;
-
-        // Seed existing offers on initial load or right after foregrounding so opening the app
-        // never triggers notifications for offers that were already sitting on the server.
-        const justOpenedApp =
-          AppState.currentState === 'active' && Date.now() - lastForegroundAtRef.current < 4000;
-
-        if (!seededRef.current || justOpenedApp) {
-          seededRef.current = true;
-          for (const opp of opps) {
-            if (opp?.candidateId) notifiedTrayIdsRef.current.add(opp.candidateId);
-          }
-          return;
-        }
-
-        for (const opp of opps) {
-          if (
-            opp?.candidateId &&
-            isOpenStatus(opp.status) &&
-            isWithinTwoHourWindow(opp) &&
-            !dismissedRef.current.includes(opp.candidateId) &&
-            !notifiedTrayIdsRef.current.has(opp.candidateId)
-          ) {
-            await postDeviceNotificationForOffer(opp);
-          }
-        }
-      } catch {
-        // Ignore transient network errors
+    const sub = Notifications.addNotificationReceivedListener((notification) => {
+      if (AppState.currentState === 'active') return;
+      if (canDrawOverOtherApps() === true) return;
+      const content = notification?.request?.content;
+      const data = (content?.data ?? {}) as Record<string, unknown>;
+      const type = String(data.type ?? '').toUpperCase();
+      const kind = String(data.kind ?? '').toUpperCase();
+      if (type !== 'OPPORTUNITY' && type !== 'HYBRID_OPPORTUNITY' && kind !== 'INCOMING_OFFER') {
+        return;
       }
-    };
-
-    void pollDeviceNotifications();
-    const interval = setInterval(pollDeviceNotifications, 5000);
-
-    const appStateSub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
-      if (nextState === 'active') {
-        lastForegroundAtRef.current = Date.now();
-      }
+      const cid = String(data.candidateId ?? data.referenceId ?? '');
+      if (!cid || dismissedRef.current.includes(cid)) return;
+      const title = String(content?.title ?? 'New Shoot Opportunity');
+      const body = String(content?.body ?? 'A client has invited you to a shoot. Tap to review and respond.');
+      showIncomingCall(cid, title, body);
     });
 
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-      appStateSub.remove();
-    };
-  }, [isEligible, postDeviceNotificationForOffer]);
+    return () => sub.remove();
+  }, [isEligible]);
 
   useEffect(() => {
     if (!env.hybridBookingEnabled || !isEligible) return;
