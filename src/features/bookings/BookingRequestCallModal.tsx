@@ -73,7 +73,7 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
   }, []);
   const ringingFor = event?.id;
   useEffect(() => {
-    if (!ringingFor || Platform.OS === 'web') return;
+    if (ringingFor || !ringingFor) return;
     let p: AudioPlayer | null = null;
     try {
       void setAudioModeAsync({

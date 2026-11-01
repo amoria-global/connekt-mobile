@@ -55,6 +55,7 @@ export const NOTIFICATION_CHANNELS = [
   'booking_updates',
   'urgent_booking_alerts',
   'urgent_alerts_v2',
+  'urgent_alerts_v3',
 ] as const;
 
 /** Sent to the server with the token on Android builds with the native IncomingCall module. */
@@ -126,6 +127,28 @@ async function safeSetChannel(
 
 export async function ensureAndroidChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
+  const ringAudioAttributes = {
+    usage: (Notifications.AndroidAudioUsage?.NOTIFICATION_RINGTONE ?? 6) as Notifications.AndroidAudioUsage,
+    contentType: (Notifications.AndroidAudioContentType?.SONIFICATION ?? 4) as Notifications.AndroidAudioContentType,
+  };
+  const chimeAudioAttributes = {
+    usage: (Notifications.AndroidAudioUsage?.NOTIFICATION ?? 5) as Notifications.AndroidAudioUsage,
+    contentType: (Notifications.AndroidAudioContentType?.SONIFICATION ?? 4) as Notifications.AndroidAudioContentType,
+  };
+  await safeSetChannel('urgent_alerts_v3', {
+    name: 'Offer & Booking Rings',
+    description: 'Rings in device notifications for new booking requests and event offers',
+    importance: Notifications.AndroidImportance.MAX,
+    vibrationPattern: [0, 500, 250, 500, 250, 500],
+    lightColor: lightPalette.accent,
+    sound: 'connekyt_ringtone.wav',
+    audioAttributes: ringAudioAttributes,
+    enableVibrate: true,
+    showBadge: true,
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+    bypassDnd: true,
+  });
+  void chimeAudioAttributes;
   await safeSetChannel('default', {
     name: 'Amoria Connect Notifications',
     importance: Notifications.AndroidImportance.MAX,
@@ -469,7 +492,7 @@ export async function checkNotificationDiagnostics(): Promise<NotificationDiagno
 }
 
 /** The channel that rings for booking requests and opportunities. */
-export const RINGING_CHANNEL = 'urgent_alerts_v2';
+export const RINGING_CHANNEL = 'urgent_alerts_v3';
 
 /**
  * Whether ringing alerts break through Do Not Disturb.

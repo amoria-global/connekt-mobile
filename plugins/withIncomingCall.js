@@ -1,7 +1,6 @@
 /**
- * Lets an offer ring like a call on Android: the full-screen-intent permission, a wake lock for the screen, and
- * a main activity that may show over the lock screen and turn the screen on. Without these Android only shows
- * a heads-up notification on a locked phone.
+ * Grants permissions for waking the display and vibrating when a device notification arrives on Android.
+ * Does NOT set showWhenLocked or turnScreenOn on MainActivity so the app UI never opens over the lock screen.
  */
 const { withAndroidManifest } = require('expo/config-plugins');
 
@@ -22,9 +21,9 @@ module.exports = function withIncomingCall(config) {
     }
     const app = manifest.application && manifest.application[0];
     const main = app && (app.activity || []).find((a) => a.$ && a.$['android:name'] === '.MainActivity');
-    if (main) {
-      main.$['android:showWhenLocked'] = 'true';
-      main.$['android:turnScreenOn'] = 'true';
+    if (main && main.$) {
+      delete main.$['android:showWhenLocked'];
+      delete main.$['android:turnScreenOn'];
     }
     return cfg;
   });
