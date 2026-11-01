@@ -127,6 +127,8 @@ export async function createMatchRequest(eventId: string, payload: MatchRequestP
   const res = await api.post<ApiEnvelope<MatchRequestResult>>(
     `/events/${encodeURIComponent(eventId)}/match-request`,
     payload,
+    // Matching and alerting every nearby photographer can take longer than the usual 20 seconds.
+    { timeoutMs: 90_000 },
   );
   assertOk(res, 'Could not post your event to photographers.');
   return res.data!;
