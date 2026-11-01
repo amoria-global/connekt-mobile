@@ -1,26 +1,19 @@
 /**
- * Shows the full-screen incoming booking request (BookingRequestCallModal)
- * for a direct booking still waiting on the photographer. Mounted in the
- * signed-in layout so it can appear over any screen.
+ * Shows the incoming direct booking request modal (BookingRequestCallModal)
+ * ONLY when the photographer explicitly taps a booking request device notification
+ * (or its "View & respond" action button).
  *
- * It looks when the app opens or comes back to the foreground, every 15 s
- * while open, as soon as a push lands, and when the notification (or its
- * "View & respond" button) is tapped. "Decide later" hides a request for the
- * rest of the session; it stays on the Events tab with Accept / Decline.
+ * Opening the app UI never auto-shows popups or rings.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Platform } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { useRouter } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 import { useRole } from '@/features/auth/role';
 import { acceptEventBooking, declineEventBooking, listPhotographerEvents } from '@/features/events/api';
 import { acceptBooking, listBookings, rejectBooking } from '@/features/bookings/api';
 import type { EventItem } from '@/features/events/types';
 import { BookingRequestCallModal } from './BookingRequestCallModal';
 import { onShowIncomingRequest, pendingRequests } from './incomingRequests';
-
-const POLL_MS = 15_000;
 
 const todayStr = () => {
   const d = new Date();
@@ -35,10 +28,10 @@ export function BookingRequestCallNotifier() {
   const dismissed = useRef<Set<string>>(new Set());
   const busy = useRef(false);
 
-  /** Show `focusId` if it's still waiting, else the newest waiting request. */
+  /** Show `focusId` when tapped from a device notification. */
   const check = useCallback(
     async (focusId?: string) => {
-      if (!isPhotographer || busy.current) return;
+      if (!isPhotographer || busy.current || !focusId) return;
       try {
         const [eventsRes, bookingsRes] = await Promise.allSettled([
           listPhotographerEvents(),
@@ -53,7 +46,6 @@ export function BookingRequestCallNotifier() {
             ? bookingsRes.value
             : [];
 
-        // Synthesize any pending booking into an EventItem if not already in events
         for (const b of bookings) {
           if ((b.status ?? '').toUpperCase() === 'PENDING') {
             const matchIndex = events.findIndex(
@@ -81,19 +73,18 @@ export function BookingRequestCallNotifier() {
           }
         }
 
-        if (focusId) dismissed.current.delete(focusId);
+        dismissed.current.delete(focusId);
         const waiting = pendingRequests(events, todayStr(), dismissed.current);
         const next =
-          (focusId && waiting.find((e) => e.id === focusId || e.bookingId === focusId)) ||
+          waiting.find((e) => e.id === focusId || e.bookingId === focusId) ||
           waiting[0] ||
           null;
         setActive((prev) => (prev && next && prev.id === next.id ? prev : next));
-        // Tapped a request that's already been answered: open its page instead.
-        if (focusId && !waiting.some((e) => e.id === focusId || e.bookingId === focusId)) {
+        if (!waiting.some((e) => e.id === focusId || e.bookingId === focusId)) {
           router.push(`/event/${focusId}` as never);
         }
       } catch {
-        // Offline: try again on the next poll
+        // Ignore network errors
       }
     },
     [isPhotographer, router],
@@ -101,24 +92,8 @@ export function BookingRequestCallNotifier() {
 
   useEffect(() => {
     if (!isPhotographer) return;
-    void check();
-    let timer: ReturnType<typeof setInterval> | null = setInterval(() => void check(), POLL_MS);
-    const appState = AppState.addEventListener('change', (s) => {
-      if (s === 'active') {
-        void check();
-        if (!timer) timer = setInterval(() => void check(), POLL_MS);
-      } else if (timer) {
-        clearInterval(timer);
-        timer = null;
-      }
-    });
-    const received =
-      Platform.OS === 'web' ? null : Notifications.addNotificationReceivedListener(() => void check());
     const offTap = onShowIncomingRequest((eventId) => void check(eventId));
     return () => {
-      if (timer) clearInterval(timer);
-      appState.remove();
-      received?.remove();
       offTap();
     };
   }, [isPhotographer, check]);
@@ -136,7 +111,6 @@ export function BookingRequestCallNotifier() {
 
   return (
     <BookingRequestCallModal
-      // A new request mounts a fresh screen, so no state carries over.
       key={active.id}
       event={active}
       onAccept={async (ev) => {
@@ -152,7 +126,6 @@ export function BookingRequestCallNotifier() {
         } finally {
           busy.current = false;
         }
-        void check(); // another request may be waiting
       }}
       onDecline={async (ev, reason) => {
         busy.current = true;
@@ -167,7 +140,6 @@ export function BookingRequestCallNotifier() {
         } finally {
           busy.current = false;
         }
-        void check(); // another request may be waiting
       }}
       onViewDetails={(ev) => {
         dismissed.current.add(ev.id);

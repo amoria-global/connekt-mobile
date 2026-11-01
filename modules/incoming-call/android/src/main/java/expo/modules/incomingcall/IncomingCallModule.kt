@@ -15,11 +15,11 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
 /**
- * High-priority lock-screen & display wake-up alert for incoming offers on Android.
+ * High-priority Android device notification & display wake-up for incoming offers and alerts.
  *
- * Acquires a screen wake-lock (`ACQUIRE_CAUSES_WAKEUP`), posts a full-screen lock-screen
- * notification with custom ringtone and vibration pattern on `incoming_offer_call_v1`,
- * and deep-links to `connekt://bookings?tab=opportunities&candidate={id}` on tap.
+ * Wakes up the locked display (`ACQUIRE_CAUSES_WAKEUP`) and posts a device notification in the
+ * OS notification bar & lock screen (`incoming_offer_ring_v2`) with continuous ringtone
+ * (`FLAG_INSISTENT`) and vibration, WITHOUT automatically opening the app UI.
  */
 class IncomingCallModule : Module() {
   private val context: Context
@@ -32,7 +32,7 @@ class IncomingCallModule : Module() {
     Name("IncomingCall")
 
     Function("show") { id: String, title: String, body: String ->
-      show(id, title, body)
+      showNotification(context, id, title, body, null)
     }
 
     Function("cancel") { id: String ->
@@ -40,7 +40,7 @@ class IncomingCallModule : Module() {
     }
 
     Function("cancelAll") {
-      cancelAll()
+      cancelAllNotifications(context)
     }
 
     Function("canUseFullScreenIntent") {
@@ -97,117 +97,214 @@ class IncomingCallModule : Module() {
     }
   }
 
-  private fun wakeDisplay() {
-    try {
-      val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
-      @Suppress("DEPRECATION")
-      val wakeLock = power.newWakeLock(
-        PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
-          PowerManager.ACQUIRE_CAUSES_WAKEUP or
-          PowerManager.ON_AFTER_RELEASE,
-        "connekyt:incoming_offer_wake",
-      )
-      wakeLock.acquire(15_000L)
-    } catch (_: Exception) {
-      // Ignore if WAKE_LOCK unavailable
-    }
-  }
-
-  private fun ensureChannel() {
-    if (Build.VERSION.SDK_INT < 26) return
-    if (manager.getNotificationChannel(CHANNEL_ID) != null) return
-    val channel = NotificationChannel(CHANNEL_ID, "Incoming offers", NotificationManager.IMPORTANCE_HIGH).apply {
-      description = "Rings and wakes the lock screen when a new event offer arrives"
-      lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-      enableVibration(true)
-      vibrationPattern = longArrayOf(0, 600, 350, 600, 350, 600)
-      val raw = context.resources.getIdentifier("connekyt_ringtone", "raw", context.packageName)
-      val sound = if (raw != 0) {
-        Uri.parse("android.resource://" + context.packageName + "/" + raw)
-      } else {
-        Settings.System.DEFAULT_RINGTONE_URI
-      }
-      setSound(
-        sound,
-        AudioAttributes.Builder()
-          .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-          .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-          .build(),
-      )
-      try {
-        setBypassDnd(true)
-      } catch (_: Exception) {
-      }
-    }
-    manager.createNotificationChannel(channel)
-  }
-
-  private fun show(id: String, title: String, body: String) {
-    ensureChannel()
-    wakeDisplay()
-
-    val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
-      ?: Intent(
-        Intent.ACTION_VIEW,
-        Uri.parse("connekt://bookings?tab=opportunities&candidate=" + Uri.encode(id)),
-      ).apply { setPackage(context.packageName) }
-
-    launch.addFlags(
-      Intent.FLAG_ACTIVITY_NEW_TASK or
-        Intent.FLAG_ACTIVITY_CLEAR_TOP or
-        Intent.FLAG_ACTIVITY_SINGLE_TOP,
-    )
-    launch.putExtra("incoming_offer_id", id)
-
-    val pending = PendingIntent.getActivity(
-      context,
-      id.hashCode(),
-      launch,
-      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-    )
-
-    val builder = if (Build.VERSION.SDK_INT >= 26) {
-      Notification.Builder(context, CHANNEL_ID)
-    } else {
-      @Suppress("DEPRECATION")
-      Notification.Builder(context).setPriority(Notification.PRIORITY_MAX)
-    }
-    builder
-      .setSmallIcon(context.applicationInfo.icon)
-      .setContentTitle(title)
-      .setContentText(body)
-      .setCategory(Notification.CATEGORY_CALL)
-      .setVisibility(Notification.VISIBILITY_PUBLIC)
-      .setOngoing(true)
-      .setAutoCancel(true)
-      .setContentIntent(pending)
-      .setFullScreenIntent(pending, true)
-    if (Build.VERSION.SDK_INT >= 26) builder.setTimeoutAfter(RING_MS)
-
-    val notification = builder.build()
-    notification.flags = notification.flags or Notification.FLAG_INSISTENT
-    manager.notify(id, NOTIFICATION_ID, notification)
-
-    if (Settings.canDrawOverlays(context)) {
-      try {
-        context.startActivity(launch)
-      } catch (_: Exception) {
-        // The full-screen notification above is still shown on the lock screen.
-      }
-    }
-  }
-
-  private fun cancelAll() {
-    if (Build.VERSION.SDK_INT >= 23) {
-      for (active in manager.activeNotifications) {
-        if (active.id == NOTIFICATION_ID) manager.cancel(active.tag, NOTIFICATION_ID)
-      }
-    }
-  }
-
-  private companion object {
-    const val CHANNEL_ID = "incoming_offer_call_v1"
+  companion object {
+    const val CHANNEL_ID = "incoming_offer_ring_v2"
+    const val CHIME_CHANNEL_ID = "connekyt_device_alerts_v2"
     const val NOTIFICATION_ID = 4201
+    const val CHIME_NOTIFICATION_ID = 4202
     const val RING_MS = 47_000L
+
+    fun wakeDisplay(context: Context) {
+      try {
+        val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+        @Suppress("DEPRECATION")
+        val wakeLock = power.newWakeLock(
+          PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
+            PowerManager.ACQUIRE_CAUSES_WAKEUP or
+            PowerManager.ON_AFTER_RELEASE,
+          "connekyt:incoming_offer_wake",
+        )
+        wakeLock.acquire(15_000L)
+      } catch (_: Exception) {
+        try {
+          val power = context.getSystemService(Context.POWER_SERVICE) as PowerManager
+          @Suppress("DEPRECATION")
+          val fallback = power.newWakeLock(
+            PowerManager.FULL_WAKE_LOCK or
+              PowerManager.ACQUIRE_CAUSES_WAKEUP or
+              PowerManager.ON_AFTER_RELEASE,
+            "connekyt:incoming_offer_wake_full",
+          )
+          fallback.acquire(15_000L)
+        } catch (_: Exception) {
+        }
+      }
+    }
+
+    fun ensureRingChannel(context: Context) {
+      if (Build.VERSION.SDK_INT < 26) return
+      val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      if (nm.getNotificationChannel(CHANNEL_ID) != null) return
+      val channel = NotificationChannel(
+        CHANNEL_ID,
+        "Incoming Offers & Booking Requests",
+        NotificationManager.IMPORTANCE_HIGH,
+      ).apply {
+        description = "Rings in device notifications and wakes the display when a new offer arrives"
+        lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        enableVibration(true)
+        vibrationPattern = longArrayOf(0, 600, 350, 600, 350, 600)
+        val raw = context.resources.getIdentifier("connekyt_ringtone", "raw", context.packageName)
+        val sound = if (raw != 0) {
+          Uri.parse("android.resource://" + context.packageName + "/" + raw)
+        } else {
+          Settings.System.DEFAULT_RINGTONE_URI
+        }
+        setSound(
+          sound,
+          AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build(),
+        )
+        try {
+          setBypassDnd(true)
+        } catch (_: Exception) {
+        }
+      }
+      nm.createNotificationChannel(channel)
+    }
+
+    fun ensureChimeChannel(context: Context) {
+      if (Build.VERSION.SDK_INT < 26) return
+      val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      if (nm.getNotificationChannel(CHIME_CHANNEL_ID) != null) return
+      val channel = NotificationChannel(
+        CHIME_CHANNEL_ID,
+        "Device Notifications",
+        NotificationManager.IMPORTANCE_HIGH,
+      ).apply {
+        description = "Booking updates, payments, and general notifications"
+        lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+        enableVibration(true)
+        vibrationPattern = longArrayOf(0, 250, 200, 250)
+        val raw = context.resources.getIdentifier("connekyt_chime", "raw", context.packageName)
+        val sound = if (raw != 0) {
+          Uri.parse("android.resource://" + context.packageName + "/" + raw)
+        } else {
+          Settings.System.DEFAULT_NOTIFICATION_URI
+        }
+        setSound(
+          sound,
+          AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build(),
+        )
+      }
+      nm.createNotificationChannel(channel)
+    }
+
+    fun showNotification(
+      context: Context,
+      id: String,
+      title: String,
+      body: String,
+      deepLinkPath: String? = null,
+    ) {
+      ensureRingChannel(context)
+      wakeDisplay(context)
+
+      val path = when {
+        !deepLinkPath.isNullOrBlank() -> deepLinkPath.trimStart('/')
+        id.isNotBlank() && id != "offer" -> "offers/" + Uri.encode(id)
+        else -> "bookings?tab=opportunities"
+      }
+
+      val launch = Intent(Intent.ACTION_VIEW, Uri.parse("connekt://$path")).apply {
+        setPackage(context.packageName)
+        addFlags(
+          Intent.FLAG_ACTIVITY_NEW_TASK or
+            Intent.FLAG_ACTIVITY_CLEAR_TOP or
+            Intent.FLAG_ACTIVITY_SINGLE_TOP,
+        )
+        putExtra("incoming_offer_id", id)
+      }
+
+      val pending = PendingIntent.getActivity(
+        context,
+        id.hashCode(),
+        launch,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+      )
+
+      val builder = if (Build.VERSION.SDK_INT >= 26) {
+        Notification.Builder(context, CHANNEL_ID)
+      } else {
+        @Suppress("DEPRECATION")
+        Notification.Builder(context).setPriority(Notification.PRIORITY_MAX)
+      }
+      builder
+        .setSmallIcon(context.applicationInfo.icon)
+        .setContentTitle(title)
+        .setContentText(body)
+        .setStyle(Notification.BigTextStyle().bigText(body))
+        .setCategory(Notification.CATEGORY_CALL)
+        .setVisibility(Notification.VISIBILITY_PUBLIC)
+        .setOngoing(false)
+        .setAutoCancel(true)
+        .setContentIntent(pending)
+      if (Build.VERSION.SDK_INT >= 26) builder.setTimeoutAfter(RING_MS)
+
+      val notification = builder.build()
+      notification.flags = notification.flags or Notification.FLAG_INSISTENT
+      val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      nm.notify(id, NOTIFICATION_ID, notification)
+    }
+
+    fun showChimeNotification(
+      context: Context,
+      id: String,
+      title: String,
+      body: String,
+    ) {
+      ensureChimeChannel(context)
+      wakeDisplay(context)
+
+      val launch = context.packageManager.getLaunchIntentForPackage(context.packageName)
+        ?: Intent(Intent.ACTION_VIEW, Uri.parse("connekt://notifications")).apply {
+          setPackage(context.packageName)
+        }
+      launch.addFlags(
+        Intent.FLAG_ACTIVITY_NEW_TASK or
+          Intent.FLAG_ACTIVITY_CLEAR_TOP or
+          Intent.FLAG_ACTIVITY_SINGLE_TOP,
+      )
+
+      val pending = PendingIntent.getActivity(
+        context,
+        id.hashCode(),
+        launch,
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+      )
+
+      val builder = if (Build.VERSION.SDK_INT >= 26) {
+        Notification.Builder(context, CHIME_CHANNEL_ID)
+      } else {
+        @Suppress("DEPRECATION")
+        Notification.Builder(context).setPriority(Notification.PRIORITY_HIGH)
+      }
+      builder
+        .setSmallIcon(context.applicationInfo.icon)
+        .setContentTitle(title)
+        .setContentText(body)
+        .setStyle(Notification.BigTextStyle().bigText(body))
+        .setCategory(Notification.CATEGORY_MESSAGE)
+        .setVisibility(Notification.VISIBILITY_PUBLIC)
+        .setAutoCancel(true)
+        .setContentIntent(pending)
+
+      val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+      nm.notify(id, CHIME_NOTIFICATION_ID, builder.build())
+    }
+
+    fun cancelAllNotifications(context: Context) {
+      if (Build.VERSION.SDK_INT >= 23) {
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        for (active in nm.activeNotifications) {
+          if (active.id == NOTIFICATION_ID) nm.cancel(active.tag, NOTIFICATION_ID)
+        }
+      }
+    }
   }
 }

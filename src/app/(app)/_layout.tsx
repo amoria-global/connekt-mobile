@@ -104,7 +104,7 @@ export default function AppLayout() {
             : actionIdentifier === 'ACTION_DECLINE'
               ? 'reject'
               : undefined;
-        const target = `/bookings?tab=opportunities&candidate=${encodeURIComponent(candidateId)}`;
+        const target = '/bookings?tab=opportunities';
         if (shouldNavigateToTarget(target)) {
           router.push(target as never);
         }
