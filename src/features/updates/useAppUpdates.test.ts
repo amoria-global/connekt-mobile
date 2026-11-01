@@ -49,10 +49,15 @@ describe('useUpdatesStore and OTA Update logic', () => {
     expect(useUpdatesStore.getState().isDownloading).toBe(false);
   });
 
-  it('marks update as ready and transitions status to ready', () => {
+  it('marks update as ready, clears downloading/checking flags, and transitions status to ready', () => {
+    useUpdatesStore.getState().setChecking(true);
+    useUpdatesStore.getState().setDownloading(true, 0);
     useUpdatesStore.getState().setUpdateReady(true);
     const readyState = useUpdatesStore.getState();
     expect(readyState.updateReady).toBe(true);
+    expect(readyState.isDownloading).toBe(false);
+    expect(readyState.isChecking).toBe(false);
+    expect(readyState.downloadProgress).toBe(1);
     expect(readyState.status).toBe('ready');
   });
 
