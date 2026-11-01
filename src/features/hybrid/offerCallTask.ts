@@ -1,23 +1,21 @@
 /**
- * Wakes the display and posts a ringing device notification on Android when a new
- * offer or booking request push arrives in the background or when the phone is locked.
+ * Background offer notification task cleanup and payload helper.
  *
- * Imported first in `index.js` so the task is defined when the JavaScript bundle
- * loads in headless background mode.
+ * The backend (`ExpoPushService`) delivers all incoming offer and booking pushes
+ * with top-level `title`, `body`, `sound: "connekyt_ringtone.wav"`, `priority: "high"`,
+ * and `channelId: "urgent_alerts_v3"`, which `expo-notifications`'s native
+ * `ExpoHandlingDelegate` presents directly in the OS Device Notifications tray.
  *
- * Defensively guards `expo-task-manager` via `requireOptionalNativeModule('ExpoTaskManager')`
- * so OTA updates running on older store binaries (2.2.2, 2.3.0, or iOS builds without
- * `ExpoTaskManager` compiled in) never throw at startup.
+ * We unregister any legacy `OFFER_INCOMING_CALL` headless TaskManager task so
+ * `FirebaseMessagingDelegate` never spins up a competing `RNHeadlessAppLoader`
+ * instance (which calls `invalidateAppRecord` after 2000ms and disrupts the
+ * active ReactHost).
  */
 import { Platform } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';
 import * as Notifications from 'expo-notifications';
-import { isIncomingCallAvailable, showIncomingCall } from './incomingCall';
 
 export const OFFER_CALL_TASK = 'OFFER_INCOMING_CALL';
-
-/** High-importance channel for incoming offers (created by the app at start-up). */
-const OFFER_CHANNEL = 'urgent_alerts_v3';
 
 function tryParseJson(raw: unknown): Record<string, unknown> | null {
   if (typeof raw !== 'string' || !raw.trim().startsWith('{')) return null;
@@ -30,7 +28,7 @@ function tryParseJson(raw: unknown): Record<string, unknown> | null {
 }
 
 /**
- * Unwraps the push payload from all shapes `expo-notifications` passes to TaskManager:
+ * Unwraps the push payload from all shapes `expo-notifications` passes:
  *   - `task.data.data` (`RemoteMessageSerializer.toBundle(RemoteMessage)` on Android,
  *     with `dataString`, `body`, `title`, `message`, etc.)
  *   - `task.data.notification` (`{ title, body }`)
@@ -88,59 +86,12 @@ if (hasNativeTaskManager()) {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const TaskManager = require('expo-task-manager') as typeof import('expo-task-manager');
 
-    TaskManager.defineTask(OFFER_CALL_TASK, async (task: unknown) => {
-      const payload = payloadOf(task);
-      if (!payload) return;
-
-      const kind = String(payload.kind ?? '').toUpperCase();
-      const type = String(payload.type ?? '').toUpperCase();
-      const isOffer =
-        kind === 'INCOMING_OFFER' ||
-        kind === 'BOOKING_REQUEST' ||
-        type === 'OPPORTUNITY' ||
-        type === 'HYBRID_OPPORTUNITY';
-      if (!isOffer) return;
-
-      const id = String(payload.candidateId ?? payload.referenceId ?? payload.eventId ?? 'offer');
-      const title = String(payload.title ?? 'New event offer');
-      const body = String(
-        payload.body ?? 'A client posted an event for you. Tap to review and respond.',
-      );
-
-      // Trigger native IncomingCall module to wake up the locked display and post the ringing device notification.
-      const wokeScreen = showIncomingCall(id, title, body);
-
-      if (!wokeScreen) {
-        try {
-          await Notifications.scheduleNotificationAsync({
-            content: {
-              title,
-              body,
-              data: {
-                ...payload,
-                type: payload.type ?? 'OPPORTUNITY',
-                candidateId: id !== 'offer' ? id : undefined,
-                referenceId: id !== 'offer' ? id : undefined,
-                link: payload.link ?? (id !== 'offer' ? `/opportunities/${id}` : '/opportunities'),
-              },
-              categoryIdentifier: kind === 'BOOKING_REQUEST' ? 'BOOKING_REQUEST' : 'OPPORTUNITY_ALERT',
-              sound: 'connekyt_ringtone.wav',
-              priority: Notifications.AndroidNotificationPriority.MAX,
-            },
-            trigger: {
-              channelId: OFFER_CHANNEL,
-            },
-          });
-        } catch {
-          // Nothing more to try from a background task.
-        }
-      }
+    TaskManager.defineTask(OFFER_CALL_TASK, async () => {
+      // No-op: native ExpoHandlingDelegate presents the notification directly.
     });
 
-    if (isIncomingCallAvailable() && typeof Notifications.registerTaskAsync === 'function') {
-      Notifications.registerTaskAsync(OFFER_CALL_TASK).catch(() => {
-        // Registration is retried on the next launch.
-      });
+    if (typeof Notifications.unregisterTaskAsync === 'function') {
+      Notifications.unregisterTaskAsync(OFFER_CALL_TASK).catch(() => {});
     }
   } catch {
     // Safe fallback if TaskManager is unavailable in the current binary.

@@ -3,8 +3,8 @@
  *
  * Flow:
  *   1. registerForPushNotifications() — request permission, ensure Android
- *      channels and categories, fetch the push token (Expo push token or
- *      direct Firebase FCM token), and hand it to the backend (registerPushToken).
+ *      channels and categories, fetch the push token, and hand it to the
+ *      backend (registerPushToken). Call this once the user is signed in.
  *   2. The backend stores the token and fires pushes via Expo Push Service and
  *      Firebase Cloud Messaging HTTP v1 — those land in the OS notification
  *      tray and wake the lock screen automatically.
@@ -42,6 +42,8 @@ Notifications.setNotificationHandler({
 
 let registered = false;
 let currentPushToken: string | null = null;
+let lastDevicePushToken: string | null = null;
+let inFlightRegistration: Promise<string | null> | null = null;
 const handledResponseKeys = new Set<string>();
 
 /**
@@ -78,6 +80,8 @@ export function getCurrentPushToken(): string | null {
 export function resetPushRegistration(): void {
   registered = false;
   currentPushToken = null;
+  lastDevicePushToken = null;
+  inFlightRegistration = null;
 }
 
 /**
@@ -88,6 +92,8 @@ export async function unregisterFromPushNotifications(): Promise<void> {
   const tokenToRemove = currentPushToken;
   registered = false;
   currentPushToken = null;
+  lastDevicePushToken = null;
+  inFlightRegistration = null;
   if (!tokenToRemove || Platform.OS === 'web') return;
   try {
     await unregisterPushToken(tokenToRemove);
@@ -98,29 +104,24 @@ export async function unregisterFromPushNotifications(): Promise<void> {
 
 /**
  * Ensures Android channels are created with MAX importance, vibration, sound,
- * and PUBLIC lockscreen visibility so alerts wake the screen.
+ * and PUBLIC lock-screen visibility so notifications wake up the screen and
+ * display banners on the lock screen.
+ *
+ * Each channel is created in its own try/catch so a missing custom sound asset
+ * or OEM quirk on one channel never aborts creation of the others.
  */
 async function safeSetChannel(
-  channelId: string,
+  id: string,
   config: Notifications.NotificationChannelInput,
 ): Promise<void> {
   try {
-    await Notifications.setNotificationChannelAsync(channelId, config);
-  } catch {
+    await Notifications.setNotificationChannelAsync(id, config);
+  } catch (err) {
+    console.warn(`[push] Channel "${id}" setup fallback (retrying with default sound):`, err);
     try {
-      await Notifications.setNotificationChannelAsync(channelId, {
-        name: config.name,
-        description: config.description,
-        importance: config.importance,
-        vibrationPattern: config.vibrationPattern,
-        enableVibrate: config.enableVibrate,
-        showBadge: config.showBadge,
-        lockscreenVisibility: config.lockscreenVisibility,
-        bypassDnd: config.bypassDnd,
-        sound: 'default',
-      });
-    } catch {
-      // Non-fatal in Expo Go
+      await Notifications.setNotificationChannelAsync(id, { ...config, sound: 'default' });
+    } catch (fallbackErr) {
+      console.warn(`[push] Channel "${id}" creation failed:`, fallbackErr);
     }
   }
 }
@@ -129,10 +130,6 @@ export async function ensureAndroidChannels(): Promise<void> {
   if (Platform.OS !== 'android') return;
   const ringAudioAttributes = {
     usage: (Notifications.AndroidAudioUsage?.NOTIFICATION_RINGTONE ?? 6) as Notifications.AndroidAudioUsage,
-    contentType: (Notifications.AndroidAudioContentType?.SONIFICATION ?? 4) as Notifications.AndroidAudioContentType,
-  };
-  const chimeAudioAttributes = {
-    usage: (Notifications.AndroidAudioUsage?.NOTIFICATION ?? 5) as Notifications.AndroidAudioUsage,
     contentType: (Notifications.AndroidAudioContentType?.SONIFICATION ?? 4) as Notifications.AndroidAudioContentType,
   };
   await safeSetChannel('urgent_alerts_v3', {
@@ -148,7 +145,6 @@ export async function ensureAndroidChannels(): Promise<void> {
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     bypassDnd: true,
   });
-  void chimeAudioAttributes;
   await safeSetChannel('default', {
     name: 'Amoria Connect Notifications',
     importance: Notifications.AndroidImportance.MAX,
@@ -159,26 +155,22 @@ export async function ensureAndroidChannels(): Promise<void> {
     showBadge: true,
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
-
   await safeSetChannel('booking_updates', {
-    name: 'Booking Updates',
-    description: 'Accepted, declined and paid bookings, deposits and payment reminders',
+    name: 'Booking & Payment Updates',
+    description: 'Alerts when a booking is requested, accepted, declined, or paid',
     importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 250, 250, 250],
+    vibrationPattern: [0, 250, 200, 250],
     lightColor: lightPalette.primary,
     sound: 'connekyt_chime.wav',
     enableVibrate: true,
     showBadge: true,
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
-
-  // Android freezes a channel's sound and importance once it exists, and phones that created urgent_booking_alerts
-  // earlier keep whatever it was then (often silent when locked). A fresh id gets the ringtone settings.
-  await safeSetChannel('urgent_alerts_v2', {
-    name: 'Offer & Booking Rings',
-    description: 'Rings for new booking requests and event offers, even when the phone is locked',
+  await safeSetChannel('urgent_booking_alerts', {
+    name: 'Incoming Booking Requests',
+    description: 'High-priority alerts for new booking requests and hybrid shoot opportunities',
     importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 500, 250, 500, 250, 500],
+    vibrationPattern: [0, 500, 200, 500, 200, 500],
     lightColor: lightPalette.accent,
     sound: 'connekyt_ringtone.wav',
     enableVibrate: true,
@@ -186,12 +178,11 @@ export async function ensureAndroidChannels(): Promise<void> {
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
     bypassDnd: true,
   });
-
-  await safeSetChannel('urgent_booking_alerts', {
-    name: 'Urgent Booking & Opportunity Alerts',
-    description: 'Rings for new booking requests and event opportunities',
+  await safeSetChannel('urgent_alerts_v2', {
+    name: 'Urgent Booking & Offer Rings',
+    description: 'Rings for new booking requests and event offers',
     importance: Notifications.AndroidImportance.MAX,
-    vibrationPattern: [0, 500, 250, 500, 250, 500],
+    vibrationPattern: [0, 500, 200, 500, 200, 500],
     lightColor: lightPalette.accent,
     sound: 'connekyt_ringtone.wav',
     enableVibrate: true,
@@ -223,9 +214,10 @@ export async function ensureNotificationCategories(): Promise<void> {
         },
       },
     ]);
+
     await Notifications.setNotificationCategoryAsync('BOOKING_REQUEST', [
       {
-        identifier: 'VIEW_REQUEST',
+        identifier: 'ACTION_OPEN',
         buttonTitle: 'View & respond',
         options: { opensAppToForeground: true },
       },
@@ -243,29 +235,20 @@ function resolveProjectId(): string {
   );
 }
 
-async function fetchExpoToken(): Promise<string | undefined> {
+async function fetchExpoToken(
+  devicePushToken?: Notifications.DevicePushToken,
+): Promise<string | undefined> {
   const projectId = resolveProjectId();
   try {
-    const res = await Notifications.getExpoPushTokenAsync(projectId ? { projectId } : undefined);
+    const options: Notifications.ExpoPushTokenOptions = {};
+    if (projectId) options.projectId = projectId;
+    if (devicePushToken) options.devicePushToken = devicePushToken;
+    const res = await Notifications.getExpoPushTokenAsync(
+      Object.keys(options).length > 0 ? options : undefined,
+    );
     if (res?.data) return res.data;
-  } catch {
-    try {
-      const fallbackRes = await Notifications.getExpoPushTokenAsync();
-      if (fallbackRes?.data) return fallbackRes.data;
-    } catch (innerErr) {
-      console.warn('[push] getExpoPushTokenAsync fallback failed:', innerErr);
-    }
-  }
-  // Fallback to native Firebase FCM device token on Android so direct Firebase HTTP v1 pushes work
-  if (Platform.OS === 'android' && typeof Notifications.getDevicePushTokenAsync === 'function') {
-    try {
-      const deviceRes = await Notifications.getDevicePushTokenAsync();
-      if (deviceRes?.data && typeof deviceRes.data === 'string') {
-        return deviceRes.data;
-      }
-    } catch (deviceErr) {
-      console.warn('[push] getDevicePushTokenAsync fallback failed:', deviceErr);
-    }
+  } catch (err) {
+    console.warn('[push] getExpoPushTokenAsync failed:', err);
   }
   return undefined;
 }
@@ -276,87 +259,101 @@ async function fetchExpoToken(): Promise<string | undefined> {
  * on any platform.
  */
 export async function registerForPushNotifications(): Promise<string | null> {
-  try {
-    if (registered && currentPushToken) return currentPushToken;
-    if (Platform.OS === 'web') return null;
+  if (registered && currentPushToken) return currentPushToken;
+  if (Platform.OS === 'web') return null;
+  if (inFlightRegistration) return inFlightRegistration;
 
-    // Ensure channels and interactive action categories
-    await ensureAndroidChannels();
-    await ensureNotificationCategories();
+  inFlightRegistration = (async () => {
+    try {
+      // Ensure channels and interactive action categories
+      await ensureAndroidChannels();
+      await ensureNotificationCategories();
 
-    // Request OS notification permissions (Alert, Badge, Sound, Lock screen)
-    const settings = await Notifications.getPermissionsAsync();
-    let granted = settings.granted || settings.status === 'granted';
-    if (!granted) {
-      const req = await Notifications.requestPermissionsAsync({
-        ios: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-        },
-      });
-      granted = req.granted || req.status === 'granted';
-    }
+      // Request OS notification permissions (Alert, Badge, Sound, Lock screen)
+      const settings = await Notifications.getPermissionsAsync();
+      let granted = settings.granted || settings.status === 'granted';
+      if (!granted) {
+        const req = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+          },
+        });
+        granted = req.granted || req.status === 'granted';
+      }
 
-    if (!granted) {
-      console.warn('[push] Notification permissions not granted by user.');
-      return null;
-    }
+      if (!granted) {
+        console.warn('[push] Notification permissions not granted by user.');
+        return null;
+      }
 
-    // Check device hardware for remote push token acquisition
-    if (!Device.isDevice) {
-      console.log(
-        '[push] Running on simulator/emulator — remote push tokens require physical hardware. Channels & local notifications are enabled.',
+      // Check device hardware for remote push token acquisition
+      if (!Device.isDevice) {
+        console.log(
+          '[push] Running on simulator/emulator — remote push tokens require physical hardware. Channels & local notifications are enabled.',
+        );
+        return null;
+      }
+
+      const token = await fetchExpoToken();
+      if (!token) {
+        console.warn('[push] Could not obtain push token.');
+        return null;
+      }
+
+      console.log('[push] Push token obtained:', token);
+
+      await registerPushToken(
+        token,
+        Platform.OS,
+        Platform.OS === 'android' ? reportedChannels() : undefined,
       );
+      registered = true;
+      currentPushToken = token;
+      console.log('[push] Successfully registered push token with backend.');
+      return token;
+    } catch (err) {
+      console.warn('[push] Failed to register for push notifications:', err);
       return null;
+    } finally {
+      inFlightRegistration = null;
     }
+  })();
 
-    const token = await fetchExpoToken();
-    if (!token) {
-      console.warn('[push] Could not obtain push token.');
-      return null;
-    }
-
-    console.log('[push] Push token obtained:', token);
-
-    await registerPushToken(
-      token,
-      Platform.OS,
-      Platform.OS === 'android' ? reportedChannels() : undefined,
-    );
-    registered = true;
-    currentPushToken = token;
-    console.log('[push] Successfully registered push token with backend.');
-    return token;
-  } catch (err) {
-    console.warn('[push] Failed to register for push notifications:', err);
-    return null;
-  }
+  return inFlightRegistration;
 }
 
 /**
  * Listens for device push token rotations while signed in and updates the
- * backend with a fresh push token.
+ * backend with a fresh push token without re-invoking getDevicePushTokenAsync.
  */
 export function startPushTokenRefreshListener(): () => void {
   if (Platform.OS === 'web' || typeof Notifications.addPushTokenListener !== 'function') {
     return () => {};
   }
-  const sub = Notifications.addPushTokenListener(async () => {
-    try {
-      const nextToken = await fetchExpoToken();
-      if (!nextToken || nextToken === currentPushToken) return;
-      await registerPushToken(
-        nextToken,
-        Platform.OS,
-        Platform.OS === 'android' ? reportedChannels() : undefined,
-      );
-      registered = true;
-      currentPushToken = nextToken;
-    } catch (err) {
-      console.warn('[push] Failed to refresh push token with backend:', err);
-    }
-  });
+  const sub = Notifications.addPushTokenListener(
+    async (deviceTokenEvent?: Notifications.DevicePushToken) => {
+      try {
+        if (deviceTokenEvent?.data && typeof deviceTokenEvent.data === 'string') {
+          if (deviceTokenEvent.data === lastDevicePushToken) return;
+          lastDevicePushToken = deviceTokenEvent.data;
+        }
+        if (inFlightRegistration) return;
+        const nextToken = await fetchExpoToken(deviceTokenEvent);
+        if (!nextToken || nextToken === currentPushToken) return;
+        await registerPushToken(
+          nextToken,
+          Platform.OS,
+          Platform.OS === 'android' ? reportedChannels() : undefined,
+        );
+        registered = true;
+        currentPushToken = nextToken;
+      } catch (err) {
+        console.warn('[push] Failed to refresh push token with backend:', err);
+      }
+    },
+  );
   return () => sub.remove();
 }
 
@@ -406,7 +403,7 @@ export async function scheduleTestBookingAlert(delaySeconds = 5): Promise<string
       },
       categoryIdentifier: 'BOOKING_REQUEST',
     },
-    trigger: {
+  trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: delaySeconds,
       channelId,
