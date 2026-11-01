@@ -4,10 +4,14 @@
  *
  * Imported first in `index.js` so the task is defined when the JavaScript bundle
  * loads in headless background mode.
+ *
+ * Defensively guards `expo-task-manager` via `requireOptionalNativeModule('ExpoTaskManager')`
+ * so OTA updates running on older store binaries (2.2.2, 2.3.0, or iOS builds without
+ * `ExpoTaskManager` compiled in) never throw at startup.
  */
 import { Platform } from 'react-native';
+import { requireOptionalNativeModule } from 'expo';
 import * as Notifications from 'expo-notifications';
-import * as TaskManager from 'expo-task-manager';
 import { isIncomingCallAvailable, showIncomingCall } from './incomingCall';
 
 export const OFFER_CALL_TASK = 'OFFER_INCOMING_CALL';
@@ -70,61 +74,75 @@ export function payloadOf(task: unknown): Record<string, unknown> | null {
   return merged;
 }
 
-if (Platform.OS === 'android') {
-  TaskManager.defineTask(OFFER_CALL_TASK, async (task: unknown) => {
-    const payload = payloadOf(task);
-    if (!payload) return;
+function hasNativeTaskManager(): boolean {
+  if (Platform.OS !== 'android') return false;
+  try {
+    return requireOptionalNativeModule('ExpoTaskManager') != null;
+  } catch {
+    return false;
+  }
+}
 
-    const kind = String(payload.kind ?? '').toUpperCase();
-    const type = String(payload.type ?? '').toUpperCase();
-    const isOffer =
-      kind === 'INCOMING_OFFER' ||
-      kind === 'BOOKING_REQUEST' ||
-      type === 'OPPORTUNITY' ||
-      type === 'HYBRID_OPPORTUNITY';
-    if (!isOffer) return;
+if (hasNativeTaskManager()) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const TaskManager = require('expo-task-manager') as typeof import('expo-task-manager');
 
-    const id = String(payload.candidateId ?? payload.referenceId ?? payload.eventId ?? 'offer');
-    const title = String(payload.title ?? 'New event offer');
-    const body = String(
-      payload.body ?? 'A client posted an event for you. Tap to review and respond.',
-    );
+    TaskManager.defineTask(OFFER_CALL_TASK, async (task: unknown) => {
+      const payload = payloadOf(task);
+      if (!payload) return;
 
-    // Trigger native IncomingCall module to wake up the locked display and post the ringing device notification.
-    const wokeScreen = showIncomingCall(id, title, body);
+      const kind = String(payload.kind ?? '').toUpperCase();
+      const type = String(payload.type ?? '').toUpperCase();
+      const isOffer =
+        kind === 'INCOMING_OFFER' ||
+        kind === 'BOOKING_REQUEST' ||
+        type === 'OPPORTUNITY' ||
+        type === 'HYBRID_OPPORTUNITY';
+      if (!isOffer) return;
 
-    if (!wokeScreen) {
-      try {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title,
-            body,
-            data: {
-              ...payload,
-              type: payload.type ?? 'OPPORTUNITY',
-              candidateId: id !== 'offer' ? id : undefined,
-              referenceId: id !== 'offer' ? id : undefined,
-              link: payload.link ?? (id !== 'offer' ? `/opportunities/${id}` : '/opportunities'),
+      const id = String(payload.candidateId ?? payload.referenceId ?? payload.eventId ?? 'offer');
+      const title = String(payload.title ?? 'New event offer');
+      const body = String(
+        payload.body ?? 'A client posted an event for you. Tap to review and respond.',
+      );
+
+      // Trigger native IncomingCall module to wake up the locked display and post the ringing device notification.
+      const wokeScreen = showIncomingCall(id, title, body);
+
+      if (!wokeScreen) {
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title,
+              body,
+              data: {
+                ...payload,
+                type: payload.type ?? 'OPPORTUNITY',
+                candidateId: id !== 'offer' ? id : undefined,
+                referenceId: id !== 'offer' ? id : undefined,
+                link: payload.link ?? (id !== 'offer' ? `/opportunities/${id}` : '/opportunities'),
+              },
+              categoryIdentifier: kind === 'BOOKING_REQUEST' ? 'BOOKING_REQUEST' : 'OPPORTUNITY_ALERT',
+              sound: 'connekyt_ringtone.wav',
+              priority: Notifications.AndroidNotificationPriority.MAX,
             },
-            categoryIdentifier: kind === 'BOOKING_REQUEST' ? 'BOOKING_REQUEST' : 'OPPORTUNITY_ALERT',
-            sound: 'connekyt_ringtone.wav',
-            priority: Notifications.AndroidNotificationPriority.MAX,
-          },
-          trigger: {
-            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: 1,
-            channelId: OFFER_CHANNEL,
-          },
-        });
-      } catch {
-        // Nothing more to try from a background task.
+            trigger: {
+              channelId: OFFER_CHANNEL,
+            },
+          });
+        } catch {
+          // Nothing more to try from a background task.
+        }
       }
-    }
-  });
-
-  if (isIncomingCallAvailable()) {
-    Notifications.registerTaskAsync(OFFER_CALL_TASK).catch(() => {
-      // Registration is retried on the next launch.
     });
+
+    if (isIncomingCallAvailable() && typeof Notifications.registerTaskAsync === 'function') {
+      Notifications.registerTaskAsync(OFFER_CALL_TASK).catch(() => {
+        // Registration is retried on the next launch.
+      });
+    }
+  } catch {
+    // Safe fallback if TaskManager is unavailable in the current binary.
   }
 }
