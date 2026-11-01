@@ -1,7 +1,6 @@
 /**
- * Wakes the app for a new offer on Android, even when locked or in the background,
- * wakes up the display via `showIncomingCall`, and ensures a visible notification
- * on `urgent_alerts_v2` with Accept / Reject actions.
+ * Wakes the display and posts a ringing device notification on Android when a new
+ * offer or booking request push arrives in the background or when the phone is locked.
  *
  * Imported first in `index.js` so the task is defined when the JavaScript bundle
  * loads in headless background mode.
@@ -14,7 +13,7 @@ import { isIncomingCallAvailable, showIncomingCall } from './incomingCall';
 export const OFFER_CALL_TASK = 'OFFER_INCOMING_CALL';
 
 /** High-importance channel for incoming offers (created by the app at start-up). */
-const OFFER_CHANNEL = 'urgent_alerts_v2';
+const OFFER_CHANNEL = 'urgent_alerts_v3';
 
 function tryParseJson(raw: unknown): Record<string, unknown> | null {
   if (typeof raw !== 'string' || !raw.trim().startsWith('{')) return null;
@@ -91,19 +90,10 @@ if (Platform.OS === 'android') {
       payload.body ?? 'A client posted an event for you. Tap to review and respond.',
     );
 
-    // 1. Trigger native IncomingCall module to wake up the locked display (setFullScreenIntent + WakeLock).
+    // Trigger native IncomingCall module to wake up the locked display and post the ringing device notification.
     const wokeScreen = showIncomingCall(id, title, body);
 
-    // 2. Also ensure a visible tray notification with Accept/Reject buttons is posted if native call didn't show
-    // or if the push arrived as a silent data-only message.
-    const outer = (task as { data?: Record<string, unknown> } | undefined)?.data;
-    const innerData =
-      outer?.data && typeof outer.data === 'object'
-        ? (outer.data as Record<string, unknown>)
-        : null;
-    const alreadyPresentedByExpo = Boolean(innerData?.title && innerData?.message);
-
-    if (!wokeScreen || !alreadyPresentedByExpo) {
+    if (!wokeScreen) {
       try {
         await Notifications.scheduleNotificationAsync({
           content: {
