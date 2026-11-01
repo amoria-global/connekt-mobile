@@ -3,7 +3,6 @@ import {
   addNotificationResponseListener,
   consumeInitialNotificationResponse,
   registerForPushNotifications,
-  startPushTokenRefreshListener,
 } from '@/features/notifications/push';
 import { notificationTarget, shouldNavigateToTarget } from '@/features/notifications/routing';
 import {
@@ -68,8 +67,7 @@ export default function AppLayout() {
       playsInSilentMode: false,
       interruptionMode: 'mixWithOthers',
     });
-    registerForPushNotifications();
-    const stopTokenRefresh = startPushTokenRefreshListener();
+    void registerForPushNotifications();
 
     const handleNotificationOpen = async (data: Record<string, unknown>, actionIdentifier?: string) => {
       const candidateId =
@@ -153,7 +151,6 @@ export default function AppLayout() {
     const unsubscribe = addNotificationResponseListener(handleNotificationOpen);
     return () => {
       unsubscribe();
-      stopTokenRefresh();
     };
   }, [isPhotographer, router]);
 

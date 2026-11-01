@@ -21,14 +21,6 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.connekyt.app",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "associatedDomains": [
-        "applinks:connekyt.com",
-        "applinks:dashboard.connekyt.com"
-      ],
-      "entitlements": {
-        "aps-environment": "production",
-        "com.apple.developer.usernotifications.time-sensitive": true
-      },
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
