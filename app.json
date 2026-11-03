@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.3.1",
+    "version": "2.3.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -31,7 +31,10 @@
         "NSCameraUsageDescription": "Connekyt uses your camera to take a selfie for finding your event photos, scan the pairing code on your TV, record video messages, and broadcast your event live.",
         "NSMicrophoneUsageDescription": "Connekyt uses your microphone to carry sound when you broadcast your event live and when you record a video message.",
         "NSPhotoLibraryAddUsageDescription": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library."
-      }
+      },
+      "associatedDomains": [
+        "applinks:connekyt.com"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -167,6 +170,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-03-wish-links",
+            "date": "2026-11-03",
+            "title": "Wish links open the app",
+            "items": [
+              {
+                "icon": "link-outline",
+                "title": "Tap a wish link, land in Connekyt",
+                "body": "Links to a wish page on connekyt.com now open straight in the app when it is installed, with no extra step in the browser."
+              }
+            ]
+          },
+          {
             "id": "2026-10-31-live-money",
             "date": "2026-10-31",
             "title": "Balances that show they are updating",
@@ -236,23 +251,6 @@
                 "icon": "bulb-outline",
                 "title": "A suggestion, not a rule",
                 "body": "We suggest RWF 7,000,000 or more for organisations booking commercial, conference or wedding coverage in 4 days or less. You can offer any budget."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-31-offer-buttons",
-            "date": "2026-10-31",
-            "title": "A shorter offer screen",
-            "items": [
-              {
-                "icon": "resize-outline",
-                "title": "Less to scroll",
-                "body": "The offer screen is shorter now: the Viewing as switch is gone, so there is less to scroll before you answer."
-              },
-              {
-                "icon": "swap-horizontal-outline",
-                "title": "Answers side by side",
-                "body": "Accept offer and Accept with my delivery package policy sit side by side, with Reject offer on its own row below."
               }
             ]
           }
