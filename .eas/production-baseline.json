@@ -15,5 +15,13 @@
     "@types/qrcode",
     "@expo-google-fonts/inter",
     "@expo-google-fonts/space-grotesk"
-  ]
+  ],
+  "ios": {
+    "buildCommit": "646760b0a4feea9dd1c9957935a9bfc03d49c002",
+    "appVersion": "2.3.2",
+    "runtimeVersion": "2.3.2",
+    "iosBuildNumber": 49,
+    "easBuildProfile": "production",
+    "note": "iOS 2.3.2 (49), EAS build 9989b4d3-ec0e-4ff0-81b6-cf2203be5cdf, 2026-11-03, SDK 57, submitted to the App Store and on TestFlight. iOS ships on its own version and commit, so it has its own block; the top level is the Android build. OTA to iOS publishes from a branch whose app.json version is 2.3.2 (see docs/RELEASING.md)."
+  }
 }
