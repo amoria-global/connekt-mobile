@@ -20,6 +20,30 @@ It compares the branch against `.eas/production-baseline.json`, which records th
 users are actually running. "Safe to publish" means path A. Any refusal means path B, and
 the refusal is information, not an obstacle.
 
+Android and iOS ship on their own versions and commits, so each has its own baseline: the
+file's top level is the Android build, and its `ios` object is the iOS build. Pick one with
+`--platform android|ios`, or `--platform all` to require both (default `android`). The
+`production` workflow passes its `platform` input through, so a dispatch for iOS is checked
+against the iOS build.
+
+### Updating iOS phones
+
+iOS is on its own runtime version, so an Android update never reaches it. Branch off the iOS
+build's commit (`ios.buildCommit`, not the head of any release branch, which may have moved
+on), cherry-pick the fix, add the release notes, then run
+`node scripts/check-ota-compatibility.mjs --platform ios`. It only passes on a branch whose
+`app.json` version equals `ios.appVersion`, which `main` is not while Android lags. After it
+passes and the user approves, publish by hand from that branch:
+
+```sh
+npx eas-cli update --branch production --platform ios --environment production --message "<what changed>"
+```
+
+Verify with the manifest headers `expo-runtime-version: <ios.appVersion>`,
+`expo-platform: ios` and by grepping the `dist/_expo/static/js/ios/` export. When a new iOS
+build ships, refresh the `ios` object (`buildCommit`, `appVersion`, `runtimeVersion`,
+`iosBuildNumber`) the same way step 7 below refreshes Android.
+
 ## Path A — JavaScript-only, reaches phones over the air
 
 1. Branch off `main`, make the fix, then `yarn typecheck` and `yarn test`.
