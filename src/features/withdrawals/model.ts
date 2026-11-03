@@ -266,12 +266,9 @@ export function verificationCopy(v: Pick<Verification, 'method' | 'maskedDestina
       return { title: 'Check your phone', body: `Enter the 6-digit code we sent to ${to}.` };
     case 'EMAIL_OTP':
       return { title: 'Check your email', body: `Enter the 6-digit code we sent to ${to}.` };
-    case 'FACE_SCAN':
-      return { title: 'Confirm it is you', body: 'Take a selfie so we can match it to your verified ID.' };
-    case 'FACE_SCAN_WITH_OTP':
-      return { title: 'Confirm it is you', body: `Take a selfie and enter the code we sent to ${to}.` };
     default:
-      return { title: 'Confirm it is you', body: 'Verify your identity to continue.' };
+      // Face scan was retired for withdrawals; every verification is now the emailed code.
+      return { title: 'Check your email', body: `Enter the 6-digit code we sent to ${to}.` };
   }
 }
 
