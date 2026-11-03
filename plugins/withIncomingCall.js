@@ -4,8 +4,16 @@
  */
 const { withAndroidManifest } = require('expo/config-plugins');
 
+// PLAY-REJECTION-DISABLED (2026-11-04): Google Play refused the 2.3.2 release submission with HTTP 403, "You must let us
+// know whether your app uses any full-screen intent permissions". USE_FULL_SCREEN_INTENT is switched off so the release
+// can ship. Nothing else was deleted. To bring the lock-screen ring back: answer the Full-screen intent declaration in
+// Play Console (Policy and programs, App content), set FULL_SCREEN_INTENT_ENABLED to true here and in
+// src/features/hybrid/useCallReadiness.ts, then ship a new store build. Native config only reaches phones via a store build.
+const FULL_SCREEN_INTENT_ENABLED = false;
+
 const PERMISSIONS = [
-  'android.permission.USE_FULL_SCREEN_INTENT',
+  // Held back by FULL_SCREEN_INTENT_ENABLED above.
+  ...(FULL_SCREEN_INTENT_ENABLED ? ['android.permission.USE_FULL_SCREEN_INTENT'] : []),
   'android.permission.WAKE_LOCK',
   'android.permission.VIBRATE',
 ];
