@@ -118,7 +118,9 @@ jobs:
         with:
           node-version: "22"
       - name: Check OTA compatibility with the installed build
-        run: node scripts/check-ota-compatibility.mjs
+        env:
+          PLATFORM: ${{ inputs.platform || 'android' }}
+        run: node scripts/check-ota-compatibility.mjs --platform "$PLATFORM"
 
   deploy:
     needs: migrate
@@ -169,7 +171,9 @@ jobs:
             exit 1
           fi
       - name: Re-check compatibility at publish time
-        run: node scripts/check-ota-compatibility.mjs
+        env:
+          PLATFORM: ${{ inputs.platform || 'android' }}
+        run: node scripts/check-ota-compatibility.mjs --platform "$PLATFORM"
       # Proves the secret authenticates before anything irreversible happens.
       - name: Check the Expo credential
         env:
