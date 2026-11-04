@@ -80,7 +80,7 @@ describe('workspace switcher', () => {
     const onClose = jest.fn();
     const r = await make(<WorkspaceSwitcherSheet visible onClose={onClose} />);
     const t = text(r.root);
-    expect(t).toContain('My workspace');
+    expect(t).toContain('My business');
     expect(t).toContain("Aline Uwase's workspace");
     expect(t).toContain('Now in your own workspace');
     const row = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.props.accessibilityLabel === "Aline Uwase's workspace")[0];
