@@ -75,6 +75,11 @@ describe('amountError', () => {
 });
 
 describe('readInitiate', () => {
+  it('reads the two-factor refusal so the screen can offer setup', () => {
+    expect(readInitiate({ action: 0, twoFactorRequired: true, message: 'x' }).kind).toBe('twoFactor');
+  });
+
+
   it('reads the verification and fee preview', () => {
     const out = readInitiate({
       action: 1,

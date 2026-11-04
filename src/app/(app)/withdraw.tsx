@@ -93,7 +93,7 @@ export default function WithdrawScreen() {
   const [remaining, setRemaining] = useState<number | undefined>(undefined);
   const [cooldown, setCooldown] = useState(0);
 
-  const [failure, setFailure] = useState<{ message: string; kyc: boolean } | null>(null);
+  const [failure, setFailure] = useState<{ message: string; kyc: boolean; twoFactor?: boolean } | null>(null);
 
   const currencyList = currencies.data ?? FALLBACK_CURRENCIES;
   const currency = currencyList.find((c) => c.code === currencyCode) ?? currencyList[0];
@@ -205,7 +205,7 @@ export default function WithdrawScreen() {
         setVerification(out.verification);
         setStep('verify');
       } else {
-        setFailure({ message: out.message, kyc: out.kind === 'kyc' });
+        setFailure({ message: out.message, kyc: out.kind === 'kyc', twoFactor: out.kind === 'twoFactor' });
         setStep('failed');
       }
     } catch (e) {
@@ -228,8 +228,8 @@ export default function WithdrawScreen() {
       });
       if (out.kind === 'submitted') {
         setStep('done');
-      } else if (out.kind === 'restart') {
-        setFailure({ message: out.message, kyc: false });
+      } else if (out.kind === 'restart' || out.kind === 'twoFactor') {
+        setFailure({ message: out.message, kyc: false, twoFactor: out.kind === 'twoFactor' });
         setStep('failed');
       } else {
         setVerifyError(out.message);
@@ -265,28 +265,32 @@ export default function WithdrawScreen() {
   if (step === 'done' || step === 'failed') {
     const ok = step === 'done';
     const kyc = !ok && failure?.kyc;
-    const tone = ok ? colors.success : kyc ? colors.warning : colors.error;
-    const toneBg = ok ? colors.successBg : kyc ? colors.warningBg : colors.errorBg;
+    const twoFactor = !ok && !kyc && failure?.twoFactor === true;
+    const needs = kyc || twoFactor;
+    const tone = ok ? colors.success : needs ? colors.warning : colors.error;
+    const toneBg = ok ? colors.successBg : needs ? colors.warningBg : colors.errorBg;
     return (
       <Screen padded={false} edges={[]}>
         <View style={styles.result}>
           <View style={[styles.resultIcon, { backgroundColor: toneBg }]}>
             <Ionicons
-              name={ok ? 'checkmark-circle' : kyc ? 'shield-outline' : 'close-circle'}
+              name={ok ? 'checkmark-circle' : needs ? 'shield-outline' : 'close-circle'}
               size={40}
               color={tone}
             />
           </View>
           <Text style={[styles.eyebrow, { color: tone }]}>
-            {ok ? 'Request submitted' : kyc ? 'Verification required' : 'Withdrawal not sent'}
+            {ok ? 'Request submitted' : kyc ? 'Verification required' : twoFactor ? 'Two-factor required' : 'Withdrawal not sent'}
           </Text>
           <Text style={styles.resultTitle}>
-            {ok ? 'You’re all set' : kyc ? 'Verify your identity first' : 'We couldn’t submit this withdrawal'}
+            {ok ? 'You’re all set' : kyc ? 'Verify your identity first' : twoFactor ? 'Turn on two-factor first' : 'We couldn’t submit this withdrawal'}
           </Text>
           <Text style={styles.resultText}>
             {ok
               ? 'The amount is set aside from your balance. Our team reviews each withdrawal before it is paid out to your account, and we will notify you when it is sent.'
-              : failure?.message}
+              : twoFactor
+                ? 'Two-factor authentication protects the money in your wallet, so it must be on before you can withdraw. Set it up with an authenticator app or an email code. It takes about a minute.'
+                : failure?.message}
           </Text>
           <View style={styles.resultActions}>
             {ok ? (
@@ -297,6 +301,11 @@ export default function WithdrawScreen() {
             ) : kyc ? (
               <>
                 <Button title="Verify identity" onPress={() => router.push('/kyc' as Href)} />
+                <Button title="Back" variant="ghost" onPress={startOver} />
+              </>
+            ) : twoFactor ? (
+              <>
+                <Button title="Set up two-factor" onPress={() => router.push('/two-factor' as Href)} />
                 <Button title="Back" variant="ghost" onPress={startOver} />
               </>
             ) : (
