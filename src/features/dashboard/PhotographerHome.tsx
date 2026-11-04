@@ -326,7 +326,8 @@ export function PhotographerHome() {
           />
         }
       >
-        <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />
+        {/* Identity checks and the public profile belong to the owner, never to a collaborator. */}
+        {isCollab ? null : <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />}
 
         {/* 1. Orientation */}
         <DashboardGreeting
@@ -430,6 +431,7 @@ export function PhotographerHome() {
               )}
             </TileRow>
           ) : null}
+          {isCollab ? null : (
           <ActionRow
             icon="share-social-outline"
             tone="primary"
@@ -440,6 +442,7 @@ export function PhotographerHome() {
             onAction={shareProfile}
             accessibilityLabel={tr('Share profile')}
           />
+          )}
         </View>
         <View style={[styles.gutter, styles.cta]}>
           <PrimaryButton
@@ -550,9 +553,9 @@ export function PhotographerHome() {
           <EmptyNote compact
             icon="calendar-outline"
             title="No upcoming shoots"
-            body="Create an event or share your profile to get booked."
-            actionLabel="Share profile"
-            onAction={shareProfile}
+            body={isCollab ? "Create an event to get started." : "Create an event or share your profile to get booked."}
+            actionLabel={isCollab ? undefined : "Share profile"}
+            onAction={isCollab ? undefined : shareProfile}
           />
         ) : (
           <View style={styles.shoots}>
