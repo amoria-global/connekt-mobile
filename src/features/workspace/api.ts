@@ -8,8 +8,8 @@ import { api } from '@/api/client';
 import type { ApiEnvelope, ApiError } from '@/types';
 import { mapPreview, type InvitePreview } from './invite';
 import {
-  mapInvitation, mapMembership, mapPerson,
-  type WorkspaceInvitation, type WorkspaceMembership, type WorkspacePerson,
+  mapActivity, mapInvitation, mapMembership, mapPerson,
+  type WorkspaceActivityEntry, type WorkspaceInvitation, type WorkspaceMembership, type WorkspacePerson,
 } from './model';
 
 type Raw = Record<string, unknown>;
@@ -86,6 +86,15 @@ export async function leaveWorkspace(invitationId: string): Promise<WorkspaceInv
   return mapInvitation(data(await api.post<ApiEnvelope<Raw>>(`${BASE}/received/${id(invitationId)}/leave`), 'Could not leave the workspace.').invitation);
 }
 
+/**
+ * Every workspace this login may open. It reads the collaborator picker rather than /mine because a collaborator login is
+ * refused the photographer routes until a workspace is chosen; the picker answers for any account.
+ */
 export async function listMyWorkspaces(): Promise<WorkspaceMembership[]> {
-  return list(data(await api.get<ApiEnvelope<Raw>>(`${BASE}/mine`), 'Could not load your workspaces.').workspaces).map(mapMembership);
+  return list(data(await api.get<ApiEnvelope<Raw>>('/collaborator/workspaces'), 'Could not load your workspaces.').workspaces).map(mapMembership);
+}
+
+/** What collaborators did in the owner's workspace, "by <name> for <owner>", newest first. */
+export async function listWorkspaceActivity(): Promise<WorkspaceActivityEntry[]> {
+  return list(data(await api.get<ApiEnvelope<Raw>>(`${BASE}/activity`), 'Could not load the activity.').activity).map(mapActivity);
 }

@@ -257,6 +257,10 @@
     "controller" : "CustomerAdminController#clients"
   }, {
     "method" : "GET",
+    "path" : "/admin/customers/collaborators",
+    "controller" : "CustomerAdminController#collaborators"
+  }, {
+    "method" : "GET",
     "path" : "/admin/customers/coordinators",
     "controller" : "CustomerAdminController#coordinators"
   }, {
@@ -2947,6 +2951,20 @@
     }
   }, {
     "method" : "POST",
+    "path" : "/api/remote/auth/login-code/send",
+    "controller" : "AuthController#sendLoginCode",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/login-code/verify",
+    "controller" : "AuthController#verifyLoginCode",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
     "path" : "/api/remote/auth/logout",
     "controller" : "AuthController#logout",
     "body" : {
@@ -3034,6 +3052,20 @@
     "method" : "POST",
     "path" : "/api/remote/auth/verify-totp",
     "controller" : "AuthController#verifyTotp",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/workspace-setup",
+    "controller" : "AuthController#workspaceSetup",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/workspace-setup/preview",
+    "controller" : "AuthController#workspaceSetupPreview",
     "body" : {
       "type" : "Map"
     }
@@ -3138,6 +3170,22 @@
     "path" : "/api/remote/client/surveys/{eventId}/completed",
     "controller" : "ClientSurveyController#isSurveyCompleted",
     "pathVariables" : [ "eventId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/collaborator/invitations/{id}/accept",
+    "controller" : "CollaboratorWorkspaceController#accept",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/collaborator/me",
+    "controller" : "CollaboratorWorkspaceController#me"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/collaborator/workspaces",
+    "controller" : "CollaboratorWorkspaceController#picker"
   }, {
     "method" : "GET",
     "path" : "/api/remote/coordinator/analytics",
@@ -6858,6 +6906,10 @@
       "name" : "isDefault",
       "required" : false
     } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/workspaces/activity",
+    "controller" : "WorkspaceInvitationController#activity"
   }, {
     "method" : "POST",
     "path" : "/api/remote/photographer/workspaces/invitations",
