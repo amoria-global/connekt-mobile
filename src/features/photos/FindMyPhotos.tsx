@@ -13,6 +13,9 @@ import { ActivityIndicator, Alert, Animated, Easing, FlatList, Keyboard, Keyboar
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Button } from '@/components/ui/Button';
+import { OtpInput } from '@/components/ui/OtpInput';
+import { formatCountdown, isCodeError } from '@/features/auth/twoFactor';
+import { useCountdown } from '@/hooks/useCountdown';
 import { BlurTargetView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard, GlassLayer, GlassSurface, glassClear, glassTile } from '@/components/ui/GlassCard';
@@ -210,61 +213,6 @@ function PhotoCell({
   );
 }
 
-// ─── 6-box OTP input ─────────────────────────────────────────────────────────
-
-function OtpInput({ value, onChange, error }: {
-  value: string;
-  onChange: (v: string) => void;
-  error?: boolean;
-}) {
-  const styles = useStyles();
-  const refs = [
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-    useRef<TextInput>(null),
-  ];
-  const digits = value.split('').slice(0, 6);
-  while (digits.length < 6) digits.push('');
-
-  const handleChange = (i: number, char: string) => {
-    const clean = char.replace(/\D/g, '').slice(-1);
-    const arr = [...digits];
-    arr[i] = clean;
-    onChange(arr.join(''));
-    if (clean && i < 5) refs[i + 1].current?.focus();
-  };
-
-  const handleKey = (i: number, key: string) => {
-    if (key === 'Backspace' && !digits[i] && i > 0) {
-      refs[i - 1].current?.focus();
-    }
-  };
-
-  return (
-    <View style={styles.otpRow}>
-      {digits.map((d, i) => (
-        <TextInput
-          key={i}
-          ref={refs[i]}
-          style={[styles.otpBox, error && styles.otpBoxError]}
-          value={d}
-          onChangeText={(t) => handleChange(i, t)}
-          onKeyPress={({ nativeEvent }) => handleKey(i, nativeEvent.key)}
-          keyboardType="number-pad"
-          maxLength={1}
-          selectTextOnFocus
-          returnKeyType={i < 5 ? 'next' : 'done'}
-          placeholderTextColor="rgba(255,255,255,0.3)"
-          placeholder="·"
-        />
-      ))}
-    </View>
-  );
-}
-
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function FindMyPhotos() {
@@ -364,6 +312,13 @@ export function FindMyPhotos() {
   const [freePhotos, setFreePhotos] = useState<FreeAlbumPhoto[]>([]);
   const [freeLoading, setFreeLoading] = useState(false);
   const [freeError, setFreeError] = useState('');
+  const [freeAttemptsLeft, setFreeAttemptsLeft] = useState<number | null>(null);
+  const [freeShake, setFreeShake] = useState(0);
+  const [freeLockedUntil, setFreeLockedUntil] = useState<number | null>(null);
+  const [freeResendAt, setFreeResendAt] = useState<number | null>(null);
+  const freeLockSeconds = useCountdown(freeLockedUntil);
+  const freeResendSeconds = useCountdown(freeResendAt);
+  const freeSubmitting = useRef(false);
   const [freeExpiresAt, setFreeExpiresAt] = useState('');
   const [selectedFreeIds, setSelectedFreeIds] = useState<Set<string>>(new Set());
   const [freeAcquiredIds, setFreeAcquiredIds] = useState<Set<string>>(new Set());
@@ -608,9 +563,17 @@ export function FindMyPhotos() {
     setFreeLoading(true);
     setFreeError('');
     try {
-      await requestFreeAlbumAccess(code.trim(), freeEmail.trim());
+      const resendAt = await requestFreeAlbumAccess(code.trim(), freeEmail.trim());
+      // From the server's clock; an older backend sends no timers, so fall back to its 3 minute gap.
+      setFreeResendAt(resendAt ?? Date.now() + 180_000);
       setFreeFlow('otp');
     } catch (err) {
+      if (isCodeError(err)) {
+        // A rate limit or lock on asking for a code: show the server's words and hold Resend for its wait.
+        if (err.retryAfterSeconds) setFreeResendAt(Date.now() + err.retryAfterSeconds * 1000);
+        setFreeError(err.message);
+        return;
+      }
       const msg = isApiError(err) ? err.message : String(err);
       if (msg.toLowerCase().includes('not authorized') || (msg.toLowerCase().includes('email') && msg.toLowerCase().includes('match'))) {
         setFreeError(t('fmp_errNotInvited'));
@@ -622,16 +585,20 @@ export function FindMyPhotos() {
     }
   };
 
-  const handleFreeVerify = async () => {
-    if (freeOtp.length < 6) {
+  const handleFreeVerify = async (typed?: string) => {
+    const otp = typed ?? freeOtp;
+    if (freeSubmitting.current || freeLockSeconds > 0) return;
+    if (otp.length < 6) {
       setFreeError(t('fmp_errNeedOtp'));
       return;
     }
+    freeSubmitting.current = true;
     Keyboard.dismiss();
     setFreeLoading(true);
     setFreeError('');
+    setFreeAttemptsLeft(null);
     try {
-      const data = await verifyFreeAlbumAccess(code.trim(), freeEmail.trim(), freeOtp);
+      const data = await verifyFreeAlbumAccess(code.trim(), freeEmail.trim(), otp);
       if (data.expiresAt) setFreeExpiresAt(data.expiresAt);
       if (data.maxFreeDownloads != null) setFreeMaxDownloads(data.maxFreeDownloads);
       if (data.title) setFreeTitle(data.title);
@@ -644,6 +611,15 @@ export function FindMyPhotos() {
       if (data.currencyAbbreviation) setFreeAlbumCurrencyAbbr(data.currencyAbbreviation);
       setFreeFlow('verified');
     } catch (err) {
+      setFreeOtp('');
+      setFreeShake((k) => k + 1);
+      if (isCodeError(err)) {
+        // The server decides: show its message, the tries it says are left, and a lock with its time.
+        if (err.errorCode === 'LOCKED' && err.retryAfterSeconds) setFreeLockedUntil(Date.now() + err.retryAfterSeconds * 1000);
+        setFreeAttemptsLeft(typeof err.attemptsLeft === 'number' ? err.attemptsLeft : null);
+        setFreeError(err.message);
+        return;
+      }
       const msg = isApiError(err) ? err.message : String(err);
       if (msg.toLowerCase().includes('invalid') || msg.toLowerCase().includes('otp')) {
         setFreeError(t('fmp_errBadOtp'));
@@ -653,11 +629,13 @@ export function FindMyPhotos() {
         setFreeError(msg || t('fmp_errVerify'));
       }
     } finally {
+      freeSubmitting.current = false;
       setFreeLoading(false);
     }
   };
 
   const handleFreeResend = async () => {
+    if (freeResendSeconds > 0 || freeLockSeconds > 0) return;
     setFreeOtp('');
     setFreeError('');
     await handleFreeRequestAccess();
@@ -1635,14 +1613,22 @@ export function FindMyPhotos() {
         <Text style={{ color: colors.text, fontWeight: '600' }}>{maskEmail(freeEmail)}</Text>
       </Text>
 
-      <OtpInput value={freeOtp} onChange={(v) => { setFreeOtp(v); setFreeError(''); }} error={!!freeError} />
-
-      {freeError ? <Text style={[styles.error, { marginTop: 8 }]}>{freeError}</Text> : null}
+      <OtpInput
+        glass
+        value={freeOtp}
+        onChange={(v) => { setFreeOtp(v); if (freeError) setFreeError(''); }}
+        onComplete={(c) => { void handleFreeVerify(c); }}
+        error={freeLockSeconds > 0 ? `Too many wrong codes. Try again in ${formatCountdown(freeLockSeconds)}.` : (freeError || undefined)}
+        hint={freeLockSeconds <= 0 && freeError && freeAttemptsLeft != null ? `${freeAttemptsLeft} ${freeAttemptsLeft === 1 ? 'attempt' : 'attempts'} left` : undefined}
+        busy={freeLoading}
+        editable={freeLockSeconds <= 0}
+        shakeKey={freeShake}
+      />
 
       <Pressable
         style={[styles.accessBtn, { marginTop: 20 }, (freeLoading || freeOtp.length < 6) && { opacity: 0.5 }]}
-        onPress={handleFreeVerify}
-        disabled={freeLoading || freeOtp.length < 6}
+        onPress={() => handleFreeVerify()}
+        disabled={freeLoading || freeOtp.length < 6 || freeLockSeconds > 0}
       >
         {freeLoading
           ? <ActivityIndicator size="small" color={onFill} />
@@ -1651,12 +1637,16 @@ export function FindMyPhotos() {
 
       <Text style={{ color: colors.textMuted, fontSize: 13, textAlign: 'center', marginTop: 16 }}>
         {t('fmp_noCode')}{' '}
-        <Text
-          style={{ color: colors.primary, textDecorationLine: 'underline' }}
-          onPress={handleFreeResend}
-        >
-          {t('fmp_resend')}
-        </Text>
+        {freeResendSeconds > 0 || freeLockSeconds > 0 ? (
+          <Text style={{ color: colors.textMuted }}>{`Resend code in ${formatCountdown(Math.max(freeResendSeconds, freeLockSeconds))}`}</Text>
+        ) : (
+          <Text
+            style={{ color: colors.primary, textDecorationLine: 'underline' }}
+            onPress={handleFreeResend}
+          >
+            {t('fmp_resend')}
+          </Text>
+        )}
       </Text>
 
       <Pressable
@@ -3215,19 +3205,6 @@ const useStyles = makeStyles((c, e) => ({
   },
 
   // OTP
-  otpRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginBottom: spacing.sm },
-  otpBox: {
-    width: 44, height: 52,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.surfaceMuted,
-    color: c.text,
-    fontSize: 20,
-    fontWeight: '700',
-    textAlign: 'center',
-  },
-  otpBoxError: { borderColor: c.error },
 
   // Modals
   modalOverlay: {

@@ -175,3 +175,12 @@ export async function sendEmailCode(challengeId: string): Promise<CodeSent> {
   const res = await api.post<SendBody>('/auth/2fa/email/send', { challengeId }, { skipAuth: true });
   return codeSentFrom(res, 'We could not send a code. Try again.');
 }
+
+/**
+ * Epoch ms on THIS device's clock at which `target` happens, correcting for the gap between the server clock
+ * (`serverTime`, read when the answer arrived at `receivedAtMs`) and the device's. Feed it to `useCountdown`.
+ */
+export function localDeadline(target: string, serverTime: string, receivedAtMs: number): number {
+  const skew = Date.parse(serverTime) - receivedAtMs;
+  return Date.parse(target) - (Number.isFinite(skew) ? skew : 0);
+}
