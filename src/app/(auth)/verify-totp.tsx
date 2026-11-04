@@ -42,7 +42,9 @@ export default function VerifyTotpScreen() {
   const [error, setError] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
-  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  // The server locks each method on its own, so a lock on one must not block the other.
+  const [locks, setLocks] = useState<Partial<Record<TwoFactorMethod, number>>>({});
+  const lockedUntil = locks[method] ?? null;
   const [resendAt, setResendAt] = useState<number | null>(null);
   const [maskedEmail, setMaskedEmail] = useState(challenge.maskedEmail);
   const [sending, setSending] = useState(false);
@@ -60,13 +62,13 @@ export default function VerifyTotpScreen() {
       }
       if (err.retryAfterSeconds) {
         const until = Date.now() + err.retryAfterSeconds * 1000;
-        if (err.errorCode === 'LOCKED') setLockedUntil(until);
+        if (err.errorCode === 'LOCKED') setLocks((l) => ({ ...l, [method]: until }));
         else setResendAt(until);
       }
       setAttemptsLeft(typeof err.attemptsLeft === 'number' ? err.attemptsLeft : null);
       setError(err.message);
     },
-    [router],
+    [router, method],
   );
 
   const send = useCallback(async () => {
