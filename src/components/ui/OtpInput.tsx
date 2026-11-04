@@ -1,137 +1,171 @@
-import { useEffect, useRef } from 'react';
-import { Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, Text, TextInput, View } from 'react-native';
 
 import { useSharedT } from '@/i18n/sharedStrings';
+import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { glassTile } from './GlassCard';
 
 /**
- * Six single-digit boxes for a verification code.
+ * One real text input drawn as six boxes.
  *
- * Mirrors the web client's behaviour (knockout verify-otp.tsx):
- *   • typing a digit fills the box and advances focus
- *   • Backspace on an empty box steps back to the previous one
- *   • pasting a code fills every box and focuses the next empty one
- *   • only digits are accepted
+ * It is a single field underneath so the OS treats it as one code: SMS and email
+ * autofill (`one-time-code`), paste, and a screen reader all see one control
+ * instead of six. The boxes are only a picture of its value.
  *
- * Mobile previously used one plain field, so a mistyped digit meant clearing
- * the whole code, and the two clients looked nothing alike.
- *
- * iOS SMS autofill delivers the whole code to the FIRST box in one event, so
- * `onChangeText` handles a multi-character value by distributing it across the
- * boxes rather than truncating to one digit.
+ *   - digits only; spaces and dashes in a pasted code are dropped
+ *   - `onComplete` fires once per code, when the sixth digit lands
+ *   - `busy` locks the field while the server checks, so a second submit cannot start
+ *   - `shakeKey` runs the wrong-code shake and the field clears and refocuses
+ *   - the code is never validated here; the server decides
  */
 
-const LENGTH = 6;
+export const OTP_LENGTH = 6;
+
+/** Keeps digits only and cuts to six. Exported for tests. */
+export function cleanOtp(raw: string): string {
+  return raw.replace(/\D/g, '').slice(0, OTP_LENGTH);
+}
 
 type Props = {
   value: string;
   onChange: (code: string) => void;
-  /** Shown under the boxes, in the error tone when `error` is set. */
+  /** Shown under the boxes, in the error tone, and announced to screen readers. */
   error?: string;
+  /** Neutral line under the boxes, such as "3 attempts left". */
+  hint?: string;
   label?: string;
   editable?: boolean;
+  /** True while the server is checking: the field locks and the boxes dim. */
+  busy?: boolean;
+  /** Set after a verified code to show the success tone. */
+  success?: boolean;
   /** Fired once the sixth digit lands, so callers can auto-submit. */
   onComplete?: (code: string) => void;
+  /** Change this number to run the wrong-code shake. */
+  shakeKey?: number;
   /** Translucent boxes for a glass panel; see `Input`'s `glass`. */
   glass?: boolean;
 };
 
-export function OtpInput({ value, onChange, error, label, editable = true, onComplete, glass = false }: Props) {
+export function OtpInput({
+  value,
+  onChange,
+  error,
+  hint,
+  label,
+  editable = true,
+  busy = false,
+  success = false,
+  onComplete,
+  shakeKey = 0,
+  glass = false,
+}: Props) {
   const styles = useStyles();
   const { colors } = useTheme();
   const { tr } = useSharedT();
-  const refs = useRef<(TextInput | null)[]>([]);
+  const reduceMotion = useReducedMotion();
+  const input = useRef<TextInput>(null);
+  const [shake] = useState(() => new Animated.Value(0));
+  const lastCompleted = useRef('');
+  const locked = !editable || busy || success;
 
-  const digits = value.padEnd(LENGTH, ' ').slice(0, LENGTH).split('');
-
+  // A cleared field is a fresh attempt: allow the next full code to submit.
   useEffect(() => {
-    if (!value) {
-      refs.current[0]?.focus();
-    }
+    if (value.length < OTP_LENGTH) lastCompleted.current = '';
   }, [value]);
 
-  const commit = (next: string) => {
+  // Wrong code: shake, then hand the field back focused.
+  useEffect(() => {
+    if (!shakeKey) return;
+    if (!reduceMotion) {
+      Animated.sequence([
+        Animated.timing(shake, { toValue: 8, duration: 50, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: -8, duration: 70, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 5, duration: 60, useNativeDriver: true }),
+        Animated.timing(shake, { toValue: 0, duration: 50, useNativeDriver: true }),
+      ]).start();
+    }
+    input.current?.focus();
+  }, [shakeKey, reduceMotion, shake]);
+
+  const handleChange = (raw: string) => {
+    if (locked) return;
+    const next = cleanOtp(raw);
     onChange(next);
-    if (next.length === LENGTH) onComplete?.(next);
-  };
-
-  const handleChange = (index: number, raw: string) => {
-    const typed = raw.replace(/\D/g, '');
-    if (!typed) return;
-
-    // A multi-digit value means a paste or iOS SMS autofill: spread it from
-    // this box onward instead of keeping only the first character.
-    if (typed.length > 1) {
-      const next = (value.slice(0, index) + typed).replace(/\D/g, '').slice(0, LENGTH);
-      commit(next);
-      refs.current[Math.min(next.length, LENGTH - 1)]?.focus();
-      return;
+    if (next.length === OTP_LENGTH && lastCompleted.current !== next) {
+      lastCompleted.current = next;
+      onComplete?.(next);
     }
-
-    const chars = value.padEnd(LENGTH, ' ').split('');
-    chars[index] = typed;
-    const next = chars.join('').replace(/\s+$/, '').slice(0, LENGTH);
-    commit(next);
-    if (index < LENGTH - 1) refs.current[index + 1]?.focus();
   };
 
-  const handleKeyPress = (
-    index: number,
-    e: NativeSyntheticEvent<TextInputKeyPressEventData>,
-  ) => {
-    if (e.nativeEvent.key !== 'Backspace') return;
-    const chars = value.padEnd(LENGTH, ' ').split('');
-    if (!chars[index]?.trim() && index > 0) {
-      // Empty box: step back and clear the previous digit.
-      chars[index - 1] = ' ';
-      onChange(chars.join('').replace(/\s+$/, ''));
-      refs.current[index - 1]?.focus();
-      return;
-    }
-    chars[index] = ' ';
-    onChange(chars.join('').replace(/\s+$/, ''));
-  };
+  const active = value.length < OTP_LENGTH ? value.length : OTP_LENGTH - 1;
 
   return (
     <View style={styles.wrap}>
       {label ? <Text style={styles.label}>{tr(label)}</Text> : null}
 
-      <View style={styles.row}>
-        {Array.from({ length: LENGTH }).map((_, i) => {
-          const char = digits[i]?.trim() ?? '';
-          return (
-            <TextInput
-              key={i}
-              ref={(el) => {
-                refs.current[i] = el;
-              }}
-              style={[
-                styles.box,
-                glass && styles.boxGlass,
-                !!char && styles.boxFilled,
-                glass && !!char && styles.boxGlassFilled,
-                !!error && styles.boxError,
-              ]}
-              value={char}
-              onChangeText={(t) => handleChange(i, t)}
-              onKeyPress={(e) => handleKeyPress(i, e)}
-              keyboardType="number-pad"
-              // Only the first box declares this: iOS fills a code group's
-              // leading field, and handleChange spreads it across the rest.
-              textContentType={i === 0 ? 'oneTimeCode' : 'none'}
-              autoComplete={i === 0 ? 'one-time-code' : 'off'}
-              maxLength={LENGTH}
-              editable={editable}
-              selectTextOnFocus
-              accessibilityLabel={`Digit ${i + 1} of ${LENGTH}`}
-              placeholderTextColor={colors.textMuted}
-            />
-          );
-        })}
-      </View>
+      <Animated.View style={{ transform: [{ translateX: shake }] }}>
+        <Pressable
+          onPress={() => input.current?.focus()}
+          accessible={false}
+          style={[styles.row, busy && styles.dim]}
+        >
+          {Array.from({ length: OTP_LENGTH }).map((_, i) => {
+            const char = value[i] ?? '';
+            const focused = !locked && i === active;
+            return (
+              <View
+                key={i}
+                importantForAccessibility="no-hide-descendants"
+                style={[
+                  styles.box,
+                  glass && styles.boxGlass,
+                  !!char && styles.boxFilled,
+                  glass && !!char && styles.boxGlassFilled,
+                  focused && styles.boxActive,
+                  !!error && styles.boxError,
+                  success && styles.boxSuccess,
+                ]}
+              >
+                <Text style={styles.digit}>{char}</Text>
+              </View>
+            );
+          })}
 
-      {error ? <Text style={styles.error}>{tr(error)}</Text> : null}
+          {/* The real control. Transparent and stretched over the boxes so a tap anywhere lands on it. */}
+          <TextInput
+            ref={input}
+            style={styles.field}
+            value={value}
+            onChangeText={handleChange}
+            keyboardType="number-pad"
+            inputMode="numeric"
+            textContentType="oneTimeCode"
+            autoComplete="one-time-code"
+            autoCorrect={false}
+            maxLength={OTP_LENGTH + 4}
+            editable={!locked}
+            caretHidden
+            autoFocus
+            contextMenuHidden={false}
+            accessibilityLabel={label ? tr(label) : tr('Verification code')}
+            accessibilityHint={tr('Enter the 6 digit code')}
+            selectionColor={colors.primary}
+          />
+        </Pressable>
+      </Animated.View>
+
+      {error ? (
+        <Text style={styles.error} accessibilityLiveRegion="assertive" accessibilityRole="alert">
+          {tr(error)}
+        </Text>
+      ) : null}
+      {hint ? (
+        <Text style={styles.hint} accessibilityLiveRegion="polite">
+          {tr(hint)}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -140,6 +174,7 @@ const useStyles = makeStyles((c) => ({
   wrap: { gap: spacing.sm },
   label: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.text },
   row: { flexDirection: 'row', gap: spacing.sm, justifyContent: 'space-between' },
+  dim: { opacity: 0.6 },
   box: {
     flex: 1,
     height: 56,
@@ -147,14 +182,25 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1,
     borderColor: c.border,
     backgroundColor: c.surface,
-    color: c.text,
-    textAlign: 'center',
-    fontSize: 22,
-    fontWeight: fontWeight.bold,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   boxGlass: glassTile(c),
   boxFilled: { borderColor: c.primary },
   boxGlassFilled: { backgroundColor: c.tint },
+  boxActive: { borderColor: c.primary, borderWidth: 2 },
   boxError: { borderColor: c.error },
+  boxSuccess: { borderColor: c.success },
+  digit: { color: c.text, fontSize: 22, fontWeight: fontWeight.bold },
+  field: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.02,
+    color: 'transparent',
+  },
   error: { fontSize: fontSize.xs, color: c.error },
+  hint: { fontSize: fontSize.xs, color: c.textMuted },
 }));
