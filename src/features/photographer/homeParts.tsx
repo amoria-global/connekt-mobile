@@ -234,8 +234,9 @@ export function BusinessOverview({
   tiles,
   loading,
 }: {
-  earnings: string;
-  earningsCaption: string;
+  /** Omitted for a workspace collaborator, who sees counts and ratings but no money. */
+  earnings?: string;
+  earningsCaption?: string;
   /** Average out of 5, or null when there are no reviews. */
   rating: number | null;
   reviewCount: number;
@@ -250,6 +251,7 @@ export function BusinessOverview({
   return (
     <View>
       <View style={styles.overviewTop}>
+        {earnings === undefined ? null : (
         <Card style={[styles.flush, styles.earnCard]}>
           <View style={styles.earnHead}>
             <IconTile icon="cash-outline" tone="success" size={30} />
@@ -260,8 +262,9 @@ export function BusinessOverview({
           <Text style={styles.earnValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6} accessibilityLabel={`Lifetime earnings, ${earnings}`}>
             {loading ? '' : earnings}
           </Text>
-          <Text style={styles.meta}>{tr(earningsCaption)}</Text>
+          <Text style={styles.meta}>{tr(earningsCaption ?? '')}</Text>
         </Card>
+        )}
         <Card style={[styles.flush, styles.ratingCard]}>
           <Text style={styles.earnLabel} maxFontSizeMultiplier={1.6}>
             Reviews

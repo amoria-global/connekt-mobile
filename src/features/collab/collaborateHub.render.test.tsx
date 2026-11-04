@@ -71,7 +71,7 @@ describe('Collaborate screen', () => {
     expect(all).toContain('WHOLE WORKSPACE');
     expect(all).toContain('ONE ALBUM');
     // The chosen card lists its points; the other stays short.
-    expect(all).toContain('Withdrawals and transactions stay with you');
+    expect(all).toContain('Money, wallet and settings stay with you');
     expect(all).not.toContain('They never see your bookings, clients or money');
     // The album tabs, the join row and the album stats belong to the albums side.
     expect(all).not.toContain('My albums');
@@ -97,7 +97,7 @@ describe('Collaborate screen', () => {
     expect(tabLabels).toContain('Joined');
     expect(tabLabels).not.toContain('Workspace access');
     expect(all).toContain('Work on albums together');
-    expect(all).not.toContain('Choose how you want to work with another photographer.');
+    expect(all).not.toContain('Choose how you want to work with other people.');
   });
 
   it('switching the choice swaps the content', async () => {
