@@ -167,6 +167,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-04-workspace-collaborators",
+            "date": "2026-11-04",
+            "title": "Invite someone to help run your business",
+            "items": [
+              {
+                "icon": "people-outline",
+                "title": "Workspace collaborators",
+                "body": "You can now invite a supporter or a friend to help run your business with just their email. They set a password from the link, then sign in on the normal login page, and you can remove them at any time."
+              },
+              {
+                "icon": "lock-closed-outline",
+                "title": "Money stays with you",
+                "body": "A collaborator can handle bookings, events, albums, clients and messages, but never sees your wallet, balance, withdrawals or transactions, and analytics show counts without money figures."
+              },
+              {
+                "icon": "mail-outline",
+                "title": "Email me a code instead",
+                "body": "On the sign-in screen you can now ask for a six-digit code by email instead of typing a password, and people who work in more than one workspace can choose which one to open."
+              }
+            ]
+          },
+          {
             "id": "2026-11-04-copy-setup-key",
             "date": "2026-11-04",
             "title": "Copy your authenticator key",
