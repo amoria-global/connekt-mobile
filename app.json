@@ -170,6 +170,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-04-withdraw-two-factor",
+            "date": "2026-11-04",
+            "title": "Easier two-factor setup for withdrawals",
+            "items": [
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Set up two-factor right from a withdrawal",
+                "body": "If two-factor is off when you withdraw, we now take you straight to setting it up, with an authenticator app or an email code, then back to your withdrawal."
+              }
+            ]
+          },
+          {
             "id": "2026-11-04-two-factor-email",
             "date": "2026-11-04",
             "title": "Safer sign-in, easier codes",
