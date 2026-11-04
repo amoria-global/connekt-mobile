@@ -1,15 +1,15 @@
 {
   "_comment": "What the installed production app is built from. An OTA update may only ship JavaScript that this native build can already run. Update this file when a new store build ships.",
-  "buildCommit": "f9b80637b9d4ce5fa777199572160b94dcf7c31a",
-  "appVersion": "2.3.1",
-  "runtimeVersion": "2.3.1",
-  "androidBuildNumber": 35,
+  "buildCommit": "1c71e81dad856009de5fc3a5d88eb993dd4d9033",
+  "appVersion": "2.3.2",
+  "runtimeVersion": "2.3.2",
+  "androidBuildNumber": 40,
   "easBuildProfile": "production",
   "platforms": [
     "android"
   ],
   "androidFingerprint": "890c01e2eeaba2f868ec5e7c5ef957031f23422a",
-  "fingerprintNote": "EAS recorded this for build 35 (2026-10-30, build 08c2a7e9-3fa6-4432-9aad-9156987d2adc, profile production, store distribution, SDK 57), uploaded to Google Play. Informational only: eas.json is a fingerprint input, so editing build env drifts the hash without changing the installed natives. The dependency and config checks below are what actually decide OTA safety.",
+  "fingerprintNote": "Build 40 (2026-11-04, version 2.3.2, Android versionCode 40, commit 1c71e81, profile production, SDK 57). The fingerprint above was recorded for build 35 and is informational only; the dependency and config checks decide OTA safety.",
   "allowedJsOnlyDeps": [
     "qrcode",
     "@types/qrcode",
