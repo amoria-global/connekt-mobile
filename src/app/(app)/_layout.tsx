@@ -16,6 +16,7 @@ import { showIncomingRequest } from '@/features/bookings/incomingRequests';
 import { useRole } from '@/features/auth/role';
 import { isBlockedInSharedWorkspace } from '@/features/workspace/model';
 import { WorkspaceChip } from '@/features/workspace/WorkspaceChip';
+import { WorkspacePicker } from '@/features/workspace/WorkspacePicker';
 import { selectIsShared, useWorkspace } from '@/store/workspace';
 import { useLanguage } from '@/store/language';
 import { setAudioModeAsync } from '@/utils/safeAudio';
@@ -38,7 +39,7 @@ export default function AppLayout() {
   const { isDark, colors: c } = useTheme();
   const { t } = useLanguage();
   const router = useRouter();
-  const { isPhotographer } = useRole();
+  const { role, isPhotographer, isCollaboratorLogin, isCollaboratorWorkspace } = useRole();
   const pathname = usePathname();
   // Which workspace the photographer is working in. Everything below is keyed by it, so a switch remounts the whole
   // signed-in app and nothing from one workspace can show up in the other.
@@ -49,13 +50,15 @@ export default function AppLayout() {
   const refreshWorkspaces = useWorkspace((s) => s.refresh);
 
   useEffect(() => { void hydrate(); }, [hydrate]);
+  // Any signed-in login may have been invited to a workspace as a collaborator, so the list is read for every role.
+  const mayHaveWorkspaces = role !== undefined || isCollaboratorLogin;
   useEffect(() => {
-    if (hydrated && isPhotographer) void refreshWorkspaces();
-  }, [hydrated, isPhotographer, refreshWorkspaces]);
+    if (hydrated && mayHaveWorkspaces) void refreshWorkspaces();
+  }, [hydrated, mayHaveWorkspaces, refreshWorkspaces]);
   // Money, account and notification screens are not part of a shared workspace: a deep link or a stale route goes home.
   useEffect(() => {
-    if (isShared && isBlockedInSharedWorkspace(pathname)) router.replace('/');
-  }, [isShared, pathname, router]);
+    if (isShared && isBlockedInSharedWorkspace(pathname, isCollaboratorWorkspace)) router.replace('/');
+  }, [isShared, isCollaboratorWorkspace, pathname, router]);
 
   // Signed-in: register for push notifications and route taps (including cold-start taps from terminated state).
   // The (app) group only mounts once authenticated, so this runs once navigation is ready.
@@ -164,6 +167,10 @@ export default function AppLayout() {
   // Until the stored selection is read, paint nothing: the wrong workspace must never flash.
   if (!hydrated) return <View style={{ flex: 1, backgroundColor: c.background }} />;
 
+  // A collaborator login has no business of its own: until it has chosen a workspace there is nothing else to show, and
+  // the server refuses every other route. The picker opens the only workspace by itself, or asks which one.
+  if (isCollaboratorLogin && !activeId) return <WorkspacePicker />;
+
   return (
     <View style={{ flex: 1 }} key={activeId ?? 'own'}>
       <Stack
@@ -188,6 +195,7 @@ export default function AppLayout() {
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="workspace-picker" options={{ title: 'Workspaces' }} />
         <Stack.Screen
           name="event/new"
           options={{

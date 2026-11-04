@@ -27,6 +27,8 @@ export function normalizeRole(raw?: string): CustomerType | undefined {
   if (r === 'photographer') return 'Photographer';
   if (r === 'client') return 'Client';
   if (r === 'viewer') return 'Viewer';
+  // A private workspace-collaborator login: it exists only to work inside the workspaces it was invited to.
+  if (r === 'collaborator') return 'Collaborator';
   // "User" was merged into Client on the backend (V307 moved every account,
   // and sign-up stores User as Client). This is the retired name of the same
   // role, not an inference, so a session minted before the merge keeps working.
@@ -538,4 +540,61 @@ export async function clearSession(): Promise<void> {
   await storage.remove(StorageKeys.refreshToken);
   await storage.remove(StorageKeys.session);
   await storage.remove(StorageKeys.activeWorkspace).catch(() => {});
+}
+
+// ─── Workspace collaborator: first-time setup and emailed-code sign-in ──────────────────────────────
+
+export type SetupPreview = {
+  found: boolean;
+  open: boolean;
+  ownerName?: string;
+  email?: string;
+  /** none: no login yet. returning: a collaborator login with no workspace left. existing: sign in with the account's own password. */
+  account?: 'none' | 'returning' | 'existing';
+};
+
+/** What the first-visit screen shows. The secret is in the body, not the URL. A link that does not check out answers found: false. */
+export async function previewWorkspaceSetup(invitationId: string, token: string): Promise<SetupPreview | null> {
+  try {
+    const res = await api.post<{ action: number; data?: SetupPreview }>('/auth/workspace-setup/preview', { invitationId, token }, { skipAuth: true });
+    return res.action === 1 && res.data ? res.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export type SetupError = ApiError & { errorCode?: string };
+
+function sessionFromCollaboratorResponse(res: LoginResponse, fallbackEmail: string): AuthSession {
+  return { token: res.token as string, refreshToken: res.refreshToken, user: userFromResponse(res, fallbackEmail) };
+}
+
+/** Choose a password from the emailed link: creates the private login and signs it in. */
+export async function completeWorkspaceSetup(input: { invitationId: string; token: string; password: string; confirmPassword: string }): Promise<AuthSession> {
+  const res = await api.post<LoginResponse>('/auth/workspace-setup', input, { skipAuth: true });
+  if (res.action === 2 && (res.customerId || res.challengeId)) throw needsTotpError(res);
+  if (res.action !== 1 || !res.token) {
+    throw { status: 400, message: res.message || 'Could not set up your access. Please try again.', errorCode: res.errorCode } satisfies SetupError;
+  }
+  const session = sessionFromCollaboratorResponse(res, '');
+  await persistSession(session);
+  return session;
+}
+
+/** "Email me a code instead": the answer is the same whether or not the address can sign in this way. */
+export async function sendLoginCode(email: string): Promise<void> {
+  const res = await api.post<{ action: number; message?: string }>('/auth/login-code/send', { email: email.trim().toLowerCase() }, { skipAuth: true });
+  if (res.action !== 1) throw { status: 429, message: res.message || 'Please try again in a few minutes.' } satisfies ApiError;
+}
+
+/** Checks the emailed code and signs in. A refusal carries the server's attempts left and wait time. */
+export async function verifyLoginCode(email: string, code: string): Promise<AuthSession> {
+  const res = await api.post<LoginResponse>('/auth/login-code/verify', { email: email.trim().toLowerCase(), code }, { skipAuth: true });
+  if (res.action === 2 && (res.customerId || res.challengeId)) throw needsTotpError(res);
+  if (res.action !== 1 || !res.token) {
+    throw codeErrorFrom(res as Parameters<typeof codeErrorFrom>[0], 'That code did not work.');
+  }
+  const session = sessionFromCollaboratorResponse(res, email);
+  await persistSession(session);
+  return session;
 }

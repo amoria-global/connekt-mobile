@@ -2,9 +2,12 @@ import { Platform, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { PersistentBottomBar } from '@/components/PersistentBottomBar';
 import { useLanguage } from '@/store/language';
+import { useRole } from '@/features/auth/role';
 
 export default function AppTabsLayout() {
   const { language, t } = useLanguage();
+  // A workspace collaborator has no wallet at all: the tab is not offered.
+  const { isCollaboratorWorkspace } = useRole();
 
   return (
     <View style={{ flex: 1 }}>
@@ -19,7 +22,7 @@ export default function AppTabsLayout() {
       >
         <Tabs.Screen name="index" options={{ title: t('tabHome') }} />
         <Tabs.Screen name="events" options={{ title: t('tabEvents') }} />
-        <Tabs.Screen name="wallet" options={{ title: t('tabWallet') }} />
+        <Tabs.Screen name="wallet" options={{ title: t('tabWallet'), href: isCollaboratorWorkspace ? null : undefined }} />
         <Tabs.Screen name="inbox" options={{ title: t('tabInbox') }} />
         <Tabs.Screen name="profile" options={{ title: t('tabProfile'), href: null }} />
         <Tabs.Screen name="more" options={{ title: t('tabMore') }} />
