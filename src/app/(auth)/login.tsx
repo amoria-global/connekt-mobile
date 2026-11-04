@@ -374,6 +374,20 @@ export default function LoginScreen() {
           >
             <Text style={styles.forgotText}>{t('forgotYourPassword')}</Text>
           </Pressable>
+          <Pressable
+            style={styles.forgot}
+            onPress={() =>
+              router.push({
+                pathname: "/login-code",
+                params: { email: getValues("email") },
+              } as never)
+            }
+            hitSlop={10}
+            accessibilityRole="link"
+            accessibilityLabel="Email me a code instead"
+          >
+            <Text style={styles.forgotText}>Email me a code instead</Text>
+          </Pressable>
         </View>
 
         {serverError ? (

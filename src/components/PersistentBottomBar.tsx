@@ -137,7 +137,7 @@ export function PersistentBottomBar() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
-  const { role } = useRole();
+  const { role, isCollaboratorWorkspace } = useRole();
   const isShared = useWorkspace(selectIsShared);
   const { data: notifications } = useAsync(useCallback(() => listNotifications(role), [role]));
   const unreadCount = useMemo(
@@ -168,8 +168,8 @@ export function PersistentBottomBar() {
       { key: 'wallet', label: t('tabWallet'), href: '/(tabs)/wallet' as Href, icon: 'wallet-outline', iconFocused: 'wallet', match: ['wallet', 'transactions', 'withdraw', 'payroll'] },
       { key: 'inbox', label: t('tabInbox'), href: '/(tabs)/inbox' as Href, icon: 'chatbubbles-outline', iconFocused: 'chatbubbles', match: ['inbox', 'conversation', 'notifications'] },
       { key: 'more', label: t('tabMore'), href: '/(tabs)' as Href, icon: 'ellipsis-horizontal', iconFocused: 'ellipsis-horizontal', isMore: true, match: [] },
-    ] as Tab[]),
-    [language, t],
+    ] as Tab[]).filter((tab) => !(isCollaboratorWorkspace && tab.key === 'wallet')),
+    [language, t, isCollaboratorWorkspace],
   );
 
   const lastActiveKeyRef = useRef<string>('home');

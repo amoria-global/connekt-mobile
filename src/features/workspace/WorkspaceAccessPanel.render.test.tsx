@@ -16,8 +16,8 @@ import '@/test/autoUnmount';
 const mockApi = {
   listSentInvitations: jest.fn(),
   listReceivedInvitations: jest.fn(),
-  lookupPhotographer: jest.fn(),
-  sendInvitation: jest.fn(),
+  sendInvitationByEmail: jest.fn(),
+  listWorkspaceActivity: jest.fn(),
   resendInvitation: jest.fn(),
   cancelInvitation: jest.fn(),
   revokeMembership: jest.fn(),
@@ -27,8 +27,8 @@ const mockApi = {
 jest.mock('./api', () => ({
   listSentInvitations: (...a: unknown[]) => mockApi.listSentInvitations(...a),
   listReceivedInvitations: (...a: unknown[]) => mockApi.listReceivedInvitations(...a),
-  lookupPhotographer: (...a: unknown[]) => mockApi.lookupPhotographer(...a),
-  sendInvitation: (...a: unknown[]) => mockApi.sendInvitation(...a),
+  sendInvitationByEmail: (...a: unknown[]) => mockApi.sendInvitationByEmail(...a),
+  listWorkspaceActivity: (...a: unknown[]) => mockApi.listWorkspaceActivity(...a),
   resendInvitation: (...a: unknown[]) => mockApi.resendInvitation(...a),
   cancelInvitation: (...a: unknown[]) => mockApi.cancelInvitation(...a),
   revokeMembership: (...a: unknown[]) => mockApi.revokeMembership(...a),
@@ -88,15 +88,45 @@ beforeEach(() => {
   mockAlert.mockReset();
   mockApi.listSentInvitations.mockResolvedValue([]);
   mockApi.listReceivedInvitations.mockResolvedValue([]);
+  mockApi.listWorkspaceActivity.mockResolvedValue([]);
 });
 
 describe('workspace access panel', () => {
-  it('explains what an invited photographer can and cannot do', async () => {
+  it('explains what a workspace collaborator can and cannot do', async () => {
     const r = await mount();
     const t = text(r.root);
     expect(t).toContain('What they can and cannot do');
-    expect(t).toContain('cannot withdraw, see transactions or change account settings');
+    expect(t).toContain('never see your wallet, balance, withdrawals, transactions, payouts or payment methods');
+    expect(t).toContain('cannot invite or remove other collaborators');
     expect(t).toContain('You have not invited anyone yet');
+    expect(t).toContain('Invite a collaborator');
+  });
+
+  it('asks for an email only: no Find photographer step, and no need for an account', async () => {
+    const r = await mount();
+    const t = text(r.root);
+    expect(t).not.toContain('Find photographer');
+    expect(t).toContain('They do not need a Connekyt account');
+    expect(press(r, 'Email invitation')).toBeTruthy();
+  });
+
+  it('shows when a collaborator was last active, and what they did by name for the owner', async () => {
+    mockApi.listSentInvitations.mockResolvedValue([
+      inv({ id: 'b', status: 'ACCEPTED', role: 'COLLABORATOR', lastActiveAt: '2026-11-03T10:00:00' }),
+      inv({ id: 'c', status: 'ACCEPTED', role: 'COLLABORATOR', invitee: person('p2', 'Chantal Ineza') }),
+    ]);
+    mockApi.listWorkspaceActivity.mockResolvedValue([
+      { id: 'e1', at: '2026-11-03T10:00:00', actor: 'Eric Mugisha', outcome: 'done', what: 'POST photographer/bookings/:id/accept', summary: 'by Eric Mugisha for Aline Uwase' },
+      { id: 'e2', at: '2026-11-03T10:05:00', actor: 'Eric Mugisha', outcome: 'refused', what: 'GET wallet/me', summary: 'by Eric Mugisha for Aline Uwase' },
+    ]);
+    const r = await mount();
+    expect(text(r.root)).toContain('Last active');
+    expect(text(r.root)).toContain('Not active yet');
+    expect(mockApi.listWorkspaceActivity).not.toHaveBeenCalled();
+    await tap(r, 'Show collaborator activity');
+    expect(text(r.root)).toContain('by Eric Mugisha for Aline Uwase');
+    expect(text(r.root)).toContain('POST photographer/bookings/:id/accept');
+    expect(text(r.root)).toContain('(refused)');
   });
 
   it('lists what was sent with its status and the right moves', async () => {
@@ -140,42 +170,32 @@ describe('workspace access panel', () => {
     expect(mockApi.revokeMembership).toHaveBeenCalledWith('b');
   });
 
-  it('finds a photographer by email, sends once, and clears the form', async () => {
-    mockApi.lookupPhotographer.mockResolvedValue(person('p9', 'Grace Mutoni'));
-    mockApi.sendInvitation.mockResolvedValue(inv({ id: 'n', invitee: person('p9', 'Grace Mutoni') }));
+  it('emails an invitation to any address, once, and clears the form', async () => {
+    mockApi.sendInvitationByEmail.mockResolvedValue(inv({ id: 'n', role: 'COLLABORATOR', invitee: { id: '', name: 'grace@example.com', registered: false } }));
     const r = await mount();
     await typeInto(r, 'Their email', 'grace@example.com');
-    await tap(r, 'Find photographer');
-    expect(mockApi.lookupPhotographer).toHaveBeenCalledWith('grace@example.com');
-    expect(text(r.root)).toContain('Grace Mutoni');
     await typeInto(r, 'Add a note (optional)', 'Weddings in June');
-    const send = press(r, 'Send invitation');
+    const send = press(r, 'Email invitation');
     // Two quick taps make one request.
     await act(async () => {
       send.props.onPress();
       send.props.onPress();
     });
-    expect(mockApi.sendInvitation).toHaveBeenCalledTimes(1);
-    expect(mockApi.sendInvitation).toHaveBeenCalledWith('p9', 'Weddings in June');
-    expect(text(r.root)).toContain('Invitation sent to Grace Mutoni');
+    expect(mockApi.sendInvitationByEmail).toHaveBeenCalledTimes(1);
+    expect(mockApi.sendInvitationByEmail).toHaveBeenCalledWith('grace@example.com', 'Weddings in June');
+    expect(text(r.root)).toContain('Invitation emailed to grace@example.com');
+    expect(text(r.root)).toContain('expires in 7 days');
     expect(input(r, 'Their email').props.value).toBe('');
   });
 
-  it('says plainly when no photographer matches, and when the server refuses a duplicate', async () => {
-    mockApi.lookupPhotographer.mockRejectedValueOnce({ status: 400, message: 'No photographer account uses that email' });
+  it('says plainly when the server refuses an invitation, and does not claim it was sent', async () => {
+    mockApi.sendInvitationByEmail.mockRejectedValue({ status: 409, message: 'An invitation to this email is already waiting. Use Resend to send it again.' });
     const r = await mount();
-    await typeInto(r, 'Their email', 'nobody@example.com');
-    await tap(r, 'Find photographer');
-    expect(text(r.root)).toContain('No photographer account uses that email');
-    expect(press(r, 'Send invitation')).toBeUndefined();
-
-    mockApi.lookupPhotographer.mockResolvedValue(person('p9', 'Grace Mutoni'));
-    mockApi.sendInvitation.mockRejectedValue({ status: 409, message: 'An invitation to this photographer is already waiting' });
     await typeInto(r, 'Their email', 'grace@example.com');
-    await tap(r, 'Find photographer');
-    await tap(r, 'Send invitation');
+    await tap(r, 'Email invitation');
     expect(text(r.root)).toContain('already waiting');
-    expect(text(r.root)).not.toContain('Invitation sent to');
+    expect(text(r.root)).not.toContain('Invitation emailed to');
+    expect(input(r, 'Their email').props.value).toBe('grace@example.com');
   });
 
   it('lets the invited photographer accept once, then open the workspace', async () => {
@@ -183,7 +203,7 @@ describe('workspace access panel', () => {
     mockApi.answerInvitation.mockResolvedValue(inv({ id: 'r1', status: 'ACCEPTED' }));
     const r = await mount();
     expect(text(r.root)).toContain('Invitations for you');
-    expect(text(r.root)).toContain('Withdrawals and transactions stay with them');
+    expect(text(r.root)).toContain('Money, the wallet and account settings stay with them');
     mockApi.listReceivedInvitations.mockResolvedValue([inv({ id: 'r1', status: 'ACCEPTED' })]);
     const accept = pressAll(r, 'Accept')[0];
     await act(async () => {

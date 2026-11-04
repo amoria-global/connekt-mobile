@@ -136,7 +136,12 @@ export function inviteFocus(received: readonly WorkspaceInvitation[], id: string
 }
 
 /** What the owner reads next to an invitation: an emailed one is still waiting for someone to sign up. */
-export function ownerMeaning(inv: Pick<WorkspaceInvitation, 'status' | 'invitee'>): string {
+export function ownerMeaning(inv: Pick<WorkspaceInvitation, 'status' | 'invitee'> & { role?: string }): string {
+  if (inv.status === 'PENDING' && inv.role === 'COLLABORATOR') {
+    return inv.invitee.registered === false
+      ? 'Emailed. Waiting for them to open the link and set a password. It works once and expires in 7 days.'
+      : 'Emailed. Waiting for them to sign in with their own login and add your workspace.';
+  }
   if (inv.status === 'PENDING' && inv.invitee.registered === false) return 'Emailed. Waiting for them to create an account and answer.';
   return statusView(inv.status).meaning.owner;
 }
