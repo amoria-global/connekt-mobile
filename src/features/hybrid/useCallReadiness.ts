@@ -21,6 +21,14 @@ import {
   setKeepReady,
 } from './incomingCall';
 
+/**
+ * PLAY-REJECTION-DISABLED (2026-11-04): the full-screen alert step is off because the USE_FULL_SCREEN_INTENT permission
+ * was removed from the manifest (plugins/withIncomingCall.js) after Google Play rejected the 2.3.2 submission over the
+ * undeclared permission. Without the permission the setting it opens does nothing. The step below is kept intact. Set this
+ * to true together with the plugin flag once the Play Console declaration is approved and a new store build ships.
+ */
+const FULL_SCREEN_INTENT_ENABLED = false;
+
 type Step = {
   key: string;
   title: string;
@@ -30,7 +38,7 @@ type Step = {
   open: () => void;
 };
 
-const STEPS: Step[] = [
+const ALL_STEPS: Step[] = [
   {
     key: 'fullScreen',
     title: 'Let offers wake your phone',
@@ -53,6 +61,8 @@ const STEPS: Step[] = [
     open: openBatterySettings,
   },
 ];
+
+const STEPS: Step[] = ALL_STEPS.filter((s) => FULL_SCREEN_INTENT_ENABLED || s.key !== 'fullScreen');
 
 const askedKey = (key: string) => `callSetupAsked_${key}`;
 
