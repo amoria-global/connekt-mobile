@@ -197,12 +197,17 @@ export type Verification = {
 export type InitiateOutcome =
   | { kind: 'verify'; verification: Verification }
   | { kind: 'kyc'; message: string }
+  /** The account has no second factor, so the backend refuses: send them to set one up. */
+  | { kind: 'twoFactor'; message: string }
   | { kind: 'error'; message: string };
 
 export function readInitiate(res: Raw | null | undefined): InitiateOutcome {
   if (!res || res.action !== 1) {
     if (res?.kycRequired === true) {
       return { kind: 'kyc', message: 'Verify your identity before you withdraw funds.' };
+    }
+    if (res?.twoFactorRequired === true) {
+      return { kind: 'twoFactor', message: 'Turn on two-factor authentication to withdraw your funds.' };
     }
     return { kind: 'error', message: str(res?.message) ?? 'Could not start the withdrawal. Please try again.' };
   }
@@ -236,6 +241,8 @@ export type VerifyOutcome =
   | { kind: 'submitted'; transactionId: string }
   /** Start over: the verification expired or ran out of attempts. */
   | { kind: 'restart'; message: string }
+  /** Two-factor was turned off after the withdrawal started. */
+  | { kind: 'twoFactor'; message: string }
   /** Wrong code or face mismatch; the user can try again. */
   | { kind: 'retry'; message: string; remainingAttempts?: number };
 
@@ -245,6 +252,9 @@ export function readVerify(res: Raw | null | undefined): VerifyOutcome {
     const id = d.transactionId ?? d.id;
     if (id != null && String(id)) return { kind: 'submitted', transactionId: String(id) };
     return { kind: 'restart', message: 'The request has no reference. Please contact support before trying again.' };
+  }
+  if (res?.twoFactorRequired === true) {
+    return { kind: 'twoFactor', message: 'Turn on two-factor authentication to withdraw your funds.' };
   }
   if (res?.maxAttemptsReached === true) {
     return { kind: 'restart', message: 'Too many attempts. Please start a new withdrawal.' };
