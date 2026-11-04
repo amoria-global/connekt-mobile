@@ -1,7 +1,6 @@
 package expo.modules.incomingcall
 
 import android.content.Context
-import android.content.Intent
 
 /**
  * Legacy keep-alive helper. Push notifications are delivered directly by
@@ -23,9 +22,6 @@ object KeepAlive {
   }
 
   fun stop(context: Context) {
-    try {
-      context.stopService(Intent(context, KeepAliveService::class.java))
-    } catch (_: Exception) {
-    }
+    // The foreground service was removed; nothing to stop.
   }
 }
