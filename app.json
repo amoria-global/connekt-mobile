@@ -170,6 +170,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-04-signup-album-codes",
+            "date": "2026-11-04",
+            "title": "Clearer verification codes",
+            "items": [
+              {
+                "icon": "keypad-outline",
+                "title": "Easier code entry when you sign up or open a free album",
+                "body": "The code box now fills from your messages or a paste and sends itself at the sixth digit. You see how many tries are left and when you can ask for a new code."
+              },
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Safer codes",
+                "body": "Too many wrong tries pauses the code for a few minutes, so nobody can guess it."
+              }
+            ]
+          },
+          {
             "id": "2026-11-04-withdraw-two-factor",
             "date": "2026-11-04",
             "title": "Easier two-factor setup for withdrawals",
