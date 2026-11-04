@@ -6,7 +6,7 @@ import { api } from '@/api/client';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
 import { forgetFirstHandshake, type AppleCredentialPayload } from './apple';
-import { codeErrorFrom, needsTotpError, type NeedsTotpError, type TwoFactorChallenge, type TwoFactorMethod } from './twoFactor';
+import { codeErrorFrom, codeSentFrom, localDeadline, needsTotpError, type CodeSent, type NeedsTotpError, type TwoFactorChallenge, type TwoFactorMethod } from './twoFactor';
 import type {
   AuthSession,
   CustomerType,
@@ -145,7 +145,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
 }
 
 /** Registers a new account. Returns the customerId needed to verify the OTP. */
-export async function signup(payload: SignupPayload): Promise<{ customerId: string }> {
+export async function signup(payload: SignupPayload): Promise<{ customerId: string; resendAt?: number }> {
   const res = await api.post<LoginResponse>('/auth/signup', payload, { skipAuth: true });
   if (res.action !== 1 || !res.customerId) {
     throw {
@@ -153,7 +153,10 @@ export async function signup(payload: SignupPayload): Promise<{ customerId: stri
       message: res.message || 'Could not create your account. Please try again.',
     } satisfies ApiError;
   }
-  return { customerId: res.customerId };
+  // When the next code may be asked for, from the server's clock; the verify screen counts down to it.
+  const d = (res as { data?: Partial<CodeSent> }).data;
+  const resendAt = d?.resendAvailableAt && d.serverTime ? localDeadline(d.resendAvailableAt, d.serverTime, Date.now()) : undefined;
+  return { customerId: res.customerId, resendAt };
 }
 
 /** Verifies the emailed OTP and returns an authenticated session. */
@@ -162,10 +165,8 @@ export async function verifyOtp(customerId: string, otp: string): Promise<AuthSe
     skipAuth: true,
   });
   if (res.action !== 1 || !res.token) {
-    throw {
-      status: 400,
-      message: res.message || 'That code is invalid or expired.',
-    } satisfies ApiError;
+    // Wrong, expired or locked: the server's attempts left and wait come with the error.
+    throw codeErrorFrom(res as Parameters<typeof codeErrorFrom>[0], 'That code is invalid or expired.');
   }
   const session: AuthSession = {
     token: res.token,
@@ -202,18 +203,17 @@ export async function verifySecondFactor(
   return session;
 }
 
-export async function resendOtp(customerId: string): Promise<void> {
-  const res = await api.post<{ action: number; message?: string }>(
+export async function resendOtp(customerId: string): Promise<CodeSent | null> {
+  const res = await api.post<{ action: number; message?: string; data?: Partial<CodeSent> }>(
     `/auth/resend-otp?customerId=${encodeURIComponent(customerId)}`,
     undefined,
     { skipAuth: true },
   );
   if (res?.action !== 1) {
-    throw {
-      status: 400,
-      message: res?.message || 'We could not send a new code. Please try again.',
-    } satisfies ApiError;
+    throw codeErrorFrom((res ?? {}) as Parameters<typeof codeErrorFrom>[0], 'We could not send a new code. Please try again.');
   }
+  // An older backend answers success without timers; the screen then falls back to its own gap.
+  return res.data?.expiresAt && res.data.resendAvailableAt && res.data.serverTime ? codeSentFrom(res, '') : null;
 }
 
 /**

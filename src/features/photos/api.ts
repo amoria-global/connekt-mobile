@@ -4,6 +4,7 @@
  * paid album purchase, and photo download.
  */
 import { api } from '@/api/client';
+import { codeErrorFrom, localDeadline } from '@/features/auth/twoFactor';
 import { env } from '@/config/env';
 import type { ApiEnvelope, ApiError, ID } from '@/types';
 import type { PickedImage } from '@/services/imagePicker';
@@ -252,17 +253,24 @@ function parseFreeAlbumData(raw: Raw): FreeAlbumData {
   };
 }
 
-/** Request OTP for a free album. Throws on failure. */
-export async function requestFreeAlbumAccess(accessCode: string, email: string): Promise<void> {
+/**
+ * Request the emailed code for a free album. Throws a CodeError on a refusal (rate limit, lock) with the server's wait.
+ * Returns when Resend unlocks, in epoch ms on this device's clock, or null when an older backend sent no timers.
+ */
+export async function requestFreeAlbumAccess(accessCode: string, email: string): Promise<number | null> {
   const res = await api.post<ApiEnvelope<Raw>>('/public/albums/free/request-access', {
     accessCode: accessCode.trim(),
     email: email.trim().toLowerCase(),
   });
+  const envelope = (res ?? {}) as Raw;
   // action !== 1 means error from backend
-  if ((res as unknown as Raw)?.action === 0) {
-    const msg = str((res as unknown as Raw)?.message);
-    throw new Error(msg || 'Failed to send access code.');
+  if (envelope.action === 0) {
+    throw codeErrorFrom(envelope as Parameters<typeof codeErrorFrom>[0], 'Failed to send access code.');
   }
+  const d = (envelope.data ?? {}) as Raw;
+  const next = str(d.resendAvailableAt);
+  const serverTime = str(d.serverTime);
+  return next && serverTime ? localDeadline(next, serverTime, Date.now()) : null;
 }
 
 /** Verify OTP and return the free album with photos. Throws on failure. */
@@ -278,8 +286,8 @@ export async function verifyFreeAlbumAccess(
   });
   const envelope = (res ?? {}) as Raw;
   if (envelope.action === 0) {
-    const msg = str(envelope.message);
-    throw new Error(msg || 'Invalid verification code.');
+    // Wrong, expired or locked: the server's attempts left and wait come with the error.
+    throw codeErrorFrom(envelope as Parameters<typeof codeErrorFrom>[0], 'Invalid verification code.');
   }
   const inner = (envelope.data ?? envelope) as Raw;
   const albumData = parseFreeAlbumData(inner);
