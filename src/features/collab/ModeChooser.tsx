@@ -1,5 +1,5 @@
 /**
- * The first thing on Collaborate: two clearly different ways to work with another photographer.
+ * The first thing on Collaborate: two clearly different ways to work with other people.
  *  - Workspace access: they work in your whole business (bookings, clients, events, opportunities).
  *  - Album collaboration: they add photos to one album and see nothing else.
  * The chosen card is expanded with its three points; the other stays short, so the screen does not turn into two long
@@ -26,8 +26,8 @@ export const COLLABORATE_OPTIONS: Option[] = [
     icon: 'briefcase',
     badge: 'WHOLE WORKSPACE',
     title: 'Workspace access',
-    lead: 'Let another photographer work in your business.',
-    points: ['They sign in with their own account', 'They handle bookings, clients and events with you', 'Withdrawals and transactions stay with you'],
+    lead: 'Let someone who helps run your business work in your workspace.',
+    points: ['They need no Connekyt account, only an email', 'They handle bookings, clients and events with you', 'Money, wallet and settings stay with you'],
   },
   {
     mode: 'albums',
@@ -43,7 +43,7 @@ export function ModeChooser({ mode, onChange }: { mode: CollaborateMode; onChang
   const styles = useStyles();
   const { colors } = useTheme();
   return (
-    <View accessibilityRole="radiogroup" accessibilityLabel="How do you want to work with another photographer?" style={styles.group}>
+    <View accessibilityRole="radiogroup" accessibilityLabel="How do you want to work with other people?" style={styles.group}>
       {COLLABORATE_OPTIONS.map((o) => {
         const on = mode === o.mode;
         return (
