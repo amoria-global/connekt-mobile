@@ -249,6 +249,10 @@
     "controller" : "AdminContentApprovalPageController#index"
   }, {
     "method" : "GET",
+    "path" : "/admin/content-disputes",
+    "controller" : "AdminContentDisputePageController#index"
+  }, {
+    "method" : "GET",
     "path" : "/admin/customers/clients",
     "controller" : "CustomerAdminController#clients"
   }, {
@@ -1592,6 +1596,11 @@
     },
     "pathVariables" : [ "id" ]
   }, {
+    "method" : "GET",
+    "path" : "/api/admin/content-disputes/{id}/claimant-albums",
+    "controller" : "AdminContentDisputeApiController#claimantAlbums",
+    "pathVariables" : [ "id" ]
+  }, {
     "method" : "POST",
     "path" : "/api/admin/content-disputes/{id}/reject",
     "controller" : "AdminContentDisputeApiController#reject",
@@ -2858,6 +2867,20 @@
     "pathVariables" : [ "id" ]
   }, {
     "method" : "POST",
+    "path" : "/api/remote/auth/2fa/email/send",
+    "controller" : "AuthController#sendTwoFactorEmail",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/2fa/email/verify",
+    "controller" : "AuthController#verifyTwoFactorEmail",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
     "path" : "/api/remote/auth/apple",
     "controller" : "AppleAuthController#appleAuth",
     "body" : {
@@ -3718,6 +3741,31 @@
     "body" : {
       "type" : "Map"
     }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/customer/2fa/email/disable",
+    "controller" : "CustomerTwoFactorController#disable",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/customer/2fa/email/enable",
+    "controller" : "CustomerTwoFactorController#enable",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/customer/2fa/email/send",
+    "controller" : "CustomerTwoFactorController#send",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/customer/2fa/status",
+    "controller" : "CustomerTwoFactorController#status"
   }, {
     "method" : "GET",
     "path" : "/api/remote/customer/albums",
@@ -5987,6 +6035,19 @@
     "body" : {
       "type" : "Map"
     },
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/albums/{albumId}/restore-payment",
+    "controller" : "PhotographerAlbumController#restorePayment",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/albums/{albumId}/restore-quote",
+    "controller" : "PhotographerAlbumController#restoreQuote",
     "pathVariables" : [ "albumId" ]
   }, {
     "method" : "POST",

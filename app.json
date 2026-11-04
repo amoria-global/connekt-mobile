@@ -170,6 +170,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-04-two-factor-email",
+            "date": "2026-11-04",
+            "title": "Safer sign-in, easier codes",
+            "items": [
+              {
+                "icon": "mail-outline",
+                "title": "Get your sign-in code by email",
+                "body": "Turn on Email code in Two-factor authentication and we send a 6-digit code to your inbox when you sign in. You can use it instead of, or alongside, an authenticator app."
+              },
+              {
+                "icon": "keypad-outline",
+                "title": "Easier code entry",
+                "body": "Codes are one field that fills from your messages or a paste and sends itself at the sixth digit. You always see how many tries are left and when you can ask for a new code."
+              },
+              {
+                "icon": "key-outline",
+                "title": "Clearer authenticator setup",
+                "body": "The setup key is now grouped in fours and can be selected, so it is easy to read and type."
+              }
+            ]
+          },
+          {
             "id": "2026-11-03-withdraw-email-code",
             "date": "2026-11-03",
             "title": "Simpler, easier withdrawals",

@@ -74,4 +74,14 @@ export type LoginResponse = {
   refreshToken?: string;
   token_expiry?: string;
   mustChangePassword?: boolean;
+  /** Second-factor challenge, on an action 2 answer. */
+  challengeId?: string;
+  challengeExpiresAt?: string;
+  twoFactorMethods?: string[];
+  twoFactorDefaultMethod?: string;
+  maskedEmail?: string;
+  errorCode?: string;
+  attemptsLeft?: number;
+  retryAfterSeconds?: number;
+  expiresAt?: string;
 };
