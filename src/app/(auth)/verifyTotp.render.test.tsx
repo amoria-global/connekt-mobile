@@ -145,4 +145,19 @@ describe('email sign-in', () => {
     expect(text(r)).toContain('Too many codes');
     expect(text(r)).toContain('Resend code in 8:00');
   });
+
+  it('a lock on the authenticator does not block the email code, and comes back with its tab', async () => {
+    mockSend.mockResolvedValue(sent());
+    mockVerify.mockRejectedValue(codeErrorFrom({ errorCode: 'LOCKED', retryAfterSeconds: 900, message: 'Locked' }, 'x'));
+    const r = await mount({ methods: 'TOTP,EMAIL', defaultMethod: 'TOTP' });
+    await type(r, '000000');
+    expect(field(r).props.editable).toBe(false);
+    const press = async (label: string) => {
+      const btn = r.root.findAll((n) => typeof n.props.onPress === 'function' && n.findAllByType(Text).some((t) => [t.props.children].flat().join('') === label))[0];
+      await act(async () => btn.props.onPress());
+    };
+    await press('Email code');
+    expect(field(r).props.editable).toBe(true);
+    expect(text(r)).not.toContain('Too many wrong codes');
+  });
 });
