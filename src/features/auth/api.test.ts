@@ -123,8 +123,19 @@ describe('resendOtp', () => {
 
   it('resolves only when the backend says action 1', async () => {
     post.mockResolvedValue({ action: 1, message: 'OTP resent successfully' });
-    await expect(resendOtp('c1')).resolves.toBeUndefined();
+    await expect(resendOtp('c1')).resolves.toBeNull(); // an older backend sends no timers
     expect(post).toHaveBeenCalledWith('/auth/resend-otp?customerId=c1', undefined, { skipAuth: true });
+  });
+
+  it('returns the server timers when the backend sends them', async () => {
+    const data = { maskedEmail: 'ad•••@mail.com', expiresAt: '2026-11-04T10:05:00Z', resendAvailableAt: '2026-11-04T10:03:00Z', serverTime: '2026-11-04T10:00:00Z' };
+    post.mockResolvedValue({ action: 1, data });
+    await expect(resendOtp('c1')).resolves.toEqual(data);
+  });
+
+  it('carries the wait when the backend refuses because a code was just sent', async () => {
+    post.mockResolvedValue({ action: 0, errorCode: 'RESEND_TOO_SOON', retryAfterSeconds: 120, message: 'Please wait before asking for another code.' });
+    await expect(resendOtp('c1')).rejects.toMatchObject({ codeError: true, errorCode: 'RESEND_TOO_SOON', retryAfterSeconds: 120 });
   });
 
   it('throws the backend message on action 0 instead of claiming success', async () => {
@@ -159,5 +170,47 @@ describe('normalizeRole', () => {
     expect(normalizeRole('Photographer')).toBe('Photographer');
     expect(normalizeRole('Viewer')).toBe('Viewer');
     expect(normalizeRole('Admin')).toBeUndefined();
+  });
+});
+
+describe('verifyOtp (signup code)', () => {
+  const post = api.post as jest.Mock;
+  beforeEach(() => post.mockReset());
+
+  it('throws a code error with the tries left when the code is wrong', async () => {
+    const { verifyOtp } = jest.requireActual('./api') as typeof import('./api');
+    post.mockResolvedValue({ action: 0, errorCode: 'WRONG_CODE', attemptsLeft: 2, message: 'That code did not work. 2 attempts left.' });
+    await expect(verifyOtp('c1', '000000')).rejects.toMatchObject({ codeError: true, errorCode: 'WRONG_CODE', attemptsLeft: 2 });
+  });
+
+  it('sends the code as a string so a leading zero survives', async () => {
+    const { verifyOtp } = jest.requireActual('./api') as typeof import('./api');
+    post.mockResolvedValue({ action: 0, errorCode: 'WRONG_CODE', attemptsLeft: 2 });
+    await expect(verifyOtp('c1', '012345')).rejects.toBeTruthy();
+    expect(post).toHaveBeenCalledWith('/auth/verify-otp', { customerId: 'c1', otp: '012345' }, { skipAuth: true });
+  });
+});
+
+describe('signup (resend timer)', () => {
+  const post = api.post as jest.Mock;
+  beforeEach(() => post.mockReset());
+
+  it('turns the server timers into a device deadline for the verify screen', async () => {
+    const { signup } = jest.requireActual('./api') as typeof import('./api');
+    const now = Date.now();
+    post.mockResolvedValue({
+      action: 1, customerId: 'c1',
+      data: { resendAvailableAt: new Date(now + 180_000).toISOString(), serverTime: new Date(now).toISOString() },
+    });
+    const out = await signup({} as never);
+    expect(out.customerId).toBe('c1');
+    expect(out.resendAt).toBeGreaterThan(now + 170_000);
+    expect(out.resendAt).toBeLessThan(now + 190_000);
+  });
+
+  it('has no deadline when an older backend sends no timers', async () => {
+    const { signup } = jest.requireActual('./api') as typeof import('./api');
+    post.mockResolvedValue({ action: 1, customerId: 'c1' });
+    expect((await signup({} as never)).resendAt).toBeUndefined();
   });
 });
