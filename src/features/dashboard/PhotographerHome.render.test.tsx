@@ -221,6 +221,17 @@ describe('photographer home inside someone else\x27s workspace', () => {
     expect(text).not.toContain('Other photographers');
   });
 
+  it('a workspace collaborator gets no KYC prompt and no public-profile sharing', async () => {
+    const wid = '3f2a9c1e-5b7d-4c8e-9a10-0b1c2d3e4f50';
+    useWorkspace.setState({ activeId: wid, memberships: [{ workspaceId: wid, invitationId: 'i1', owner: { id: 'o1', name: 'Ada Uwase' }, role: 'COLLABORATOR', access: { business: true, financial: false, ownerAccount: false, manageMembers: false } } as never] });
+    serve({});
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).not.toContain('Complete KYC');
+    expect(text).not.toContain('Share profile');
+    expect(mockGet.mock.calls.some((c) => String(c[0]).startsWith('/wallet/me'))).toBe(false);
+  });
+
   it('in the photographer own workspace the history is asked for and shown', async () => {
     serve({ transactions: ok([{ id: 't1', amount: 120, status: 'COMPLETED', eventName: 'Kigali Launch', createdAt: '2026-10-01T10:00:00' }]) });
     const r = await mount();
