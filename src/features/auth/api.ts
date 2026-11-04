@@ -6,6 +6,7 @@ import { api } from '@/api/client';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
 import { forgetFirstHandshake, type AppleCredentialPayload } from './apple';
+import { codeErrorFrom, needsTotpError, type NeedsTotpError, type TwoFactorChallenge, type TwoFactorMethod } from './twoFactor';
 import type {
   AuthSession,
   CustomerType,
@@ -52,7 +53,7 @@ export function isNeedsVerification(err: unknown): err is NeedsVerificationError
   );
 }
 
-export type NeedsTotpError = ApiError & { needsTotp: true; customerId: string };
+export type { NeedsTotpError };
 
 export function isNeedsTotp(err: unknown): err is NeedsTotpError {
   return (
@@ -112,13 +113,8 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
       } as NeedsVerificationError;
     }
     // action 0 = locked / bad creds, action 2 = 2FA required.
-    if (res.action === 2 && res.customerId) {
-      throw {
-        status: 403,
-        message: res.message || 'Two-factor authentication is required.',
-        needsTotp: true,
-        customerId: res.customerId,
-      } as NeedsTotpError;
+    if (res.action === 2 && (res.customerId || res.challengeId)) {
+      throw needsTotpError(res);
     }
 
     throw { status: 401, message: res.message || 'Login failed. Check your email and password.' } satisfies ApiError;
@@ -180,16 +176,22 @@ export async function verifyOtp(customerId: string, otp: string): Promise<AuthSe
   return session;
 }
 
-/** Verifies a TOTP code during login for users with 2FA enabled. */
-export async function verifyTotp(customerId: string, code: string): Promise<AuthSession> {
-  const res = await api.post<LoginResponse>('/auth/verify-totp', { customerId, code }, {
-    skipAuth: true,
-  });
+/**
+ * Completes sign-in with the second factor. The server decides whether the code is right;
+ * a refusal throws a CodeError carrying its attempts left, wait time and error code.
+ */
+export async function verifySecondFactor(
+  method: TwoFactorMethod,
+  challenge: Pick<TwoFactorChallenge, 'challengeId' | 'customerId'>,
+  code: string,
+): Promise<AuthSession> {
+  const body = challenge.challengeId
+    ? { challengeId: challenge.challengeId, code }
+    : { customerId: challenge.customerId, code };
+  const path = method === 'EMAIL' ? '/auth/2fa/email/verify' : '/auth/verify-totp';
+  const res = await api.post<LoginResponse>(path, body, { skipAuth: true });
   if (res.action !== 1 || !res.token) {
-    throw {
-      status: 400,
-      message: res.message || 'That code is invalid.',
-    } satisfies ApiError;
+    throw codeErrorFrom(res as Parameters<typeof codeErrorFrom>[0], 'That code is invalid.');
   }
   const session: AuthSession = {
     token: res.token,
@@ -200,12 +202,6 @@ export async function verifyTotp(customerId: string, code: string): Promise<Auth
   return session;
 }
 
-/**
- * Asks the backend to email (or text) a fresh OTP. Each resend replaces the
- * previous code, so only the newest one verifies. The backend answers failures
- * with HTTP 200 and action 0 ("Customer not found", "OTP already verified"),
- * so the envelope is checked rather than trusting the status.
- */
 export async function resendOtp(customerId: string): Promise<void> {
   const res = await api.post<{ action: number; message?: string }>(
     `/auth/resend-otp?customerId=${encodeURIComponent(customerId)}`,
@@ -441,13 +437,8 @@ export async function appleLogin(
       },
     } as NeedsRoleError;
   }
-  if (res.action === 2 && res.customerId) {
-    throw {
-      status: 403,
-      message: res.message || 'Two-factor authentication is required.',
-      needsTotp: true,
-      customerId: res.customerId,
-    } as NeedsTotpError;
+  if (res.action === 2 && (res.customerId || res.challengeId)) {
+    throw needsTotpError(res);
   }
   if (res.action !== 1 || !res.token) {
     throw {
