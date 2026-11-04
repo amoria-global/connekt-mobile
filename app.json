@@ -173,6 +173,108 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-04-workspace-collaborators",
+            "date": "2026-11-04",
+            "title": "Invite someone to help run your business",
+            "items": [
+              {
+                "icon": "people-outline",
+                "title": "Workspace collaborators",
+                "body": "You can now invite a supporter or a friend to help run your business with just their email. They set a password from the link, then sign in on the normal login page, and you can remove them at any time."
+              },
+              {
+                "icon": "lock-closed-outline",
+                "title": "Money stays with you",
+                "body": "A collaborator can handle bookings, events, albums, clients and messages, but never sees your wallet, balance, withdrawals or transactions, and analytics show counts without money figures."
+              },
+              {
+                "icon": "mail-outline",
+                "title": "Email me a code instead",
+                "body": "On the sign-in screen you can now ask for a six-digit code by email instead of typing a password, and people who work in more than one workspace can choose which one to open."
+              }
+            ]
+          },
+          {
+            "id": "2026-11-04-copy-setup-key",
+            "date": "2026-11-04",
+            "title": "Copy your authenticator key",
+            "items": [
+              {
+                "icon": "copy-outline",
+                "title": "Copy button for the setup key",
+                "body": "When you set up an authenticator app, a Copy key button now puts the setup key on your clipboard, or opens the share sheet with a Copy option, so you can paste it into your app."
+              }
+            ]
+          },
+          {
+            "id": "2026-11-04-signup-album-codes",
+            "date": "2026-11-04",
+            "title": "Clearer verification codes",
+            "items": [
+              {
+                "icon": "keypad-outline",
+                "title": "Easier code entry when you sign up or open a free album",
+                "body": "The code box now fills from your messages or a paste and sends itself at the sixth digit. You see how many tries are left and when you can ask for a new code."
+              },
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Safer codes",
+                "body": "Too many wrong tries pauses the code for a few minutes, so nobody can guess it."
+              }
+            ]
+          },
+          {
+            "id": "2026-11-04-withdraw-two-factor",
+            "date": "2026-11-04",
+            "title": "Easier two-factor setup for withdrawals",
+            "items": [
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Set up two-factor right from a withdrawal",
+                "body": "If two-factor is off when you withdraw, we now take you straight to setting it up, with an authenticator app or an email code, then back to your withdrawal."
+              }
+            ]
+          },
+          {
+            "id": "2026-11-04-two-factor-email",
+            "date": "2026-11-04",
+            "title": "Safer sign-in, easier codes",
+            "items": [
+              {
+                "icon": "mail-outline",
+                "title": "Get your sign-in code by email",
+                "body": "Turn on Email code in Two-factor authentication and we send a 6-digit code to your inbox when you sign in. You can use it instead of, or alongside, an authenticator app."
+              },
+              {
+                "icon": "keypad-outline",
+                "title": "Easier code entry",
+                "body": "Codes are one field that fills from your messages or a paste and sends itself at the sixth digit. You always see how many tries are left and when you can ask for a new code."
+              },
+              {
+                "icon": "key-outline",
+                "title": "Clearer authenticator setup",
+                "body": "The setup key is now grouped in fours and can be selected, so it is easy to read and type."
+              }
+            ]
+          },
+          {
+            "id": "2026-11-03-withdraw-email-code",
+            "date": "2026-11-03",
+            "title": "Simpler, easier withdrawals",
+            "items": [
+              {
+                "icon": "mail-outline",
+                "title": "No more selfie to withdraw",
+                "body": "Withdrawals no longer ask for a selfie. We email a 6-digit code to your account and you enter it to confirm."
+              },
+              {
+                "icon": "refresh-outline",
+                "title": "Send a new code any time",
+                "body": "If the code does not arrive or runs out, tap Send a new code to my email on the confirm step and enter the fresh one."
+              }
+            ]
+          },
+          {
             "id": "2026-11-03-wish-links",
             "date": "2026-11-03",
             "title": "Wish links open the app",
@@ -222,38 +324,6 @@
                 "icon": "lock-closed-outline",
                 "title": "See what is archived",
                 "body": "If one of your albums was archived, you now see a clear notice on it. You keep your photos, and the notice tells you how to restore it on the Connekyt website so clients and buyers can open it again."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-31-booking-flow",
-            "date": "2026-10-31",
-            "title": "A simpler booking flow",
-            "items": [
-              {
-                "icon": "time-outline",
-                "title": "A longer default day",
-                "body": "New events now start with 16 hours of coverage, and the hours you choose do not change the price estimate."
-              },
-              {
-                "icon": "options-outline",
-                "title": "Simpler choices",
-                "body": "Edited photos offer 0, 300, 400, 600 or your own number, long videos start at 1, and photo books are chosen by number of photos."
-              },
-              {
-                "icon": "albums-outline",
-                "title": "See the paper size",
-                "body": "Photo books and wall portraits now show a picture of the paper size on the card and beside each size in the list."
-              },
-              {
-                "icon": "pricetag-outline",
-                "title": "Recommended pricing on its own page",
-                "body": "Recommended pricing now has its own page, between your budget and the final review."
-              },
-              {
-                "icon": "bulb-outline",
-                "title": "A suggestion, not a rule",
-                "body": "We suggest RWF 7,000,000 or more for organisations booking commercial, conference or wedding coverage in 4 days or less. You can offer any budget."
               }
             ]
           }

@@ -6,6 +6,7 @@ import { api } from '@/api/client';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
 import { forgetFirstHandshake, type AppleCredentialPayload } from './apple';
+import { codeErrorFrom, codeSentFrom, localDeadline, needsTotpError, type CodeSent, type NeedsTotpError, type TwoFactorChallenge, type TwoFactorMethod } from './twoFactor';
 import type {
   AuthSession,
   CustomerType,
@@ -26,6 +27,8 @@ export function normalizeRole(raw?: string): CustomerType | undefined {
   if (r === 'photographer') return 'Photographer';
   if (r === 'client') return 'Client';
   if (r === 'viewer') return 'Viewer';
+  // A private workspace-collaborator login: it exists only to work inside the workspaces it was invited to.
+  if (r === 'collaborator') return 'Collaborator';
   // "User" was merged into Client on the backend (V307 moved every account,
   // and sign-up stores User as Client). This is the retired name of the same
   // role, not an inference, so a session minted before the merge keeps working.
@@ -52,7 +55,7 @@ export function isNeedsVerification(err: unknown): err is NeedsVerificationError
   );
 }
 
-export type NeedsTotpError = ApiError & { needsTotp: true; customerId: string };
+export type { NeedsTotpError };
 
 export function isNeedsTotp(err: unknown): err is NeedsTotpError {
   return (
@@ -112,13 +115,8 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
       } as NeedsVerificationError;
     }
     // action 0 = locked / bad creds, action 2 = 2FA required.
-    if (res.action === 2 && res.customerId) {
-      throw {
-        status: 403,
-        message: res.message || 'Two-factor authentication is required.',
-        needsTotp: true,
-        customerId: res.customerId,
-      } as NeedsTotpError;
+    if (res.action === 2 && (res.customerId || res.challengeId)) {
+      throw needsTotpError(res);
     }
 
     throw { status: 401, message: res.message || 'Login failed. Check your email and password.' } satisfies ApiError;
@@ -149,7 +147,7 @@ export async function login(credentials: LoginCredentials): Promise<AuthSession>
 }
 
 /** Registers a new account. Returns the customerId needed to verify the OTP. */
-export async function signup(payload: SignupPayload): Promise<{ customerId: string }> {
+export async function signup(payload: SignupPayload): Promise<{ customerId: string; resendAt?: number }> {
   const res = await api.post<LoginResponse>('/auth/signup', payload, { skipAuth: true });
   if (res.action !== 1 || !res.customerId) {
     throw {
@@ -157,7 +155,10 @@ export async function signup(payload: SignupPayload): Promise<{ customerId: stri
       message: res.message || 'Could not create your account. Please try again.',
     } satisfies ApiError;
   }
-  return { customerId: res.customerId };
+  // When the next code may be asked for, from the server's clock; the verify screen counts down to it.
+  const d = (res as { data?: Partial<CodeSent> }).data;
+  const resendAt = d?.resendAvailableAt && d.serverTime ? localDeadline(d.resendAvailableAt, d.serverTime, Date.now()) : undefined;
+  return { customerId: res.customerId, resendAt };
 }
 
 /** Verifies the emailed OTP and returns an authenticated session. */
@@ -166,30 +167,8 @@ export async function verifyOtp(customerId: string, otp: string): Promise<AuthSe
     skipAuth: true,
   });
   if (res.action !== 1 || !res.token) {
-    throw {
-      status: 400,
-      message: res.message || 'That code is invalid or expired.',
-    } satisfies ApiError;
-  }
-  const session: AuthSession = {
-    token: res.token,
-    refreshToken: res.refreshToken,
-    user: userFromResponse(res, ''),
-  };
-  await persistSession(session);
-  return session;
-}
-
-/** Verifies a TOTP code during login for users with 2FA enabled. */
-export async function verifyTotp(customerId: string, code: string): Promise<AuthSession> {
-  const res = await api.post<LoginResponse>('/auth/verify-totp', { customerId, code }, {
-    skipAuth: true,
-  });
-  if (res.action !== 1 || !res.token) {
-    throw {
-      status: 400,
-      message: res.message || 'That code is invalid.',
-    } satisfies ApiError;
+    // Wrong, expired or locked: the server's attempts left and wait come with the error.
+    throw codeErrorFrom(res as Parameters<typeof codeErrorFrom>[0], 'That code is invalid or expired.');
   }
   const session: AuthSession = {
     token: res.token,
@@ -201,23 +180,42 @@ export async function verifyTotp(customerId: string, code: string): Promise<Auth
 }
 
 /**
- * Asks the backend to email (or text) a fresh OTP. Each resend replaces the
- * previous code, so only the newest one verifies. The backend answers failures
- * with HTTP 200 and action 0 ("Customer not found", "OTP already verified"),
- * so the envelope is checked rather than trusting the status.
+ * Completes sign-in with the second factor. The server decides whether the code is right;
+ * a refusal throws a CodeError carrying its attempts left, wait time and error code.
  */
-export async function resendOtp(customerId: string): Promise<void> {
-  const res = await api.post<{ action: number; message?: string }>(
+export async function verifySecondFactor(
+  method: TwoFactorMethod,
+  challenge: Pick<TwoFactorChallenge, 'challengeId' | 'customerId'>,
+  code: string,
+): Promise<AuthSession> {
+  const body = challenge.challengeId
+    ? { challengeId: challenge.challengeId, code }
+    : { customerId: challenge.customerId, code };
+  const path = method === 'EMAIL' ? '/auth/2fa/email/verify' : '/auth/verify-totp';
+  const res = await api.post<LoginResponse>(path, body, { skipAuth: true });
+  if (res.action !== 1 || !res.token) {
+    throw codeErrorFrom(res as Parameters<typeof codeErrorFrom>[0], 'That code is invalid.');
+  }
+  const session: AuthSession = {
+    token: res.token,
+    refreshToken: res.refreshToken,
+    user: userFromResponse(res, ''),
+  };
+  await persistSession(session);
+  return session;
+}
+
+export async function resendOtp(customerId: string): Promise<CodeSent | null> {
+  const res = await api.post<{ action: number; message?: string; data?: Partial<CodeSent> }>(
     `/auth/resend-otp?customerId=${encodeURIComponent(customerId)}`,
     undefined,
     { skipAuth: true },
   );
   if (res?.action !== 1) {
-    throw {
-      status: 400,
-      message: res?.message || 'We could not send a new code. Please try again.',
-    } satisfies ApiError;
+    throw codeErrorFrom((res ?? {}) as Parameters<typeof codeErrorFrom>[0], 'We could not send a new code. Please try again.');
   }
+  // An older backend answers success without timers; the screen then falls back to its own gap.
+  return res.data?.expiresAt && res.data.resendAvailableAt && res.data.serverTime ? codeSentFrom(res, '') : null;
 }
 
 /**
@@ -441,13 +439,8 @@ export async function appleLogin(
       },
     } as NeedsRoleError;
   }
-  if (res.action === 2 && res.customerId) {
-    throw {
-      status: 403,
-      message: res.message || 'Two-factor authentication is required.',
-      needsTotp: true,
-      customerId: res.customerId,
-    } as NeedsTotpError;
+  if (res.action === 2 && (res.customerId || res.challengeId)) {
+    throw needsTotpError(res);
   }
   if (res.action !== 1 || !res.token) {
     throw {
@@ -547,4 +540,61 @@ export async function clearSession(): Promise<void> {
   await storage.remove(StorageKeys.refreshToken);
   await storage.remove(StorageKeys.session);
   await storage.remove(StorageKeys.activeWorkspace).catch(() => {});
+}
+
+// ─── Workspace collaborator: first-time setup and emailed-code sign-in ──────────────────────────────
+
+export type SetupPreview = {
+  found: boolean;
+  open: boolean;
+  ownerName?: string;
+  email?: string;
+  /** none: no login yet. returning: a collaborator login with no workspace left. existing: sign in with the account's own password. */
+  account?: 'none' | 'returning' | 'existing';
+};
+
+/** What the first-visit screen shows. The secret is in the body, not the URL. A link that does not check out answers found: false. */
+export async function previewWorkspaceSetup(invitationId: string, token: string): Promise<SetupPreview | null> {
+  try {
+    const res = await api.post<{ action: number; data?: SetupPreview }>('/auth/workspace-setup/preview', { invitationId, token }, { skipAuth: true });
+    return res.action === 1 && res.data ? res.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export type SetupError = ApiError & { errorCode?: string };
+
+function sessionFromCollaboratorResponse(res: LoginResponse, fallbackEmail: string): AuthSession {
+  return { token: res.token as string, refreshToken: res.refreshToken, user: userFromResponse(res, fallbackEmail) };
+}
+
+/** Choose a password from the emailed link: creates the private login and signs it in. */
+export async function completeWorkspaceSetup(input: { invitationId: string; token: string; password: string; confirmPassword: string }): Promise<AuthSession> {
+  const res = await api.post<LoginResponse>('/auth/workspace-setup', input, { skipAuth: true });
+  if (res.action === 2 && (res.customerId || res.challengeId)) throw needsTotpError(res);
+  if (res.action !== 1 || !res.token) {
+    throw { status: 400, message: res.message || 'Could not set up your access. Please try again.', errorCode: res.errorCode } satisfies SetupError;
+  }
+  const session = sessionFromCollaboratorResponse(res, '');
+  await persistSession(session);
+  return session;
+}
+
+/** "Email me a code instead": the answer is the same whether or not the address can sign in this way. */
+export async function sendLoginCode(email: string): Promise<void> {
+  const res = await api.post<{ action: number; message?: string }>('/auth/login-code/send', { email: email.trim().toLowerCase() }, { skipAuth: true });
+  if (res.action !== 1) throw { status: 429, message: res.message || 'Please try again in a few minutes.' } satisfies ApiError;
+}
+
+/** Checks the emailed code and signs in. A refusal carries the server's attempts left and wait time. */
+export async function verifyLoginCode(email: string, code: string): Promise<AuthSession> {
+  const res = await api.post<LoginResponse>('/auth/login-code/verify', { email: email.trim().toLowerCase(), code }, { skipAuth: true });
+  if (res.action === 2 && (res.customerId || res.challengeId)) throw needsTotpError(res);
+  if (res.action !== 1 || !res.token) {
+    throw codeErrorFrom(res as Parameters<typeof codeErrorFrom>[0], 'That code did not work.');
+  }
+  const session = sessionFromCollaboratorResponse(res, email);
+  await persistSession(session);
+  return session;
 }

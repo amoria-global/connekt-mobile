@@ -41,6 +41,20 @@ export interface WorkspaceInvitation {
   inviteeEmail?: string;
   /** "email" when it went to an address with no account yet, "in_app" or "in_app_and_email" when it went to an account. */
   delivery?: string;
+  /** COLLABORATOR for every invitation made now; PHOTOGRAPHER for an older photographer-to-photographer one. */
+  role?: 'COLLABORATOR' | 'PHOTOGRAPHER';
+  /** The last time the member did something in the workspace. */
+  lastActiveAt?: string;
+}
+
+/** One line of what collaborators did in the workspace, "by <name> for <owner>". */
+export interface WorkspaceActivityEntry {
+  id: string;
+  at: string;
+  actor: string;
+  outcome: 'done' | 'refused';
+  what: string;
+  summary: string;
 }
 
 /** What the server says a member may do in a workspace. Fixed by the policy; shown, never trusted. */
@@ -57,6 +71,8 @@ export interface WorkspaceMembership {
   owner: WorkspacePerson;
   joinedAt?: string;
   access: WorkspaceAccess;
+  /** COLLABORATOR: no wallet or balance at all. PHOTOGRAPHER (older members): the balance overview stays. */
+  role?: 'COLLABORATOR' | 'PHOTOGRAPHER';
 }
 
 type Raw = Record<string, unknown>;
@@ -91,6 +107,20 @@ export function mapInvitation(raw: unknown): WorkspaceInvitation {
     endedAt: str(r.endedAt),
     inviteeEmail: str(r.inviteeEmail),
     delivery: str(r.delivery),
+    role: r.role === 'COLLABORATOR' || r.role === 'PHOTOGRAPHER' ? r.role : undefined,
+    lastActiveAt: str(r.lastActiveAt),
+  };
+}
+
+export function mapActivity(raw: unknown): WorkspaceActivityEntry {
+  const r = (raw ?? {}) as Raw;
+  return {
+    id: String(r.id ?? ''),
+    at: str(r.at) ?? '',
+    actor: str(r.actor) ?? 'A collaborator',
+    outcome: r.outcome === 'refused' ? 'refused' : 'done',
+    what: str(r.what) ?? '',
+    summary: str(r.summary) ?? '',
   };
 }
 
@@ -102,6 +132,7 @@ export function mapMembership(raw: unknown): WorkspaceMembership {
     invitationId: String(r.invitationId ?? ''),
     owner: mapPerson(r.owner),
     joinedAt: str(r.joinedAt),
+    role: r.role === 'COLLABORATOR' || r.role === 'PHOTOGRAPHER' ? r.role : undefined,
     // Anything the server did not say is "no": a missing flag never grants.
     access: { business: a.business === true, financial: a.financial === true, ownerAccount: a.ownerAccount === true, manageMembers: a.manageMembers === true },
   };
@@ -122,6 +153,8 @@ const PERSONAL_PATHS = [
   '/customer/totp',
   '/customer/notifications',
   '/photographer/workspaces',
+  // The collaborator picker and the login's own profile: they run as the signed-in person, never inside a workspace.
+  '/collaborator',
   '/photographer/profile-summary',
   '/photographer/pending-changes',
   '/photographer/update-important-details',
@@ -181,9 +214,16 @@ const SHARED_BLOCKED_ROUTES = [
   '/collaborate',
 ];
 
-export function isBlockedInSharedWorkspace(pathname: string | null | undefined): boolean {
+/**
+ * Added for a workspace collaborator (every invitation made now): the wallet is not part of their workspace at all, not
+ * even the balance overview an older photographer member still gets.
+ */
+const COLLABORATOR_BLOCKED_ROUTES = ['/wallet'];
+
+export function isBlockedInSharedWorkspace(pathname: string | null | undefined, collaborator = false): boolean {
   if (!pathname) return false;
-  return SHARED_BLOCKED_ROUTES.some((p) => pathname === p || pathname.startsWith(p + '/'));
+  const blocked = collaborator ? [...SHARED_BLOCKED_ROUTES, ...COLLABORATOR_BLOCKED_ROUTES] : SHARED_BLOCKED_ROUTES;
+  return blocked.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }
 
 // ─── Status wording and the moves each side is offered ───

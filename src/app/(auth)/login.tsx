@@ -16,6 +16,7 @@ import { ChooseRoleBottomSheet } from "@/features/auth/ChooseRoleBottomSheet";
 import { GoogleButton } from "@/features/auth/GoogleButton";
 import type { CustomerType } from "@/features/auth/types";
 import { parsePhone } from "@/lib/phoneKit";
+import { challengeParams } from "@/features/auth/twoFactor";
 import { isApiError, useAuth } from "@/store/auth";
 import { useLanguage } from "@/store/language";
 import {
@@ -214,7 +215,7 @@ export default function LoginScreen() {
       if (isNeedsTotp(err)) {
         router.push({
           pathname: "/verify-totp",
-          params: { customerId: err.customerId },
+          params: challengeParams(err.challenge),
         });
         return;
       }
@@ -372,6 +373,20 @@ export default function LoginScreen() {
             accessibilityRole="link"
           >
             <Text style={styles.forgotText}>{t('forgotYourPassword')}</Text>
+          </Pressable>
+          <Pressable
+            style={styles.forgot}
+            onPress={() =>
+              router.push({
+                pathname: "/login-code",
+                params: { email: getValues("email") },
+              } as never)
+            }
+            hitSlop={10}
+            accessibilityRole="link"
+            accessibilityLabel="Email me a code instead"
+          >
+            <Text style={styles.forgotText}>Email me a code instead</Text>
           </Pressable>
         </View>
 

@@ -249,8 +249,16 @@
     "controller" : "AdminContentApprovalPageController#index"
   }, {
     "method" : "GET",
+    "path" : "/admin/content-disputes",
+    "controller" : "AdminContentDisputePageController#index"
+  }, {
+    "method" : "GET",
     "path" : "/admin/customers/clients",
     "controller" : "CustomerAdminController#clients"
+  }, {
+    "method" : "GET",
+    "path" : "/admin/customers/collaborators",
+    "controller" : "CustomerAdminController#collaborators"
   }, {
     "method" : "GET",
     "path" : "/admin/customers/coordinators",
@@ -1592,6 +1600,11 @@
     },
     "pathVariables" : [ "id" ]
   }, {
+    "method" : "GET",
+    "path" : "/api/admin/content-disputes/{id}/claimant-albums",
+    "controller" : "AdminContentDisputeApiController#claimantAlbums",
+    "pathVariables" : [ "id" ]
+  }, {
     "method" : "POST",
     "path" : "/api/admin/content-disputes/{id}/reject",
     "controller" : "AdminContentDisputeApiController#reject",
@@ -2858,6 +2871,20 @@
     "pathVariables" : [ "id" ]
   }, {
     "method" : "POST",
+    "path" : "/api/remote/auth/2fa/email/send",
+    "controller" : "AuthController#sendTwoFactorEmail",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/2fa/email/verify",
+    "controller" : "AuthController#verifyTwoFactorEmail",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
     "path" : "/api/remote/auth/apple",
     "controller" : "AppleAuthController#appleAuth",
     "body" : {
@@ -2921,6 +2948,20 @@
     "body" : {
       "type" : "LoginReq",
       "properties" : [ "email", "password" ]
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/login-code/send",
+    "controller" : "AuthController#sendLoginCode",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/login-code/verify",
+    "controller" : "AuthController#verifyLoginCode",
+    "body" : {
+      "type" : "Map"
     }
   }, {
     "method" : "POST",
@@ -3011,6 +3052,20 @@
     "method" : "POST",
     "path" : "/api/remote/auth/verify-totp",
     "controller" : "AuthController#verifyTotp",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/workspace-setup",
+    "controller" : "AuthController#workspaceSetup",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/auth/workspace-setup/preview",
+    "controller" : "AuthController#workspaceSetupPreview",
     "body" : {
       "type" : "Map"
     }
@@ -3115,6 +3170,22 @@
     "path" : "/api/remote/client/surveys/{eventId}/completed",
     "controller" : "ClientSurveyController#isSurveyCompleted",
     "pathVariables" : [ "eventId" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/collaborator/invitations/{id}/accept",
+    "controller" : "CollaboratorWorkspaceController#accept",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/collaborator/me",
+    "controller" : "CollaboratorWorkspaceController#me"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/collaborator/workspaces",
+    "controller" : "CollaboratorWorkspaceController#picker"
   }, {
     "method" : "GET",
     "path" : "/api/remote/coordinator/analytics",
@@ -3718,6 +3789,31 @@
     "body" : {
       "type" : "Map"
     }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/customer/2fa/email/disable",
+    "controller" : "CustomerTwoFactorController#disable",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/customer/2fa/email/enable",
+    "controller" : "CustomerTwoFactorController#enable",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/customer/2fa/email/send",
+    "controller" : "CustomerTwoFactorController#send",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/customer/2fa/status",
+    "controller" : "CustomerTwoFactorController#status"
   }, {
     "method" : "GET",
     "path" : "/api/remote/customer/albums",
@@ -5990,6 +6086,19 @@
     "pathVariables" : [ "albumId" ]
   }, {
     "method" : "POST",
+    "path" : "/api/remote/photographer/albums/{albumId}/restore-payment",
+    "controller" : "PhotographerAlbumController#restorePayment",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/albums/{albumId}/restore-quote",
+    "controller" : "PhotographerAlbumController#restoreQuote",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "POST",
     "path" : "/api/remote/photographer/albums/{albumId}/send",
     "controller" : "PhotographerAlbumController#sendAlbumToClient",
     "body" : {
@@ -6797,6 +6906,10 @@
       "name" : "isDefault",
       "required" : false
     } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/workspaces/activity",
+    "controller" : "WorkspaceInvitationController#activity"
   }, {
     "method" : "POST",
     "path" : "/api/remote/photographer/workspaces/invitations",

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { Sheet } from '@/components/ui/Sheet';
+import { useRole } from '@/features/auth/role';
 import { selectActive, useWorkspace } from '@/store/workspace';
 import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
 
@@ -18,6 +19,8 @@ export function WorkspaceSwitcherSheet({ visible, onClose }: { visible: boolean;
   const activeId = useWorkspace((s) => s.activeId);
   const active = useWorkspace(selectActive);
   const switchTo = useWorkspace((s) => s.switchTo);
+  // A collaborator login has no business of its own to go back to.
+  const { isCollaboratorLogin } = useRole();
 
   const pick = async (id: string | null) => {
     onClose();
@@ -27,8 +30,8 @@ export function WorkspaceSwitcherSheet({ visible, onClose }: { visible: boolean;
   };
 
   const rows: { id: string | null; title: string; caption: string }[] = [
-    { id: null, title: 'My workspace', caption: 'Your own bookings, wallet and settings' },
-    ...memberships.map((m) => ({ id: m.workspaceId, title: `${m.owner.name}'s workspace`, caption: 'Work as a collaborator. Withdrawals, transactions and settings stay with them.' })),
+    ...(isCollaboratorLogin ? [] : [{ id: null as string | null, title: 'My business', caption: 'Your own bookings, wallet and settings' }]),
+    ...memberships.map((m) => ({ id: m.workspaceId as string | null, title: `${m.owner.name}'s workspace`, caption: 'Work as a collaborator. Money, the wallet and settings stay with them.' })),
   ];
 
   return (

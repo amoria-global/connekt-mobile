@@ -19,12 +19,12 @@ import { useWorkspace } from '@/store/workspace';
 import { fontSize, fontWeight, radii, spacing, makeStyles, useTheme } from '@/theme';
 import {
   answerInvitation, cancelInvitation, getInvitePreview, leaveWorkspace, listReceivedInvitations, listSentInvitations,
-  lookupPhotographer, resendInvitation, revokeMembership, sendInvitation, sendInvitationByEmail,
+  listWorkspaceActivity, resendInvitation, revokeMembership, sendInvitationByEmail,
 } from './api';
 import { inviteFocus, ownerActionLabel, ownerMeaning, type InviteFocus, type InvitePreview } from './invite';
 import {
   inviteeActions, ownerActions, shortDate, sortInvitations, statusView,
-  type OwnerAction, type WorkspaceInvitation, type WorkspacePerson,
+  type OwnerAction, type WorkspaceActivityEntry, type WorkspaceInvitation, type WorkspacePerson,
 } from './model';
 
 type Notice = { kind: 'ok' | 'error'; text: string } | null;
@@ -107,7 +107,7 @@ export function WorkspaceAccessPanel({ inviteId = null, onInviteHandled }: { inv
     Alert.alert(
       a === 'revoke' ? 'Remove access?' : 'Cancel this invitation?',
       a === 'revoke'
-        ? `${inv.invitee.name} will lose access to your workspace right away. You can invite them again later.`
+        ? `${inv.invitee.name} will lose access to your workspace right away and their sessions end. You can invite them again later with the same email.`
         : `${inv.invitee.name} will no longer be able to accept this invitation.`,
       [
         { text: 'Keep', style: 'cancel' },
@@ -177,7 +177,7 @@ export function WorkspaceAccessPanel({ inviteId = null, onInviteHandled }: { inv
         <View style={styles.flex}>
           <Text style={styles.explainTitle}>What they can and cannot do</Text>
           <Text style={styles.muted}>
-            They can handle bookings, events, opportunities, albums and clients with you, and see your balance and analytics. They cannot withdraw, see transactions or change account settings, and they do not become you.
+            A workspace collaborator can handle bookings, events, opportunities, albums, clients, your calendar, live streams, messages and analytics. They never see your wallet, balance, withdrawals, transactions, payouts or payment methods, your account and security settings, and they cannot invite or remove other collaborators or delete the workspace. Analytics show counts without money figures. Everything they change is recorded under their name.
           </Text>
         </View>
       </View>
@@ -214,14 +214,16 @@ export function WorkspaceAccessPanel({ inviteId = null, onInviteHandled }: { inv
       <InviteForm onSent={async (text) => { setNotice({ kind: 'ok', text }); await load(); }} />
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle} accessibilityRole="header">Invitations you sent</Text>
+        <Text style={styles.sectionTitle} accessibilityRole="header">Collaborators</Text>
         {sent.length === 0 ? (
           <EmptyState icon="send-outline" title="You have not invited anyone yet"
-            message="Find a photographer by their email above. If they have an account they see the invitation in their app and get it by email. If not, we email them a link to create one." />
+            message="Enter an email above. We email them a link to set a password and open your workspace. They do not need a Connekyt account." />
         ) : (
           sortInvitations(sent).map((inv) => <SentRow key={inv.id} inv={inv} busy={busy} onAction={(a) => ownerAction(a, inv)} />)
         )}
       </View>
+
+      {sent.some((i) => i.status === 'ACCEPTED') ? <ActivityList /> : null}
     </View>
   );
 }
@@ -232,50 +234,23 @@ function InviteForm({ onSent }: { onSent: (text: string) => Promise<void> }) {
   const styles = useStyles();
   const { colors } = useTheme();
   const [email, setEmail] = useState('');
-  const [found, setFound] = useState<WorkspacePerson | null>(null);
   const [note, setNote] = useState('');
-  const [looking, setLooking] = useState(false);
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const inFlight = useRef(false);
 
-  const find = async () => {
-    if (inFlight.current || !email.trim()) return;
-    inFlight.current = true;
-    setLooking(true);
-    setProblem(null);
-    setFound(null);
-    try {
-      setFound(await lookupPhotographer(email));
-    } catch (e) {
-      setProblem(message(e, 'Could not look that up.'));
-    } finally {
-      inFlight.current = false;
-      setLooking(false);
-    }
-  };
-
   const send = async () => {
-    if (!found || inFlight.current) return;
+    const address = email.trim();
+    if (inFlight.current || !address) return;
     inFlight.current = true;
     setSending(true);
     setProblem(null);
     try {
-      if (found.registered === false) {
-        const address = found.email || email.trim();
-        await sendInvitationByEmail(address, note.trim() || undefined);
-        setFound(null);
-        setEmail('');
-        setNote('');
-        await onSent(`Invitation emailed to ${address}. They will need to create an account with that address first.`);
-        return;
-      }
-      await sendInvitation(found.id, note.trim() || undefined);
-      const name = found.name;
-      setFound(null);
+      // Any address will do: the person does not need a Connekyt account.
+      await sendInvitationByEmail(address, note.trim() || undefined);
       setEmail('');
       setNote('');
-      await onSent(`Invitation sent to ${name}. They will see it in their app and by email.`);
+      await onSent(`Invitation emailed to ${address}. The link works once and expires in 7 days.`);
     } catch (e) {
       setProblem(message(e, 'Could not send the invitation.'));
     } finally {
@@ -286,52 +261,79 @@ function InviteForm({ onSent }: { onSent: (text: string) => Promise<void> }) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.sectionTitle} accessibilityRole="header">Invite a photographer</Text>
+      <Text style={styles.sectionTitle} accessibilityRole="header">Invite a collaborator</Text>
+      <Text style={styles.muted}>
+        Someone who helps run your business, such as a supporter or a friend. They do not need a Connekyt account: we email them a link to set a password, and after that they sign in on the normal login page.
+      </Text>
       <Text style={styles.label}>Their email</Text>
       <TextInput
         value={email}
-        onChangeText={(t) => { setEmail(t); setFound(null); setProblem(null); }}
+        onChangeText={(t) => { setEmail(t); setProblem(null); }}
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
         placeholder="name@example.com"
         placeholderTextColor={colors.textMuted}
         style={styles.input}
-        onSubmitEditing={find}
-        returnKeyType="search"
+        returnKeyType="next"
         accessibilityLabel="Their email"
       />
-      <Button title="Find photographer" variant="outline" onPress={find} loading={looking} disabled={looking || !email.trim()} />
-
+      <Text style={styles.label}>Add a note (optional)</Text>
+      <TextInput
+        value={note}
+        onChangeText={setNote}
+        maxLength={255}
+        placeholder="For example: help me with weddings this season"
+        placeholderTextColor={colors.textMuted}
+        style={styles.input}
+        accessibilityLabel="Add a note (optional)"
+      />
       {problem ? <Text accessibilityRole="alert" style={styles.problem}>{problem}</Text> : null}
+      <Button title="Email invitation" onPress={send} loading={sending} disabled={sending || !email.trim()} />
+    </View>
+  );
+}
 
-      {found ? (
-        <View style={styles.found}>
-          {found.registered === false ? (
-            <View style={styles.personRow}>
-              <View style={[styles.avatar, styles.avatarFallback]}><Ionicons name="mail-outline" size={20} color={colors.primary} /></View>
-              <View style={styles.flex}>
-                <Text style={styles.name}>{found.email || email.trim()}</Text>
-                <Text style={styles.muted}>
-                  No account uses this address yet. We will email them a link. They create a photographer account with this exact address, then accept your invitation.
-                </Text>
+// ─── What collaborators did ──────────────────────────────────────
+
+/** "by <name> for <owner>": the changes collaborators made in this workspace and the attempts that were refused. */
+function ActivityList() {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const [open, setOpen] = useState(false);
+  const [rows, setRows] = useState<WorkspaceActivityEntry[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!open || rows !== null) return;
+    let live = true;
+    listWorkspaceActivity().then((r) => { if (live) setRows(r); }).catch(() => { if (live) setFailed(true); });
+    return () => { live = false; };
+  }, [open, rows]);
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.activityHead}>
+        <Text style={styles.sectionTitle} accessibilityRole="header">Collaborator activity</Text>
+        <Button title={open ? 'Hide' : 'Show'} variant="ghost" onPress={() => setOpen((o) => !o)} accessibilityLabel={open ? 'Hide collaborator activity' : 'Show collaborator activity'} />
+      </View>
+      {open ? (
+        failed ? (
+          <Text accessibilityRole="alert" style={styles.problem}>Could not load the activity. Try again later.</Text>
+        ) : rows === null ? (
+          <View style={styles.centered}><ActivityIndicator color={colors.primary} /></View>
+        ) : rows.length === 0 ? (
+          <EmptyState icon="time-outline" title="Nothing yet" message="Changes your collaborators make will be listed here." />
+        ) : (
+          <View style={styles.card}>
+            {rows.map((r) => (
+              <View key={r.id} style={styles.activityRow} accessible accessibilityLabel={`${r.summary}. ${r.what}${r.outcome === 'refused' ? '. Refused' : ''}`}>
+                <Text style={styles.name}>{r.summary}</Text>
+                <Text style={styles.muted}>{r.what}{r.outcome === 'refused' ? '  (refused)' : ''}  {shortDate(r.at)}</Text>
               </View>
-            </View>
-          ) : (
-            <Person person={found} caption={found.customerType || 'Photographer'} />
-          )}
-          <Text style={styles.label}>Add a note (optional)</Text>
-          <TextInput
-            value={note}
-            onChangeText={setNote}
-            maxLength={255}
-            placeholder="For example: help me with weddings this season"
-            placeholderTextColor={colors.textMuted}
-            style={styles.input}
-            accessibilityLabel="Add a note (optional)"
-          />
-          <Button title={found.registered === false ? 'Email invitation' : 'Send invitation'} onPress={send} loading={sending} disabled={sending} />
-        </View>
+            ))}
+          </View>
+        )
       ) : null}
     </View>
   );
@@ -351,9 +353,9 @@ function InviteFocusCard({ focus, busy, onAcceptAndOpen, onDecline, onOpen, onDi
       <View style={[styles.focusCard, styles.focusPending]} accessibilityLabel="Your invitation" testID="invite-focus">
         <Text style={styles.focusEyebrow}>YOUR INVITATION</Text>
         <Person person={inv.owner} />
-        <Text style={styles.focusTitle}>{inv.owner.name} invited you to work in their workspace</Text>
+        <Text style={styles.focusTitle}>{inv.owner.name} invited you to their workspace</Text>
         <Text style={styles.muted}>
-          You would handle bookings, events, albums and clients with them, and see their balance and analytics. Withdrawals and transactions stay with them, and your own account stays separate.
+          You would handle bookings, events, albums, clients and messages with them. Money, the wallet and account settings stay with them, and your own account stays separate.
         </Text>
         <View style={styles.actions}>
           <Button title="Accept and open workspace" loading={busy === inv.id + 'accept'} disabled={busy !== null} onPress={() => onAcceptAndOpen(inv)} style={styles.flex} />
@@ -428,6 +430,7 @@ function SentRow({ inv, busy, onAction }: { inv: WorkspaceInvitation; busy: stri
         {inv.invitee.registered === false ? <View style={[styles.badge, styles.badgeMuted]}><Text style={styles.badgeTextMuted}>No account yet</Text></View> : null}
       </View>
       <Text style={styles.muted}>{ownerMeaning(inv)} {when}</Text>
+      {inv.status === 'ACCEPTED' ? <Text style={styles.muted}>{inv.lastActiveAt ? `Last active ${shortDate(inv.lastActiveAt)}.` : 'Not active yet.'}</Text> : null}
       {inv.note ? <Text style={styles.note}>&ldquo;{inv.note}&rdquo;</Text> : null}
       <View style={styles.actions}>
         {ownerActions(inv.status).map((a) => (
@@ -451,7 +454,7 @@ function ReceivedRow({ inv, busy, onAccept, onDecline, onOpen, onLeave }: {
       <View style={styles.statusLine}><StatusBadge inv={inv} /></View>
       <Text style={styles.muted}>
         {inv.status === 'PENDING'
-          ? `${inv.owner.name} invited you to work in their workspace. You would handle bookings, events, albums and clients, and see their balance and analytics. Withdrawals and transactions stay with them.`
+          ? `${inv.owner.name} invited you to their workspace. You would handle bookings, events, albums, clients and messages. Money, the wallet and account settings stay with them.`
           : v.meaning.invitee}
       </Text>
       <View style={styles.actions}>
@@ -511,5 +514,7 @@ const useStyles = makeStyles((c, e) => ({
   badgeTextError: { color: c.error, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   badgeTextMuted: { color: c.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.bold },
   note: { color: c.textMuted, fontSize: fontSize.sm, fontStyle: 'italic' },
+  activityHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+  activityRow: { gap: 2, paddingVertical: spacing.xs },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
 }));

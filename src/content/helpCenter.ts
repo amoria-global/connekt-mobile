@@ -816,7 +816,6 @@ export const HELP_CATEGORIES: HelpCategory[] = [
             'Find My Photos: your selfie is matched against albums with Amazon Web Services and is not stored.',
             'Event albums with face search on: faces in published photos are indexed so guests can find themselves. This is removed when the event or album is deleted.',
             'Identity verification: your selfie and ID are held in private storage for review, and removed on resubmission or account deletion. The liveness check runs on your phone and the frames are not kept.',
-            'Withdrawal confirmation: your selfie is compared with your verification selfie and not stored.',
           ]),
           p('We ask for your consent before each of these uses the camera. Face data is never used for advertising, never sold and never used to train models. See the Privacy policy, section on face data, for the full text.'),
         ],

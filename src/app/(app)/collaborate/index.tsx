@@ -209,7 +209,7 @@ export default function CollaborateHub() {
         <View style={styles.intro}>
           <Text style={styles.eyebrow}>{s.eyebrow}</Text>
           <Text style={styles.title}>{mode === 'workspace' ? 'Work together' : s.title}</Text>
-          <Text style={styles.subtitle}>{mode === 'workspace' ? 'Choose how you want to work with another photographer.' : s.subtitle}</Text>
+          <Text style={styles.subtitle}>{mode === 'workspace' ? 'Choose how you want to work with other people.' : s.subtitle}</Text>
         </View>
 
         <ModeChooser mode={mode} onChange={setMode} />
