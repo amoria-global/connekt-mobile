@@ -167,6 +167,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-04-copy-setup-key",
+            "date": "2026-11-04",
+            "title": "Copy your authenticator key",
+            "items": [
+              {
+                "icon": "copy-outline",
+                "title": "Copy button for the setup key",
+                "body": "When you set up an authenticator app, a Copy key button now puts the setup key on your clipboard, or opens the share sheet with a Copy option, so you can paste it into your app."
+              }
+            ]
+          },
+          {
             "id": "2026-11-04-signup-album-codes",
             "date": "2026-11-04",
             "title": "Clearer verification codes",
