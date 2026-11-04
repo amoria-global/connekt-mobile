@@ -19,6 +19,7 @@ import {
   type TotpSetup,
 } from '@/features/security/api';
 import { useAsync } from '@/hooks/useAsync';
+import { copyText } from '@/utils/copyText';
 import { useCountdown } from '@/hooks/useCountdown';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { isApiError } from '@/store/auth';
@@ -45,6 +46,8 @@ export default function TwoFactorScreen() {
   const [msg, setMsg] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [shakeKey, setShakeKey] = useState(0);
+  const [keyCopied, setKeyCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
   const [lockedUntil, setLockedUntil] = useState<number | null>(null);
   const [resendAt, setResendAt] = useState<number | null>(null);
   const [sentTo, setSentTo] = useState<string | undefined>();
@@ -91,6 +94,17 @@ export default function TwoFactorScreen() {
       fail(err, 'We could not send a code. Try again.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Straight to the clipboard on builds that have the module, the share sheet (which has Copy) on older ones.
+  const onCopyKey = async (secret: string) => {
+    if (!secret) return;
+    const out = await copyText(secret, { sensitive: true });
+    setCopyFailed(out === 'failed');
+    if (out === 'copied') {
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
     }
   };
 
@@ -237,10 +251,18 @@ export default function TwoFactorScreen() {
                 {flow === 'totp-on' && setup?.secret ? (
                   <View style={styles.keyBox}>
                     <Text style={styles.keyLabel}>{t('b1_twoFactorManualKey')}</Text>
-                    {/* Selectable so it can be copied; a Copy button comes with the next store build (expo-clipboard). */}
+                    {/* Selectable too, for anyone who prefers to press and hold. */}
                     <Text selectable style={styles.key} accessibilityLabel={`${tr('Setup key')} ${groupKey(setup.secret)}`}>
                       {groupKey(setup.secret)}
                     </Text>
+                    <ActionButton
+                      variant="secondary"
+                      icon="copy-outline"
+                      compact
+                      label={keyCopied ? tr('Copied') : tr('Copy key')}
+                      onPress={() => onCopyKey(setup.secret ?? '')}
+                    />
+                    {copyFailed ? <Text style={styles.keyLabel}>{tr('Could not copy. Press and hold the key to copy it.')}</Text> : null}
                   </View>
                 ) : null}
                 <OtpInput
