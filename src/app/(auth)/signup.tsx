@@ -261,7 +261,7 @@ export default function SignupScreen() {
       // The old form sent bare national digits, which the backend assumed
       // were Rwandan — this fixes signups from every other country.
       const phoneDigits = phoneValue.digits;
-      const { customerId } = await signup({
+      const { customerId, resendAt } = await signup({
         ...restValues,
         phone: phoneDigits,
         email: trimmedEmail,
@@ -271,7 +271,7 @@ export default function SignupScreen() {
       // show "sent to your email" vs "sent to your phone".
       router.push({
         pathname: '/verify-otp',
-        params: { customerId, email: trimmedEmail ?? '', phone: phoneDigits },
+        params: { customerId, email: trimmedEmail ?? '', phone: phoneDigits, resendAt: resendAt ? String(resendAt) : '' },
       });
     } catch (err) {
       setServerError(isApiError(err) ? err.message : 'Something went wrong. Please try again.');
