@@ -61,6 +61,8 @@ import { selectWalletStats } from '@/features/wallet/moneyView';
 import { useLiveMoney, useLoadingDots } from '@/features/wallet/useLiveWallet';
 import { getWallet } from '@/features/wallet/api';
 import { selectIsShared, useWorkspace } from '@/store/workspace';
+import { useRole } from '@/features/auth/role';
+import { WorkspaceBanner } from '@/features/workspace/WorkspaceBanner';
 import { env } from '@/config/env';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
@@ -165,7 +167,9 @@ export function PhotographerHome() {
   const [pulling, setPulling] = useState(false);
   const [dismissedOppIds, setDismissedOppIds] = useState<string[]>([]);
 
-  const wallet = useAsync(useCallback(() => getWallet(), []));
+  // A workspace collaborator has no wallet at all: it is never asked for, and no balance or earnings figure is drawn.
+  const { isCollaboratorWorkspace: isCollab } = useRole();
+  const wallet = useAsync(useCallback(() => (isCollab ? Promise.resolve(undefined as unknown as Awaited<ReturnType<typeof getWallet>>) : getWallet()), [isCollab]));
   const analytics = useAsync(useCallback(() => getPhotographerAnalytics(), []));
   // Every 10 seconds the balance and the earnings are fetched again; each figure shows dots while that runs.
   const moneySyncing = useLiveMoney([wallet, analytics]);
@@ -331,8 +335,11 @@ export function PhotographerHome() {
           subtitle={events.data ? tr(scheduleSummary(upcomingCount, ongoingCount)) : undefined}
         />
 
+        {isShared ? <View style={styles.gutter}><WorkspaceBanner /></View> : null}
+
         {/* 2. Money now: the hero tile. Tapping it opens the wallet; Withdraw goes straight to the flow. The tile
             stays when the wallet fails, because it carries the privacy toggle the rest of Home's figures use. */}
+        {isCollab ? null : (
         <View style={styles.gutter}>
               <GlassCard style={styles.moneyCard}>
                 {/* Only the label row opens the wallet: one button around the whole tile would swallow the
@@ -390,6 +397,7 @@ export function PhotographerHome() {
                 )}
               </GlassCard>
           </View>
+        )}
 
         {/* 3. Actions (Compact Glass): a slim stat strip, two horizontal action tiles, one share row, then
             Create event, the screen's one raised button. */}
@@ -589,8 +597,8 @@ export function PhotographerHome() {
         ) : (
           <BusinessOverview
             loading={analytics.loading && !analytics.data}
-            earnings={moneySyncing ? moneyDots : moneyText(a?.totalEarnings, a ? LEDGER_CURRENCY : undefined, hidden)}
-            earningsCaption="Since you joined"
+            earnings={isCollab ? undefined : moneySyncing ? moneyDots : moneyText(a?.totalEarnings, a ? LEDGER_CURRENCY : undefined, hidden)}
+            earningsCaption={isCollab ? undefined : 'Since you joined'}
             rating={rating}
             reviewCount={reviewList.length}
             loadingReviews={reviews.loading}

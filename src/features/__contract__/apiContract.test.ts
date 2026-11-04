@@ -202,14 +202,15 @@ describe('mobile workspace invitations against the backend contract', () => {
 
   it('finds both sides of the workflow', () => {
     const paths = calls.map((c) => `${c.method} ${c.path}`);
-    expect(paths).toContain('GET /api/remote/photographer/workspaces/lookup');
     expect(paths).toContain('POST /api/remote/photographer/workspaces/invitations');
     expect(paths).toContain('POST /api/remote/photographer/workspaces/invitations/X/resend');
     expect(paths).toContain('DELETE /api/remote/photographer/workspaces/invitations/X');
     expect(paths).toContain('POST /api/remote/photographer/workspaces/invitations/X/revoke');
     expect(paths).toContain('POST /api/remote/photographer/workspaces/received/X/accept');
     expect(paths).toContain('POST /api/remote/photographer/workspaces/received/X/leave');
-    expect(paths).toContain('GET /api/remote/photographer/workspaces/mine');
+    expect(paths).toContain('GET /api/remote/photographer/workspaces/activity');
+    // The picker answers for any login, a collaborator included.
+    expect(paths).toContain('GET /api/remote/collaborator/workspaces');
   });
 
   it('every workspace path exists on the backend', () => {
