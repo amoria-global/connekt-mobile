@@ -78,6 +78,7 @@ export default function PublicLayout() {
         <Stack.Screen name="scan/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="wish/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="workspace-invite/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="workspace-setup" options={{ headerShown: false }} />
         <Stack.Screen name="events/join" options={{ title: t('navJoinEvent') }} />
         <Stack.Screen name="events/pay" options={{ title: t('navPayment') }} />
         <Stack.Screen

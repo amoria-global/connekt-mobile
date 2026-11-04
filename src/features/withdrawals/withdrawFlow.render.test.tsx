@@ -155,6 +155,25 @@ describe('withdrawal verification', () => {
     expect(pressable(r, 'Confirm withdrawal')).toBeTruthy();
   });
 
+  it('never asks for a selfie, even for a verification the backend labels face scan, and offers an email resend', async () => {
+    const r = await mount();
+    await typeAmount(r, '10');
+    await press(r, 'No thanks');
+    mockInitiate.mockResolvedValueOnce({
+      kind: 'verify',
+      verification: { ...verifyStep.verification, method: 'FACE_SCAN_WITH_OTP', requiresFaceScan: true },
+    });
+    await press(r, 'Continue');
+    expect(text(r.root)).toContain('Check your email');
+    expect(text(r.root)).not.toMatch(/selfie/i);
+    expect(pressable(r, 'Take selfie')).toBeUndefined();
+    expect(pressable(r, 'Send a new code to my email')).toBeTruthy();
+    await enterCode(r, '123456');
+    mockVerify.mockResolvedValueOnce({ kind: 'submitted', transactionId: 't1' });
+    await press(r, 'Confirm withdrawal');
+    expect(mockVerify.mock.calls[0][1]).toEqual({ verificationId: 'v1', otp: '123456' });
+  });
+
   it('will not confirm without the full 6 digit code', async () => {
     const r = await toVerify();
     await enterCode(r, '123');
@@ -220,6 +239,20 @@ describe('withdrawal refusal', () => {
     expect(text(r.root)).toContain('Verification required');
     await press(r, 'Verify identity');
     expect(mockPush).toHaveBeenCalledWith('/kyc');
+  });
+
+  it('sends someone with no two-factor straight to setting it up, and Back returns to the form', async () => {
+    const r = await mount();
+    await typeAmount(r, '10');
+    await press(r, 'No thanks');
+    mockInitiate.mockResolvedValueOnce({ kind: 'twoFactor', message: 'Turn on two-factor authentication to withdraw your funds.' });
+    await press(r, 'Continue');
+    expect(text(r.root)).toContain('Turn on two-factor first');
+    expect(text(r.root)).not.toContain('Try again');
+    await press(r, 'Set up two-factor');
+    expect(mockPush).toHaveBeenCalledWith('/two-factor');
+    await press(r, 'Back');
+    expect(text(r.root)).toContain('Send your earnings to your mobile money or bank account.');
   });
 
   it('shows a plain refusal with Try again that returns to the form', async () => {

@@ -7,7 +7,7 @@ import type { ID } from '@/types';
  * photographers, manage & pay pending payments). It is deliberately not offered
  * on the web sign-up.
  */
-export type CustomerType = 'Photographer' | 'Client' | 'Coordinator' | 'Viewer';
+export type CustomerType = 'Photographer' | 'Client' | 'Coordinator' | 'Viewer' | 'Collaborator';
 
 export type User = {
   customerId: ID;
@@ -74,4 +74,14 @@ export type LoginResponse = {
   refreshToken?: string;
   token_expiry?: string;
   mustChangePassword?: boolean;
+  /** Second-factor challenge, on an action 2 answer. */
+  challengeId?: string;
+  challengeExpiresAt?: string;
+  twoFactorMethods?: string[];
+  twoFactorDefaultMethod?: string;
+  maskedEmail?: string;
+  errorCode?: string;
+  attemptsLeft?: number;
+  retryAfterSeconds?: number;
+  expiresAt?: string;
 };

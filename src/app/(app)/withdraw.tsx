@@ -4,13 +4,13 @@
  *
  *   form     source, amount (RWF or USD, sent as USD), payout account and
  *            the optional donation the web asks about
- *   verify   fee summary, then the OTP and/or selfie the backend asked for
+ *   verify   fee summary, then the 6-digit code emailed to the account
  *   done     the request is PENDING_APPROVAL; an admin approval pays it out
  *   failed   the backend's reason, with a way into KYC when that is it
  */
 import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter, type Href } from 'expo-router';
 import { Button } from '@/components/ui/Button';
@@ -44,9 +44,7 @@ import {
 } from '@/features/withdrawals/model';
 import { BalanceHero } from '@/features/withdrawals/BalanceHero';
 import { useAsync } from '@/hooks/useAsync';
-import { ensureWithdrawalFaceConsent } from '@/features/privacy/consent';
 import { listWalletMovements, type Movement } from '@/features/wallet/api';
-import { takeSelfieDataUrl } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
@@ -91,12 +89,11 @@ export default function WithdrawScreen() {
 
   const [verification, setVerification] = useState<Verification | null>(null);
   const [otp, setOtp] = useState('');
-  const [selfie, setSelfie] = useState<{ uri: string; dataUrl: string } | null>(null);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState<number | undefined>(undefined);
   const [cooldown, setCooldown] = useState(0);
 
-  const [failure, setFailure] = useState<{ message: string; kyc: boolean } | null>(null);
+  const [failure, setFailure] = useState<{ message: string; kyc: boolean; twoFactor?: boolean } | null>(null);
 
   const currencyList = currencies.data ?? FALLBACK_CURRENCIES;
   const currency = currencyList.find((c) => c.code === currencyCode) ?? currencyList[0];
@@ -172,7 +169,6 @@ export default function WithdrawScreen() {
   const resetVerification = () => {
     setVerification(null);
     setOtp('');
-    setSelfie(null);
     setVerifyError(null);
     setRemaining(undefined);
     setCooldown(0);
@@ -209,7 +205,7 @@ export default function WithdrawScreen() {
         setVerification(out.verification);
         setStep('verify');
       } else {
-        setFailure({ message: out.message, kyc: out.kind === 'kyc' });
+        setFailure({ message: out.message, kyc: out.kind === 'kyc', twoFactor: out.kind === 'twoFactor' });
         setStep('failed');
       }
     } catch (e) {
@@ -219,40 +215,26 @@ export default function WithdrawScreen() {
     }
   };
 
-  const onCaptureSelfie = async () => {
-    setVerifyError(null);
-    if (!(await ensureWithdrawalFaceConsent())) return;
-    try {
-      const shot = await takeSelfieDataUrl();
-      if (shot) setSelfie(shot);
-    } catch {
-      setVerifyError('Could not open the camera. Please try again.');
-    }
-  };
-
   const onVerify = async () => {
     if (!verification) return;
     setVerifyError(null);
-    if (verification.requiresFaceScan && !selfie) return setVerifyError('Take your selfie first.');
-    if (verification.requiresOtp && otp.length < 6) return setVerifyError('Enter the full 6-digit code.');
+    if (otp.length < 6) return setVerifyError('Enter the full 6-digit code.');
 
     setBusy(true);
     try {
       const out = await verifyWithdrawal(role, {
         verificationId: verification.verificationId,
-        otp: verification.requiresOtp ? otp : undefined,
-        selfie: verification.requiresFaceScan ? selfie?.dataUrl : undefined,
+        otp,
       });
       if (out.kind === 'submitted') {
         setStep('done');
-      } else if (out.kind === 'restart') {
-        setFailure({ message: out.message, kyc: false });
+      } else if (out.kind === 'restart' || out.kind === 'twoFactor') {
+        setFailure({ message: out.message, kyc: false, twoFactor: out.kind === 'twoFactor' });
         setStep('failed');
       } else {
         setVerifyError(out.message);
         setRemaining(out.remainingAttempts);
         setOtp('');
-        if (verification.requiresFaceScan) setSelfie(null);
       }
     } catch (e) {
       // A timeout or dropped connection is an unknown outcome, not a wrong
@@ -283,28 +265,32 @@ export default function WithdrawScreen() {
   if (step === 'done' || step === 'failed') {
     const ok = step === 'done';
     const kyc = !ok && failure?.kyc;
-    const tone = ok ? colors.success : kyc ? colors.warning : colors.error;
-    const toneBg = ok ? colors.successBg : kyc ? colors.warningBg : colors.errorBg;
+    const twoFactor = !ok && !kyc && failure?.twoFactor === true;
+    const needs = kyc || twoFactor;
+    const tone = ok ? colors.success : needs ? colors.warning : colors.error;
+    const toneBg = ok ? colors.successBg : needs ? colors.warningBg : colors.errorBg;
     return (
       <Screen padded={false} edges={[]}>
         <View style={styles.result}>
           <View style={[styles.resultIcon, { backgroundColor: toneBg }]}>
             <Ionicons
-              name={ok ? 'checkmark-circle' : kyc ? 'shield-outline' : 'close-circle'}
+              name={ok ? 'checkmark-circle' : needs ? 'shield-outline' : 'close-circle'}
               size={40}
               color={tone}
             />
           </View>
           <Text style={[styles.eyebrow, { color: tone }]}>
-            {ok ? 'Request submitted' : kyc ? 'Verification required' : 'Withdrawal not sent'}
+            {ok ? 'Request submitted' : kyc ? 'Verification required' : twoFactor ? 'Two-factor required' : 'Withdrawal not sent'}
           </Text>
           <Text style={styles.resultTitle}>
-            {ok ? 'You’re all set' : kyc ? 'Verify your identity first' : 'We couldn’t submit this withdrawal'}
+            {ok ? 'You’re all set' : kyc ? 'Verify your identity first' : twoFactor ? 'Turn on two-factor first' : 'We couldn’t submit this withdrawal'}
           </Text>
           <Text style={styles.resultText}>
             {ok
               ? 'The amount is set aside from your balance. Our team reviews each withdrawal before it is paid out to your account, and we will notify you when it is sent.'
-              : failure?.message}
+              : twoFactor
+                ? 'Two-factor authentication protects the money in your wallet, so it must be on before you can withdraw. Set it up with an authenticator app or an email code. It takes about a minute.'
+                : failure?.message}
           </Text>
           <View style={styles.resultActions}>
             {ok ? (
@@ -315,6 +301,11 @@ export default function WithdrawScreen() {
             ) : kyc ? (
               <>
                 <Button title="Verify identity" onPress={() => router.push('/kyc' as Href)} />
+                <Button title="Back" variant="ghost" onPress={startOver} />
+              </>
+            ) : twoFactor ? (
+              <>
+                <Button title="Set up two-factor" onPress={() => router.push('/two-factor' as Href)} />
                 <Button title="Back" variant="ghost" onPress={startOver} />
               </>
             ) : (
@@ -355,38 +346,15 @@ export default function WithdrawScreen() {
               ) : null}
             </View>
 
-            {verification.requiresFaceScan ? (
-              <View style={styles.card}>
-                <Text style={styles.sectionLabel}>Selfie</Text>
-                {selfie ? (
-                  <View style={styles.selfieRow}>
-                    <Image source={{ uri: selfie.uri }} style={styles.selfie} />
-                    <View style={{ flex: 1, gap: spacing.xs }}>
-                      <Text style={styles.okText}>Selfie captured</Text>
-                      <Pressable onPress={onCaptureSelfie} accessibilityRole="button">
-                        <Text style={styles.link}>Retake</Text>
-                      </Pressable>
-                    </View>
-                  </View>
-                ) : (
-                  <>
-                    <Text style={styles.muted}>Good light, face centred, nothing covering it.</Text>
-                    <Button title="Take selfie" variant="outline" onPress={onCaptureSelfie} />
-                  </>
-                )}
-              </View>
-            ) : null}
-
-            {verification.requiresOtp ? (
-              <View style={styles.card}>
-                <OtpInput label="Verification code" value={otp} onChange={setOtp} editable={!busy} />
-                <Pressable onPress={onResend} disabled={cooldown > 0} accessibilityRole="button">
-                  <Text style={[styles.link, cooldown > 0 && { color: colors.textMuted }]}>
-                    {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
+            <View style={styles.card}>
+              <OtpInput label="Verification code" value={otp} onChange={setOtp} editable={!busy} />
+              <Button
+                title={cooldown > 0 ? `Send a new code in ${cooldown}s` : 'Send a new code to my email'}
+                variant="outline"
+                onPress={onResend}
+                disabled={cooldown > 0 || busy}
+              />
+            </View>
 
             {verifyError ? (
               <ErrorBox
@@ -594,7 +562,7 @@ export default function WithdrawScreen() {
 
               <Button title={tr(busy ? 'Starting…' : 'Continue')} onPress={onContinue} loading={busy} disabled={busy} />
               <Text style={styles.footnote}>
-                {tr('You will confirm with a code or a selfie next. Withdrawals are reviewed before they are paid out.')}
+                {tr('You will confirm with a code we email to you next. Withdrawals are reviewed before they are paid out.')}
               </Text>
 
               {/* Activity Section */}
@@ -933,9 +901,6 @@ const useStyles = makeStyles((c) => ({
   rowValue: { fontSize: fontSize.sm, color: c.text, fontWeight: fontWeight.semibold },
   rowLabelStrong: { fontSize: fontSize.md, color: c.text, fontWeight: fontWeight.bold },
   rowValueStrong: { fontSize: fontSize.md, color: c.primary, fontWeight: fontWeight.extrabold },
-  selfieRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  selfie: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.surfaceMuted },
-  okText: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: c.success },
   result: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.sm },
   resultIcon: { width: 80, height: 80, borderRadius: 24, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.sm },
   eyebrow: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, textTransform: 'uppercase', letterSpacing: 0.8 },

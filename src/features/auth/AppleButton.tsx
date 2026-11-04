@@ -5,6 +5,7 @@ import Svg, { Path } from 'react-native-svg';
 import { isApiError, useAuth } from '@/store/auth';
 import { brandMarks, spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
 import { appleLogin, isNeedsRole, isNeedsTotp } from './api';
+import { challengeParams } from './twoFactor';
 import type { AppleProfile } from './api';
 import { appleSignInStatus, isAppleSignInCancelled, requestAppleCredential } from './apple';
 import type { CustomerType } from './types';
@@ -110,7 +111,7 @@ export function AppleButton(props: Props) {
         return;
       }
       if (isNeedsTotp(err)) {
-        router.push({ pathname: '/verify-totp', params: { customerId: err.customerId } });
+        router.push({ pathname: '/verify-totp', params: challengeParams(err.challenge) });
         return;
       }
       const message = isApiError(err)

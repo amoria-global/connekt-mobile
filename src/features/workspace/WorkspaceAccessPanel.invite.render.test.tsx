@@ -16,8 +16,7 @@ import '@/test/autoUnmount';
 const mockApi = {
   listSentInvitations: jest.fn(),
   listReceivedInvitations: jest.fn(),
-  lookupPhotographer: jest.fn(),
-  sendInvitation: jest.fn(),
+  listWorkspaceActivity: jest.fn(),
   sendInvitationByEmail: jest.fn(),
   getInvitePreview: jest.fn(),
   resendInvitation: jest.fn(),
@@ -29,8 +28,7 @@ const mockApi = {
 jest.mock('./api', () => ({
   listSentInvitations: (...a: unknown[]) => mockApi.listSentInvitations(...a),
   listReceivedInvitations: (...a: unknown[]) => mockApi.listReceivedInvitations(...a),
-  lookupPhotographer: (...a: unknown[]) => mockApi.lookupPhotographer(...a),
-  sendInvitation: (...a: unknown[]) => mockApi.sendInvitation(...a),
+  listWorkspaceActivity: (...a: unknown[]) => mockApi.listWorkspaceActivity(...a),
   sendInvitationByEmail: (...a: unknown[]) => mockApi.sendInvitationByEmail(...a),
   getInvitePreview: (...a: unknown[]) => mockApi.getInvitePreview(...a),
   resendInvitation: (...a: unknown[]) => mockApi.resendInvitation(...a),
@@ -93,46 +91,29 @@ beforeEach(() => {
   mockApi.listSentInvitations.mockResolvedValue([]);
   mockApi.listReceivedInvitations.mockResolvedValue([]);
   mockApi.getInvitePreview.mockResolvedValue(null);
+  mockApi.listWorkspaceActivity.mockResolvedValue([]);
 });
 
 describe('inviting an address with no account yet', () => {
   const NEW = { id: '', name: 'new@example.com', registered: false, email: 'new@example.com', customerType: 'Photographer' };
 
-  it('says no account uses it, that they will be emailed, and offers to email the invitation', async () => {
-    mockApi.lookupPhotographer.mockResolvedValue(NEW);
+  it('emails any address once, by address, and says the link works for 7 days', async () => {
+    mockApi.sendInvitationByEmail.mockResolvedValue(mapped(inv({ id: 'n', role: 'COLLABORATOR', invitee: { ...NEW, id: null } })));
     const r = await mount();
     await typeInto(r, 'Their email', 'new@example.com');
-    await tap(r, 'Find photographer');
-    expect(mockApi.lookupPhotographer).toHaveBeenCalledWith('new@example.com');
-    expect(text(r.root)).toContain('No account uses this address yet');
-    expect(text(r.root)).toContain('create a photographer account with this exact address');
-    expect(pressables(r, 'Email invitation').length).toBeGreaterThan(0);
-    expect(pressables(r, 'Send invitation')).toHaveLength(0);
-  });
-
-  it('emails it once by address, not by account, and says so', async () => {
-    mockApi.lookupPhotographer.mockResolvedValue(NEW);
-    mockApi.sendInvitationByEmail.mockResolvedValue(mapped(inv({ id: 'n', invitee: { ...NEW, id: null } })));
-    const r = await mount();
-    await typeInto(r, 'Their email', 'new@example.com');
-    await tap(r, 'Find photographer');
     await tap(r, 'Email invitation');
     expect(mockApi.sendInvitationByEmail).toHaveBeenCalledTimes(1);
     expect(mockApi.sendInvitationByEmail).toHaveBeenCalledWith('new@example.com', undefined);
-    expect(mockApi.sendInvitation).not.toHaveBeenCalled();
     expect(text(r.root)).toContain('Invitation emailed to new@example.com');
-    expect(text(r.root)).toContain('create an account with that address first');
+    expect(text(r.root)).toContain('expires in 7 days');
   });
 
-  it('keeps an account holder on the ordinary in-app invitation', async () => {
-    mockApi.lookupPhotographer.mockResolvedValue({ id: 'p9', name: 'Grace Mutoni', registered: true, customerType: 'Photographer' });
-    mockApi.sendInvitation.mockResolvedValue(mapped(inv({ id: 'n', invitee: person('p9', 'Grace Mutoni') })));
+  it('an existing account holder is invited the same way: by email, with no lookup and no second flow', async () => {
+    mockApi.sendInvitationByEmail.mockResolvedValue(mapped(inv({ id: 'n', role: 'COLLABORATOR', invitee: person('p9', 'Grace Mutoni') })));
     const r = await mount();
     await typeInto(r, 'Their email', 'grace@example.com');
-    await tap(r, 'Find photographer');
-    await tap(r, 'Send invitation');
-    expect(mockApi.sendInvitation).toHaveBeenCalledWith('p9', undefined);
-    expect(mockApi.sendInvitationByEmail).not.toHaveBeenCalled();
+    await tap(r, 'Email invitation');
+    expect(mockApi.sendInvitationByEmail).toHaveBeenCalledWith('grace@example.com', undefined);
   });
 
   it('shows an emailed invitation as waiting for an account, with emailing it again as the move', async () => {
@@ -163,7 +144,7 @@ describe('opening an invitation from its link', () => {
     const r = await mount({ inviteId: ID, onInviteHandled: handled });
     expect(focusCard(r).length).toBeGreaterThan(0);
     expect(text(r.root)).toContain('YOUR INVITATION');
-    expect(text(r.root)).toContain('Aline Uwase invited you to work in their workspace');
+    expect(text(r.root)).toContain('Aline Uwase invited you to their workspace');
     // It is on the card, not listed a second time under "Invitations for you".
     expect(text(r.root)).not.toContain('Invitations for you');
     await tap(r, 'Accept and open workspace');
