@@ -20,6 +20,8 @@ export type CatalogueEntry = {
   actions?: ActionId[];
   /** The form field the problem belongs to, when the backend does not name one. */
   field?: string;
+  /** The backend writes this code's message for people (it says which field and why), so show it when it reads as safe. */
+  serverMessage?: boolean;
 };
 
 export const ACTION_LABELS: Record<ActionId, string> = {
@@ -88,6 +90,45 @@ export const CATALOGUE: Record<string, CatalogueEntry> = {
     field: 'code',
   },
 
+  // Codes every endpoint can send (ApiErrors on the backend)
+  CONFLICT: {
+    title: "That can't be done right now",
+    message: 'Reload and try again.',
+    severity: 'sheet',
+    tone: 'warning',
+    actions: ['retry'],
+    serverMessage: true,
+  },
+  INVALID_VALUE: {
+    title: 'Check this and try again',
+    message: 'Check the details and try again.',
+    severity: 'field',
+    serverMessage: true,
+  },
+  NOT_ALLOWED: {
+    title: "You can't do that",
+    message: "You don't have permission to do that.",
+    severity: 'sheet',
+    tone: 'info',
+    actions: ['back', 'contact-support'],
+    serverMessage: true,
+  },
+  NOT_FOUND: {
+    title: "We couldn't find that",
+    message: 'It may have been removed. Go back and try again.',
+    severity: 'sheet',
+    tone: 'info',
+    actions: ['back'],
+    serverMessage: true,
+  },
+  UNEXPECTED_ERROR: {
+    title: 'Something went wrong',
+    message: "We couldn't finish that. Please try again, and contact support if it keeps happening.",
+    severity: 'toast',
+    tone: 'danger',
+    actions: ['retry', 'contact-support'],
+  },
+
   // Sign-in, sign-up and passwords
   CHALLENGE_REQUIRED: {
     title: 'One more step to sign in',
@@ -113,6 +154,7 @@ export const CATALOGUE: Record<string, CatalogueEntry> = {
     title: 'Some details are missing',
     message: 'Fill in the highlighted fields and try again.',
     severity: 'field',
+    serverMessage: true,
   },
   PASSWORD_MISMATCH: {
     title: "The passwords don't match",
