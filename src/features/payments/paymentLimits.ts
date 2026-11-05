@@ -15,6 +15,8 @@ export type PaymentLimit = {
   minimum: string;
   decimals: number;
   wholeNumbersOnly: boolean;
+  /** The exchange-rate feed is older than the stale window; the minimum then carries a wider margin. */
+  rateStale?: boolean;
 };
 
 /** Currencies with no minor unit. Used only while the backend has not answered, so typing is already right. */
@@ -32,24 +34,49 @@ export async function getPaymentLimit(currency: string): Promise<PaymentLimit | 
   const d = res?.data;
   if (res?.action !== 1 || !d || typeof d.minimum !== 'string') return null;
   const decimals = typeof d.decimals === 'number' ? d.decimals : isWholeNumberCurrency(currency) ? 0 : 2;
-  return { currency: String(d.currency ?? currency), minimum: d.minimum, decimals, wholeNumbersOnly: decimals === 0 };
+  return {
+    currency: String(d.currency ?? currency),
+    minimum: d.minimum,
+    decimals,
+    wholeNumbersOnly: decimals === 0,
+    rateStale: d.rateStale === true,
+  };
 }
 
-/** The limit for the chosen currency, or null while loading or when the backend cannot say. */
-export function usePaymentLimit(currency: string | undefined): PaymentLimit | null {
-  const [answer, setAnswer] = useState<{ currency: string; limit: PaymentLimit | null } | null>(null);
+const answers = new Map<string, PaymentLimit | null>();
+
+/** Forgets cached answers (tests, and a refresh that wants current minimums). */
+export function clearPaymentLimitCache() {
+  answers.clear();
+}
+
+/**
+ * The limit for the chosen currency and whether it is still loading. One request per currency per session: the answer
+ * is cached, so flipping between currencies in the picker does not refetch. `limit` is null while loading and when the
+ * backend cannot say, and a form never blocks on it (the server judges again on submit).
+ */
+export function usePaymentLimitState(currency: string | undefined): { limit: PaymentLimit | null; loading: boolean } {
+  const [, bump] = useState(0);
   useEffect(() => {
-    if (!currency) return;
+    if (!currency || answers.has(currency)) return;
     let live = true;
     getPaymentLimit(currency)
-      .then((limit) => live && setAnswer({ currency, limit }))
-      .catch(() => live && setAnswer({ currency, limit: null }));
+      .catch(() => null)
+      .then((l) => {
+        answers.set(currency, l);
+        if (live) bump((n) => n + 1);
+      });
     return () => {
       live = false;
     };
   }, [currency]);
-  // An answer for another currency is stale the moment the picker moves, so it is simply not used.
-  return currency && answer?.currency === currency ? answer.limit : null;
+  if (!currency) return { limit: null, loading: false };
+  return answers.has(currency) ? { limit: answers.get(currency) ?? null, loading: false } : { limit: null, loading: true };
+}
+
+/** The limit for the chosen currency, or null while loading or when the backend cannot say. */
+export function usePaymentLimit(currency: string | undefined): PaymentLimit | null {
+  return usePaymentLimitState(currency).limit;
 }
 
 /** Keeps only what can be typed in this currency: digits, plus one decimal point with at most two places if it has cents. */

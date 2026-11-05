@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
+import { useCallback, useMemo, useState } from 'react';
+import { MoneyInput, useMoneyCurrency } from '@/components/ui/MoneyInput';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Controller, useForm } from 'react-hook-form';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -57,15 +57,10 @@ export default function NewPackageScreen() {
   const [serviceType, setServiceType] = useState<ServiceType>(edit?.serviceType ?? 'OUTDOOR');
   const [priceUnit, setPriceUnit] = useState(edit?.priceUnit ?? 'per event');
   const [hasLiveStream, setHasLiveStream] = useState(edit?.hasLiveStream ?? false);
-  const [currencyId, setCurrencyId] = useState(edit?.currencyId ?? '');
 
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
-  useEffect(() => {
-    if (!currencyId && currencies.data?.length) {
-      const rwf = currencies.data.find((c) => c.code === 'RWF');
-      setCurrencyId((rwf ?? currencies.data[0]).id);
-    }
-  }, [currencies.data, currencyId]);
+  // The last currency this device used, else the account's own (an edit keeps the package's own), inside the price field.
+  const [currencyId, setCurrencyId] = useMoneyCurrency(currencies.data, edit?.currencyId);
 
   const {
     control,
@@ -145,34 +140,28 @@ export default function NewPackageScreen() {
           />
         </View>
 
-        {/* Price + currency */}
-        <View style={styles.row}>
-          <View style={styles.rowItem}>
-            <Controller
-              control={control}
-              name="price"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input label={t('b2_pkgNewPrice')} placeholder="50000" keyboardType="numeric" value={value} onChangeText={onChange} onBlur={onBlur} error={errors.price?.message} />
-              )}
+        {/* Price + currency, one field */}
+        {!currencies.data?.length ? (
+          <OptionsNote what="currencies" loading={currencies.loading} onRetry={() => void currencies.refresh()} />
+        ) : null}
+        <Controller
+          control={control}
+          name="price"
+          render={({ field: { onChange, value } }) => (
+            <MoneyInput
+              label={t('b2_pkgNewPrice')}
+              value={value}
+              onChangeText={onChange}
+              currencyId={currencyId}
+              onCurrencyChange={setCurrencyId}
+              currencies={currencies.data ?? []}
+              placeholder="50000"
+              showLimits={false}
+              error={errors.price?.message}
+              testID="package-price"
             />
-          </View>
-          <View style={styles.rowItem}>
-            <Text style={styles.label}>{t('b2_pkgNewCurrency')}</Text>
-            {!currencies.data?.length ? (
-              <OptionsNote what="currencies" loading={currencies.loading} onRetry={() => void currencies.refresh()} />
-            ) : null}
-            <View style={styles.chips}>
-              {(currencies.data ?? []).map((c) => {
-                const active = currencyId === c.id;
-                return (
-                  <Pressable key={c.id} onPress={() => setCurrencyId(c.id)} style={[styles.chip, active && styles.chipActive]}>
-                    <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        </View>
+          )}
+        />
 
         {/* Price unit */}
         <View style={styles.group}>
