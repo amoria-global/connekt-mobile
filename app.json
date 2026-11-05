@@ -173,6 +173,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-05-amount-clears-on-currency-change",
+            "date": "2026-11-05",
+            "title": "Safer amounts when you change currency",
+            "items": [
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Donation and withdrawal amounts clear when you change currency",
+                "body": "If you switch currency while typing a donation or withdrawal amount, the amount now empties so the same number is never read in a different currency. Type it again in the new one."
+              }
+            ]
+          },
+          {
             "id": "2026-11-05-clearer-messages",
             "date": "2026-11-05",
             "title": "Groundwork for clearer messages",
