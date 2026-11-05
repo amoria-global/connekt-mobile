@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 import { priceError, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
@@ -352,6 +352,15 @@ export default function NewEventScreen() {
           { id: 'cur-usd', code: 'USD' },
           { id: 'cur-eur', code: 'EUR' },
         ];
+  // The price fields hold the currency inside the amount field (MoneyInput); it takes ids, this form keeps the code.
+  const moneyCurrencies = currenciesList.map((c) => ({ id: c.id, code: c.code, name: c.name ?? c.code }));
+  const selectedMoneyId = moneyCurrencies.find((c) => c.code === selectedCurrency)?.id ?? '';
+  const pickMoneyCurrency = (id: string) => {
+    const c = moneyCurrencies.find((x) => x.id === id);
+    if (!c) return;
+    setSelectedCurrency(c.code);
+    setCurrencyId(c.id);
+  };
 
   const toggleGeoLocation = (item: GeoRegionItem) => {
     setGeoError(null);
@@ -832,45 +841,22 @@ export default function NewEventScreen() {
                 </View>
 
                 <View style={styles.stack}>
-                  <View>
-                    <Controller
-                      control={control}
-                      name="price"
-                      render={({ field: { onChange, onBlur, value } }) => (
-                        <Input
-                          label={tr('b3_evnew_default_price')}
-                          placeholder="0"
-                          keyboardType={feeLimit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
-                          value={value}
-                          onChangeText={(t) => onChange(sanitizePriceInput(t, selectedCurrency, feeLimit))}
-                          onBlur={onBlur}
-                        />
-                      )}
-                    />
-                  </View>
-
-                  <View style={styles.stackItem}>
-                    <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
-                    <View style={styles.currencyWrap}>
-                      {currenciesList.map((c) => {
-                        const active = selectedCurrency === c.code;
-                        return (
-                          <Pressable
-                            key={c.code}
-                            onPress={() => {
-                              setSelectedCurrency(c.code);
-                              setCurrencyId(c.id);
-                            }}
-                            style={[styles.currencyChip, active && styles.chipActive]}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: active }}
-                          >
-                            <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
-                          </Pressable>
-                        );
-                      })}
-                    </View>
-                  </View>
+                  <Controller
+                    control={control}
+                    name="price"
+                    render={({ field: { onChange, value } }) => (
+                      <MoneyInput
+                        label={tr('b3_evnew_default_price')}
+                        value={value ?? ''}
+                        onChangeText={onChange}
+                        currencyId={selectedMoneyId}
+                        onCurrencyChange={pickMoneyCurrency}
+                        currencies={moneyCurrencies}
+                        placeholder="0"
+                        testID="event-price"
+                      />
+                    )}
+                  />
                 </View>
               </View>
             ) : null}
@@ -1090,43 +1076,23 @@ export default function NewEventScreen() {
                       </View>
                     </View>
 
-                    {/* Price and Currency for this region */}
-                    <View style={styles.row}>
-                      <View style={styles.rowItem}>
-                        <Input
-                          label={
-                            selectedGeoLocations.length > 1
-                              ? `Price for ${selectedGeoLocations.length} locations`
-                              : selectedGeoLocations.length === 1
-                                ? `Price for ${selectedGeoLocations[0].label}`
-                                : 'Regional Price'
-                          }
-                          placeholder="0.00"
-                          keyboardType="decimal-pad"
-                          value={geoPriceInput}
-                          onChangeText={setGeoPriceInput}
-                        />
-                      </View>
-                      <View style={styles.stackItem}>
-                        <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
-                        <View style={styles.currencyWrap}>
-                          {currenciesList.map((c) => {
-                            const active = (geoCurrencyId ? geoCurrencyId === c.id : selectedCurrency === c.code);
-                            return (
-                              <Pressable
-                                key={c.code}
-                                onPress={() => setGeoCurrencyId(c.id)}
-                                style={[styles.currencyChip, active && styles.chipActive]}
-                                accessibilityRole="button"
-                                accessibilityState={{ selected: active }}
-                              >
-                                <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-                      </View>
-                    </View>
+                    {/* Price and currency for this region, one field */}
+                    <MoneyInput
+                      label={
+                        selectedGeoLocations.length > 1
+                          ? `Price for ${selectedGeoLocations.length} locations`
+                          : selectedGeoLocations.length === 1
+                            ? `Price for ${selectedGeoLocations[0].label}`
+                            : 'Regional Price'
+                      }
+                      value={geoPriceInput}
+                      onChangeText={setGeoPriceInput}
+                      currencyId={geoCurrencyId || selectedMoneyId}
+                      onCurrencyChange={setGeoCurrencyId}
+                      currencies={moneyCurrencies}
+                      placeholder="0.00"
+                      testID="event-geo-price"
+                    />
 
                     {geoError ? <Text style={styles.errText}>{geoError}</Text> : null}
 
@@ -1248,41 +1214,19 @@ export default function NewEventScreen() {
                 <Controller
                   control={control}
                   name="price"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <Input
+                  render={({ field: { onChange, value } }) => (
+                    <MoneyInput
                       label={tr('b3_evnew_stream_fee_label')}
+                      value={value ?? ''}
+                      onChangeText={onChange}
+                      currencyId={selectedMoneyId}
+                      onCurrencyChange={pickMoneyCurrency}
+                      currencies={moneyCurrencies}
                       placeholder={tr('b3_evnew_stream_fee_ph')}
-                      keyboardType={feeLimit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
-                      value={value}
-                      onChangeText={(t) => onChange(sanitizePriceInput(t, selectedCurrency, feeLimit))}
-                      onBlur={onBlur}
-                      error={priceError(value ?? '', selectedCurrency, feeLimit) ?? undefined}
+                      testID="event-stream-fee"
                     />
                   )}
                 />
-                {feeLimit ? <Text style={styles.visibilityHint}>{`Minimum ${feeLimit.currency} ${feeLimit.minimum}`}</Text> : null}
-                <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
-                  <View style={styles.currencyWrap}>
-                    {currenciesList.map((c) => {
-                      const active = selectedCurrency === c.code;
-                      return (
-                        <Pressable
-                          key={c.code}
-                          onPress={() => {
-                            setSelectedCurrency(c.code);
-                            setCurrencyId(c.id);
-                          }}
-                          style={[styles.currencyChip, active && styles.chipActive]}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: active }}
-                        >
-                          <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
               </>
             ) : null}
 

@@ -38,6 +38,8 @@ export const StorageKeys = {
   termsAccepted: 'terms.accepted',
   /** Display currency chosen in the top-bar selector (see store/currency.ts). */
   displayCurrency: 'display.currency',
+  /** Which currencies this device picks most in price fields (MoneyInput): last used and counts. Never sent anywhere. */
+  moneyCurrencyUsage: 'money.currencyUsage',
   /** Selected app language ('en' | 'fr' | 'es'). */
   language: 'app.language',
   /**

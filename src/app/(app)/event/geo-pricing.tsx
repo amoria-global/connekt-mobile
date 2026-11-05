@@ -5,7 +5,7 @@
  * over a continent price, which wins over the event's default. Anywhere you
  * don't set a price, viewers pay the event's default.
  */
-import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { useAsync } from '@/hooks/useAsync';
-import { listCurrencies, type Currency } from '@/features/reference/api';
+import { listCurrencies } from '@/features/reference/api';
 import { useRole } from '@/features/auth/role';
 import { listCoordinatorEvents } from '@/features/events/api';
 import {
@@ -618,7 +618,7 @@ export default function GeoPricingScreen() {
             </ScrollView>
           </View>
 
-          <Input
+          <MoneyInput
             label={
               selectedLocations.length > 1
                 ? tx.priceForMultiple(selectedLocations.length)
@@ -628,26 +628,12 @@ export default function GeoPricingScreen() {
             }
             value={price}
             onChangeText={setPrice}
-            keyboardType="decimal-pad"
+            currencyId={effectiveCurrencyId}
+            onCurrencyChange={setCurrencyId}
+            currencies={currencies.data ?? []}
             placeholder="0.00"
+            testID="geo-price"
           />
-
-          {currencies.data && currencies.data.length > 0 ? (
-            <>
-              <Text style={styles.fieldLabel}>{tx.currencyLabel}</Text>
-              <View style={styles.chips}>
-                {currencies.data.map((c: Currency) => (
-                  <Pressable
-                    key={c.id}
-                    onPress={() => setCurrencyId(c.id)}
-                    style={[styles.chip, effectiveCurrencyId === c.id && styles.chipActive]}
-                  >
-                    <CurrencyLabel code={c.code} textStyle={[styles.chipText, effectiveCurrencyId === c.id && styles.chipTextActive]} />
-                  </Pressable>
-                ))}
-              </View>
-            </>
-          ) : null}
 
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
