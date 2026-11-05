@@ -146,6 +146,37 @@ describe('presentError: what a person reads', () => {
   });
 });
 
+describe('codes the backend now sends (ApiErrors)', () => {
+  it('puts a field-specific refusal on its field using the server text', () => {
+    const p = presentError({ status: 400, message: 'x', body: { action: 0, errorCode: 'MISSING_FIELDS', field: 'title', message: 'Add a title for this album.' } }, { intent: 'validate' });
+    expect(p.kind).toBe('field');
+    expect(p.field).toBe('title');
+    expect(p.message).toBe('Add a title for this album.');
+  });
+
+  it('shows INVALID_VALUE on the named field with the server text, and falls back to the catalogue when that text looks technical', () => {
+    const ok = presentError({ status: 400, message: 'x', body: { errorCode: 'INVALID_VALUE', field: 'price', message: "That price can't be used. Check it and try again." } }, { intent: 'validate' });
+    expect(ok.message).toBe("That price can't be used. Check it and try again.");
+    const bad = presentError({ status: 400, message: 'x', body: { errorCode: 'INVALID_VALUE', field: 'price', message: 'ConstraintViolationException on album' } }, { intent: 'validate' });
+    expect(bad.message).toBe('Check the details and try again.');
+  });
+
+  it('turns NOT_ALLOWED, NOT_FOUND and CONFLICT into decisions with a way forward', () => {
+    for (const code of ['NOT_ALLOWED', 'NOT_FOUND', 'CONFLICT']) {
+      const p = presentError({ status: 403, message: 'x', body: { errorCode: code, message: 'You do not have permission to publish this album.' } });
+      expect(p.kind).toBe('sheet');
+      expect(p.actions.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('shows the generic copy and the server support code for UNEXPECTED_ERROR', () => {
+    const p = presentError({ status: 500, message: 'x', body: { errorCode: 'UNEXPECTED_ERROR', supportCode: 'K7M-9PQ', message: "We couldn't finish that. Please try again, and contact support if it keeps happening." } });
+    expect(p.kind).toBe('toast');
+    expect(p.supportCode).toBe('K7M-9PQ');
+    expect(p.actions.map((a) => a.id)).toEqual(expect.arrayContaining(['retry', 'contact-support']));
+  });
+});
+
 describe('helpers', () => {
   it('waitText', () => {
     expect(waitText(1)).toBe('1 second');

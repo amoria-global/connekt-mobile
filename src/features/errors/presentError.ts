@@ -199,7 +199,8 @@ export function presentError(error: unknown, ctx: ErrorContext = {}, random: () 
   const known = !!entry || (transport !== undefined && transport !== TRANSPORT.unknown);
 
   // A server message may stand in for the generic one when it is clearly written for people.
-  const serverCopy = !known && p.status !== undefined && p.status >= 400 && p.status < 500 && isSafeMessage(p.message) ? p.message : undefined;
+  const serverWrote = !!entry?.serverMessage || (!known && p.status !== undefined && p.status >= 400 && p.status < 500);
+  const serverCopy = serverWrote && isSafeMessage(p.message) ? p.message : undefined;
 
   let kind = base.severity;
   let tone: Tone = base.tone ?? 'danger';
