@@ -173,6 +173,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-05-money-input",
+            "date": "2026-11-05",
+            "title": "Price and currency in one field",
+            "items": [
+              {
+                "icon": "cash-outline",
+                "title": "One field for the price and its currency",
+                "body": "Pick the currency right inside the price field. The smallest allowed price and its worth in your own currency show underneath as you type."
+              },
+              {
+                "icon": "search-outline",
+                "title": "Find a currency fast",
+                "body": "Search by code, name or country, and see the currencies you use most at the top."
+              }
+            ]
+          },
+          {
             "id": "2026-11-05-price-minimums",
             "date": "2026-11-05",
             "title": "Prices checked in your own currency",
