@@ -38,13 +38,13 @@ import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
 import { pickFromLibrary, pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
+import { priceError, priceHint, priceOk, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
 import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 
 const NCA_I18N = {
   en: {
     errTitle: 'Please enter an album title',
     errNumeric: 'Enter a numeric price',
-    errMinPrice: 'Price must be at least 100',
     errCategory: 'Please choose a category',
     errCurrency: 'Please select a currency',
     errPhotos: 'Please add at least one photo',
@@ -82,7 +82,6 @@ const NCA_I18N = {
   fr: {
     errTitle: 'Veuillez saisir un titre d’album',
     errNumeric: 'Saisissez un prix numérique',
-    errMinPrice: 'Le prix doit être d’au moins 100',
     errCategory: 'Veuillez choisir une catégorie',
     errCurrency: 'Veuillez sélectionner une devise',
     errPhotos: 'Veuillez ajouter au moins une photo',
@@ -120,7 +119,6 @@ const NCA_I18N = {
   es: {
     errTitle: 'Por favor ingresa un título de álbum',
     errNumeric: 'Ingresa un precio numérico',
-    errMinPrice: 'El precio debe ser de al menos 100',
     errCategory: 'Por favor elige una categoría',
     errCurrency: 'Por favor selecciona una moneda',
     errPhotos: 'Por favor añade al menos una foto',
@@ -175,8 +173,7 @@ export default function NewContentAlbumScreen() {
     description: z.string().optional(),
     pricePerImage: z
       .string()
-      .regex(/^\d+$/, s.errNumeric)
-      .refine((v) => Number(v) >= 100, s.errMinPrice),
+      .regex(/^\d+(\.\d{1,2})?$/, s.errNumeric),
   });
   type FormValues = z.infer<typeof schema>;
 
@@ -201,11 +198,19 @@ export default function NewContentAlbumScreen() {
   const {
     control,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { title: '', description: '', pricePerImage: '' },
   });
+
+  // The minimum is per currency and comes from the backend, so USD 4 is judged as USD, never as "below 100".
+  const currencyCode = currencies.data?.find((c) => c.id === currencyId)?.code;
+  const limit = usePaymentLimit(currencyCode);
+  const priceText = watch('pricePerImage') ?? '';
+  const priceMsg = priceError(priceText, currencyCode, limit);
+  const canCreate = priceOk(priceText, currencyCode, limit);
 
   const addCover = async () => {
     const img = await pickFromLibrary();
@@ -384,15 +389,17 @@ export default function NewContentAlbumScreen() {
                       style={[styles.input, errors.pricePerImage && styles.inputError]}
                       placeholder={s.placeholderPrice}
                       placeholderTextColor={colors.textMuted}
-                      keyboardType="number-pad"
+                      keyboardType={limit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
                       value={value}
-                      onChangeText={onChange}
+                      onChangeText={(t) => onChange(sanitizePriceInput(t, currencyCode, limit))}
                       onBlur={onBlur}
                     />
                   )}
                 />
-                {errors.pricePerImage?.message ? (
-                  <Text style={styles.err}>{errors.pricePerImage.message}</Text>
+                {priceMsg || errors.pricePerImage?.message ? (
+                  <Text style={styles.err}>{priceMsg ?? errors.pricePerImage?.message}</Text>
+                ) : priceHint(limit) ? (
+                  <Text style={styles.hint}>{priceHint(limit)}</Text>
                 ) : null}
               </View>
 
@@ -508,9 +515,9 @@ export default function NewContentAlbumScreen() {
               <Text style={styles.cancelText}>{s.cancel}</Text>
             </Pressable>
             <Pressable
-              style={[styles.btn, styles.create, isSubmitting && styles.btnDisabled]}
+              style={[styles.btn, styles.create, (isSubmitting || !canCreate) && styles.btnDisabled]}
               onPress={handleSubmit(onSubmit)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || !canCreate}
             >
               {isSubmitting ? (
                 <ActivityIndicator color={onFill} />
@@ -619,6 +626,7 @@ const useStyles = makeStyles((c) => ({
   helper: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, lineHeight: 16 },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+  hint: { fontFamily: fonts.regular, fontSize: 12, color: c.textMuted, marginTop: 2 },
   chip: {
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
