@@ -520,6 +520,7 @@ export default function PublicDonateScreen() {
                 showLimits={false}
                 showQuickPick={false}
                 wholeNumbersOnly
+                keepAmountOnCurrencyChange={false}
                 testID="donate-amount"
               />
 
