@@ -432,6 +432,7 @@ export default function WithdrawScreen() {
                   placeholder="0"
                   showLimits={false}
                   showQuickPick={false}
+                  keepAmountOnCurrencyChange={false}
                   error={amountProblem ?? undefined}
                   testID="withdraw-amount"
                 />

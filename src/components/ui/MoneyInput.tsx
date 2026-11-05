@@ -61,6 +61,7 @@ export function MoneyInput({
   error: formError,
   onFocus,
   wholeNumbersOnly,
+  keepAmountOnCurrencyChange = true,
   testID,
 }: {
   label: string;
@@ -85,6 +86,11 @@ export function MoneyInput({
   onFocus?: () => void;
   /** Force whole numbers whatever the currency (a flow that only ever handles whole amounts, like donations). */
   wholeNumbersOnly?: boolean;
+  /**
+   * Keep the typed amount when the currency changes (the default). Turn off where the amount is a payment: the same
+   * number in another currency is a different sum of money, so the field empties and the person types it again.
+   */
+  keepAmountOnCurrencyChange?: boolean;
   testID?: string;
 }) {
   const styles = useStyles();
@@ -117,8 +123,8 @@ export function MoneyInput({
     if (c.id !== currencyId) {
       recordUse(c.code);
       onCurrencyChange(c.id);
-      // The amount is kept; only digits a zero-decimal currency cannot carry are dropped.
-      if (value) onChangeText(rawFromInput(value, c.code));
+      // By default the amount is kept and only digits a zero-decimal currency cannot carry are dropped.
+      if (value) onChangeText(keepAmountOnCurrencyChange ? rawFromInput(value, c.code) : '');
     }
     setPickerOpen(false);
   };
