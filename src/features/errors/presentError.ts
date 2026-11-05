@@ -64,6 +64,8 @@ type Parsed = {
   field?: string;
   attemptsLeft?: number;
   retryAfterSeconds?: number;
+  /** The code the server logged this failure under, so the one a person reads out finds the backend event. */
+  supportCode?: string;
   network: boolean;
 };
 
@@ -114,6 +116,7 @@ function parse(error: unknown): Parsed {
     field: typeof body.field === 'string' ? body.field : firstField,
     attemptsLeft: asNumber(body.attemptsLeft),
     retryAfterSeconds: asNumber(body.retryAfterSeconds),
+    supportCode: typeof body.supportCode === 'string' && /^[A-Z0-9-]{4,16}$/.test(body.supportCode) ? body.supportCode : undefined,
     // The client reports a failed request as status 0 or 408; a thrown TypeError("Network request failed") has no status.
     network: status === 0 || status === 408 || (status === undefined && error instanceof Error && /network|fetch|timed? ?out/i.test(error.message)),
   };
@@ -229,7 +232,8 @@ export function presentError(error: unknown, ctx: ErrorContext = {}, random: () 
     message: `${message}${reassurance}`.trim(),
     actions,
     field: kind === 'field' ? field : undefined,
-    supportCode: unknown || kind === 'fullscreen' ? makeSupportCode(random) : undefined,
+    // The server's own code wins: it is the one in the backend log. Otherwise make one for failures nobody has a code for.
+    supportCode: p.supportCode ?? (unknown || kind === 'fullscreen' || (p.status ?? 0) >= 500 ? makeSupportCode(random) : undefined),
     code: p.code,
     retryAfterSeconds: p.retryAfterSeconds,
   };
