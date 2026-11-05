@@ -38,7 +38,7 @@ jest.mock('@/features/auth/twoFactor', () => ({
 }));
 
 import { codeErrorFrom } from '@/features/auth/twoFactor';
-import VerifyTotpScreen from './verify-totp';
+import VerifyTotpScreen from '@/app/(auth)/verify-totp';
 
 const sent = (resendInSeconds = 180) => ({
   maskedEmail: 'jo•••@mail.com',

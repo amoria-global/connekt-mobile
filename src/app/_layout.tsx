@@ -47,6 +47,7 @@ import { ThemeProvider as NavigationThemeProvider } from 'expo-router/react-navi
 import { useTheme, ThemeProvider, navigationThemeFor } from '@/theme';
 import { AppPreloader } from '@/components/ui/AppPreloader';
 import { GlobalHelpButton } from '@/components/help/GlobalHelpButton';
+import { ErrorHost } from '@/components/ui/ErrorHost';
 
 // Keep native splash screen visible while fonts and auth bootstrap resolve
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -406,6 +407,8 @@ export default function RootLayout() {
           <GlobalHelpButton ready={preloaderDone} />
           {/* Mandatory OTA update prompt (blocking, one action) */}
           <UpdatePromptModal />
+          {/* Toasts and decision sheets raised by showError() from any screen. */}
+          <ErrorHost />
           {/* Screens are theme-aware now, so the status bar follows suit:
               light icons on dark surfaces, dark icons on light ones. */}
           <ThemedStatusBar />
