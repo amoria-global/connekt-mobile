@@ -9,8 +9,7 @@
  *   5. Seamless USSD push prompt and gateway polling (GET /public/payments/xentripay/status/{refid}).
  *   6. Celebration receipt with instant feedback.
  */
-import { CurrencyFlag } from '@/features/currency/CurrencyFlag';
-import { flagCountryFor } from '@/features/currency/flagCountry';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 import { HeaderHelpButton } from '@/components/help/HeaderHelpButton';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -138,8 +137,6 @@ export default function PublicDonateScreen() {
   // currency is not in it the first listed one is used. No currency is assumed here.
   const preferredCurrency = useCurrency((s) => s.currency);
   const [chosenCurrency, setChosenCurrency] = useState<string>(preferredCurrency);
-  const [currencyModalOpen, setCurrencyModalOpen] = useState(false);
-  const [currencySearch, setCurrencySearch] = useState('');
 
   const currenciesAsync = useAsync(useCallback(() => listCurrencies(), []));
   const availableCurrencies = useMemo(() => currenciesAsync.data ?? [], [currenciesAsync.data]);
@@ -165,26 +162,13 @@ export default function PublicDonateScreen() {
   const [selectedAmount, setSelectedAmount] = useState<number>(0);
   const [isCustom, setIsCustom] = useState(false);
   const [amountInputText, setAmountInputText] = useState('');
-  const [isAmountFocused, setIsAmountFocused] = useState(false);
   const amountInputRef = useRef<TextInput>(null);
 
   const currenciesUnavailable = !currenciesAsync.loading && availableCurrencies.length === 0;
 
-  const filteredCurrencies = useMemo(() => {
-    const q = currencySearch.trim().toLowerCase();
-    if (!q) return availableCurrencies;
-    return availableCurrencies.filter(
-      (c) =>
-        c.code.toLowerCase().includes(q) ||
-        c.name.toLowerCase().includes(q) ||
-        (c.symbol && c.symbol.toLowerCase().includes(q)),
-    );
-  }, [availableCurrencies, currencySearch]);
 
   const onSelectCurrency = (code: string) => {
     setChosenCurrency(code);
-    setCurrencyModalOpen(false);
-    setCurrencySearch('');
     // The new currency's backend tiers arrive in a moment and pick the default amount (see the effect below).
     setSelectedAmount(0);
     setIsCustom(false);
@@ -364,15 +348,9 @@ export default function PublicDonateScreen() {
   };
 
   const onAmountFocus = () => {
-    setIsAmountFocused(true);
     setIsCustom(true);
   };
 
-  const onClearAmount = () => {
-    setAmountInputText('');
-    setIsCustom(true);
-    amountInputRef.current?.focus();
-  };
 
   const onInitiateDonation = async () => {
     if (activeAmount <= 0) {
@@ -529,46 +507,21 @@ export default function PublicDonateScreen() {
                 {isCustom && <Text style={styles.customActiveBadge}>{tr('b4_custom')}</Text>}
               </View>
 
-              {/* Big amount input field */}
-              <View
-                style={[
-                  styles.amountInputContainer,
-                  isAmountFocused && styles.amountInputContainerFocused,
-                ]}
-              >
-                <Pressable
-                  style={styles.currencyPrefixWrap}
-                  onPress={() => setCurrencyModalOpen(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Selected currency ${currencyCode}. Tap to change.`}
-                >
-                  <Text style={styles.currencyPrefixText}>{currencyCode}</Text>
-                  <Ionicons name="chevron-down" size={13} color={colors.primary} />
-                </Pressable>
-                <TextInput
-                  ref={amountInputRef}
-                  style={styles.amountMainInput}
-                  placeholder="0"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="numeric"
-                  value={amountInputText}
-                  onChangeText={handleAmountChange}
-                  onFocus={onAmountFocus}
-                  onBlur={() => setIsAmountFocused(false)}
-                  accessibilityLabel="Donation amount"
-                />
-                {amountInputText.length > 0 && (
-                  <Pressable
-                    onPress={onClearAmount}
-                    hitSlop={10}
-                    style={styles.clearAmountBtn}
-                    accessibilityRole="button"
-                    accessibilityLabel="Clear amount"
-                  >
-                    <Ionicons name="close-circle" size={18} color={colors.textMuted} />
-                  </Pressable>
-                )}
-              </View>
+              {/* One field: the currency button and the amount together */}
+              <MoneyInput
+                label="AMOUNT"
+                value={amountInputText.replace(/[^0-9]/g, '')}
+                onChangeText={handleAmountChange}
+                onFocus={onAmountFocus}
+                currencyId={currencyCode}
+                onCurrencyChange={onSelectCurrency}
+                currencies={availableCurrencies.map((c) => ({ id: c.code, code: c.code, name: c.name || c.code }))}
+                placeholder="0"
+                showLimits={false}
+                showQuickPick={false}
+                wholeNumbersOnly
+                testID="donate-amount"
+              />
 
               {/* Quick-select preset chips row (4 presets + Custom) */}
               <View style={styles.amountChipsRow}>
@@ -876,75 +829,6 @@ export default function PublicDonateScreen() {
                   <Text style={styles.countryRowName}>{c.name}</Text>
                   <Text style={styles.countryRowDial}>+{c.dial}</Text>
                   {country === c.iso2 && (
-                    <Ionicons name="checkmark" size={18} color={colors.primary} />
-                  )}
-                </Pressable>
-              ))}
-            </ScrollView>
-          </GlassSheetHost>
-        </GlassScrim>
-      </Modal>
-
-      {/* Currency Selection Modal */}
-      <Modal
-        visible={currencyModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setCurrencyModalOpen(false)}
-      >
-        <GlassScrim style={styles.modalBackdrop} onPress={() => setCurrencyModalOpen(false)}>
-          <GlassSheetHost style={styles.modalSheet}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>{tr('b4_selectDonationCurrency')}</Text>
-              <Pressable onPress={() => setCurrencyModalOpen(false)} hitSlop={8}>
-                <Ionicons name="close" size={20} color={colors.textMuted} />
-              </Pressable>
-            </View>
-
-            <View style={styles.pickerSearch}>
-              <Ionicons name="search" size={16} color={colors.textMuted} />
-              <TextInput
-                value={currencySearch}
-                onChangeText={setCurrencySearch}
-                placeholder={tr('b4_searchCurrencyPlaceholder')}
-                placeholderTextColor={colors.textMuted}
-                style={styles.pickerSearchInput}
-                autoCorrect={false}
-              />
-              {currencySearch.length > 0 && (
-                <Pressable onPress={() => setCurrencySearch('')} hitSlop={8}>
-                  <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                </Pressable>
-              )}
-            </View>
-
-            <ScrollView style={{ maxHeight: 360 }} keyboardShouldPersistTaps="handled">
-              {currenciesUnavailable ? (
-                <View style={{ padding: spacing.lg, gap: spacing.sm }}>
-                  <Text style={styles.countryRowName}>Currencies could not be loaded.</Text>
-                  <Pressable onPress={currenciesAsync.refresh} accessibilityRole="button">
-                    <Text style={styles.currencySubCode}>Try again</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-              {filteredCurrencies.map((c) => (
-                <Pressable
-                  key={c.code}
-                  style={[styles.countryRow, currencyCode === c.code && styles.countryRowActive]}
-                  onPress={() => onSelectCurrency(c.code)}
-                >
-                  {flagCountryFor(c.code) ? (
-                    <CurrencyFlag code={c.code} width={34} />
-                  ) : (
-                    <View style={styles.currencySymbolBadge}>
-                      <Text style={styles.currencySymbolBadgeText}>{c.symbol || c.code}</Text>
-                    </View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.countryRowName}>{c.name}</Text>
-                    <Text style={styles.currencySubCode}>{c.code}</Text>
-                  </View>
-                  {currencyCode === c.code && (
                     <Ionicons name="checkmark" size={18} color={colors.primary} />
                   )}
                 </Pressable>

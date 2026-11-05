@@ -10,8 +10,7 @@
  *   • Informative Workflow Callout: Transparent explanation of the draft & approval lifecycle.
  *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
  */
-import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -38,7 +37,8 @@ import { useAsync } from '@/hooks/useAsync';
 import { useLanguage } from '@/hooks/useLanguage';
 import { pickFromLibrary, pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
-import { priceError, priceHint, priceOk, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
+import { MoneyInput, useMoneyCurrency } from '@/components/ui/MoneyInput';
+import { priceError, priceOk, usePaymentLimit } from '@/features/payments/paymentLimits';
 import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 
 const NCA_I18N = {
@@ -183,17 +183,11 @@ export default function NewContentAlbumScreen() {
   const [imagesError, setImagesError] = useState<string | null>(null);
   const [category, setCategory] = useState('');
   const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [currencyId, setCurrencyId] = useState('');
+  const currencies = useAsync(useCallback(() => listCurrencies(), []));
+  // One currency per form: the last one this device used, else the account's own, chosen inside the price field.
+  const [currencyId, setCurrencyId] = useMoneyCurrency(currencies.data);
 
   const categories = useAsync(useCallback(() => listAlbumCategories(), []));
-  const currencies = useAsync(useCallback(() => listCurrencies(), []));
-
-  useEffect(() => {
-    if (!currencyId && currencies.data?.length) {
-      const rwf = currencies.data.find((c) => c.code === 'RWF');
-      setCurrencyId((rwf ?? currencies.data[0]).id);
-    }
-  }, [currencies.data, currencyId]);
 
   const {
     control,
@@ -378,52 +372,28 @@ export default function NewContentAlbumScreen() {
           <View style={styles.cardSection}>
             <Text style={styles.sectionTitle}>{s.sectionPricing}</Text>
 
-            <View style={styles.row}>
-              <View style={styles.rowItem}>
-                <FieldLabel text={s.labelPrice} required />
-                <Controller
-                  control={control}
-                  name="pricePerImage"
-                  render={({ field: { onChange, onBlur, value } }) => (
-                    <TextInput
-                      style={[styles.input, errors.pricePerImage && styles.inputError]}
-                      placeholder={s.placeholderPrice}
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType={limit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
-                      value={value}
-                      onChangeText={(t) => onChange(sanitizePriceInput(t, currencyCode, limit))}
-                      onBlur={onBlur}
-                    />
-                  )}
+            {!currencies.data?.length ? (
+              <OptionsNote what="currencies" loading={currencies.loading} onRetry={() => void currencies.refresh()} />
+            ) : null}
+            <Controller
+              control={control}
+              name="pricePerImage"
+              render={({ field: { onChange, value } }) => (
+                <MoneyInput
+                  label={s.labelPrice}
+                  required
+                  value={value}
+                  onChangeText={onChange}
+                  currencyId={currencyId}
+                  onCurrencyChange={setCurrencyId}
+                  currencies={currencies.data ?? []}
+                  placeholder={s.placeholderPrice}
+                  disabled={isSubmitting}
+                  testID="content-price"
                 />
-                {priceMsg || errors.pricePerImage?.message ? (
-                  <Text style={styles.err}>{priceMsg ?? errors.pricePerImage?.message}</Text>
-                ) : priceHint(limit) ? (
-                  <Text style={styles.hint}>{priceHint(limit)}</Text>
-                ) : null}
-              </View>
-
-              <View style={styles.rowItem}>
-                <FieldLabel text={s.labelCurrency} required />
-                {!currencies.data?.length ? (
-                  <OptionsNote what="currencies" loading={currencies.loading} onRetry={() => void currencies.refresh()} />
-                ) : null}
-                <View style={styles.chips}>
-                  {(currencies.data ?? []).map((c) => {
-                    const active = currencyId === c.id;
-                    return (
-                      <Pressable
-                        key={c.id}
-                        onPress={() => setCurrencyId(c.id)}
-                        style={[styles.chip, active && styles.chipActive]}
-                      >
-                        <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              </View>
-            </View>
+              )}
+            />
+            {errors.pricePerImage?.message && !priceMsg ? <Text style={styles.err}>{errors.pricePerImage.message}</Text> : null}
           </View>
 
           {/* Card 4: Cover Image Drop-Zone */}
