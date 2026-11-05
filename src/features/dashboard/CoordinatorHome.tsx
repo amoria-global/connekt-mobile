@@ -58,6 +58,7 @@ import {
 import { ShootCard } from '@/features/photographer/homeParts';
 import { moneyText } from '@/features/photographer/money';
 import { HeroActionCard, ListRow } from '@/features/client/studio';
+import { HostEntry } from '@/features/hosting/HostEntry';
 import { DUE_CURRENCY, clientStatus, dueText, isLiveNow, payable, remaining } from '@/features/client/homeModel';
 import { clock12, dayKey, eventDay, upcomingEvents } from '@/features/photographer/schedule';
 import { PerformanceWaveCard } from '@/features/dashboard/PerformanceWaveCard';
@@ -268,10 +269,14 @@ export function CoordinatorHome() {
             <View style={styles.stack}>
               <HeroActionCard
                 title={t('createEvent')}
-                subtitle="Set the date, venue and photographer"
+                subtitle="Book a photographer for your event"
                 icon="add-circle-outline"
                 onPress={() => open('/event/new')}
               />
+            </View>
+            {/* The same Go live and My hosted events tiles the photographer has; the server decides who sees them. */}
+            <View style={styles.stack}>
+              <HostEntry />
             </View>
             <View style={styles.row}>
               <ActionButton label={t('gallery')} icon="images-outline" onPress={() => open('/gallery')} style={styles.flex} />
@@ -284,7 +289,7 @@ export function CoordinatorHome() {
                   icon="videocam-outline"
                   tone={anyLive ? 'live' : 'active'}
                   title="Live streams"
-                  caption={anyLive ? 'Live now' : 'Control and watch'}
+                  caption={anyLive ? 'Live now' : 'Watch live now'}
                   badge={anyLive ? <CountBadge tone="live">LIVE</CountBadge> : undefined}
                   onPress={() => open('/streams')}
                 />
