@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { startErrorReporting } from '@/features/errors/startReporting';
 import { ErrorSheetHost } from './ErrorSheet';
 import { ToastHost } from './Toast';
 
@@ -5,8 +7,13 @@ import { ToastHost } from './Toast';
  * Mounts the two overlays the error system can raise from anywhere: the toast and the decision sheet. Mounted once in
  * the root layout so every area (auth, public, app) can show them. Banners and full-screen errors are placed by the
  * screen that owns them, because they belong to a screen's layout, not above it.
+ *
+ * It also starts error reporting (a no-op until a Sentry DSN is configured).
  */
 export function ErrorHost() {
+  useEffect(() => {
+    startErrorReporting();
+  }, []);
   return (
     <>
       <ToastHost />
