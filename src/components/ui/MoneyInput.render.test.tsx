@@ -49,7 +49,7 @@ const flush = async () => {
   });
 };
 
-function Harness({ initialAmount = '', initialCurrency = 'usd', onAmount }: { initialAmount?: string; initialCurrency?: string; onAmount?: (v: string) => void }) {
+function Harness({ initialAmount = '', initialCurrency = 'usd', onAmount, keep = true }: { initialAmount?: string; initialCurrency?: string; onAmount?: (v: string) => void; keep?: boolean }) {
   const [amount, setAmount] = useState(initialAmount);
   const [currencyId, setCurrencyId] = useState(initialCurrency);
   return (
@@ -64,6 +64,7 @@ function Harness({ initialAmount = '', initialCurrency = 'usd', onAmount }: { in
       currencyId={currencyId}
       onCurrencyChange={setCurrencyId}
       currencies={CURRENCIES}
+      keepAmountOnCurrencyChange={keep}
       testID="money"
     />
   );
@@ -138,5 +139,12 @@ describe('MoneyInput', () => {
     const r = await mount(<Harness initialAmount="50" initialCurrency="kes" />);
     expect(texts(r.root).join(' ')).toContain('more than 24 hours old');
     expect(r.root.findByType(TextInput).props.editable).toBe(true);
+  });
+
+  it('empties the amount on a currency change where the amount is a payment', async () => {
+    const r = await mount(<Harness initialAmount="5000" keep={false} />);
+    await press(r, 'Use Rwandan franc');
+    await flush();
+    expect(r.root.findByType(TextInput).props.value).toBe('');
   });
 });
