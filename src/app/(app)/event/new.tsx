@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
+import { priceError, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -97,7 +98,6 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const MIN_RWF = 100;
 
 export default function NewEventScreen() {
   useLanguage();
@@ -145,6 +145,8 @@ export default function NewEventScreen() {
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
   const [selectedCurrency, setSelectedCurrency] = useState<string>(params.currency || 'RWF');
   const [currencyId, setCurrencyId] = useState<string>('');
+  // The minimum fee is per currency and comes from the backend, so a USD 4 fee is judged as USD.
+  const feeLimit = usePaymentLimit(selectedCurrency);
 
   type FormGeoRule = {
     id?: string;
@@ -524,18 +526,19 @@ export default function NewEventScreen() {
       return;
     }
 
-    const priceNum = values.price ? Number(values.price.replace(/[^\d]/g, '')) : 0;
+    const priceNum = values.price ? Number(sanitizePriceInput(values.price, selectedCurrency, feeLimit)) || 0 : 0;
+    const feeMsg = priceNum > 0 ? priceError(String(priceNum), selectedCurrency, feeLimit) : null;
     // A private event is self-streamed and paid — it must charge at least the
     // minimum. Public events may be free, but a non-zero fee still can't be
     // below the minimum. Non-coordinators ("the rest") have digital purchases disabled.
     // Coordinators self-stream a private event under the same rule as clients.
-    if (visibility === 'PRIVATE' && priceNum < MIN_RWF) {
-      const err = `A private event needs a live stream fee of at least ${MIN_RWF} ${selectedCurrency}.`; setServerError(err); Alert.alert('Live stream fee required', err);
+    if (visibility === 'PRIVATE' && (priceNum <= 0 || feeMsg)) {
+      const err = feeMsg ?? 'A private event needs a live stream fee.'; setServerError(err); Alert.alert('Live stream fee required', err);
       return;
     }
     if (!isCoordinator) {
-      if (priceNum > 0 && priceNum < MIN_RWF) {
-        setServerError(`Live stream access fee must be at least ${MIN_RWF} ${selectedCurrency}.`);
+      if (feeMsg) {
+        setServerError(feeMsg);
         return;
       }
     }
@@ -837,9 +840,9 @@ export default function NewEventScreen() {
                         <Input
                           label={tr('b3_evnew_default_price')}
                           placeholder="0"
-                          keyboardType="number-pad"
+                          keyboardType={feeLimit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
                           value={value}
-                          onChangeText={onChange}
+                          onChangeText={(t) => onChange(sanitizePriceInput(t, selectedCurrency, feeLimit))}
                           onBlur={onBlur}
                         />
                       )}
@@ -1233,7 +1236,7 @@ export default function NewEventScreen() {
                 />
                 <Text style={styles.visibilityHint}>
                   {visibility === 'PRIVATE'
-                    ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee of at least 100 in the currency you pick.'
+                    ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee above the minimum for the currency you pick.'
                     : 'A photographer covers your event and streams it. Published events appear on connekyt.com.'}
                 </Text>
               </View>
@@ -1249,13 +1252,15 @@ export default function NewEventScreen() {
                     <Input
                       label={tr('b3_evnew_stream_fee_label')}
                       placeholder={tr('b3_evnew_stream_fee_ph')}
-                      keyboardType="number-pad"
+                      keyboardType={feeLimit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
                       value={value}
-                      onChangeText={onChange}
+                      onChangeText={(t) => onChange(sanitizePriceInput(t, selectedCurrency, feeLimit))}
                       onBlur={onBlur}
+                      error={priceError(value ?? '', selectedCurrency, feeLimit) ?? undefined}
                     />
                   )}
                 />
+                {feeLimit ? <Text style={styles.visibilityHint}>{`Minimum ${feeLimit.currency} ${feeLimit.minimum}`}</Text> : null}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.fieldLabel}>{tr('b3_evnew_currency')}</Text>
                   <View style={styles.currencyWrap}>
