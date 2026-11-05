@@ -19,6 +19,7 @@
  *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
  */
 import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
+import { priceError, priceHint, priceOk, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -177,6 +178,14 @@ export default function NewAlbumScreen() {
     }
   }, [currencies.data, currencyId]);
 
+  // The minimum is per currency and comes from the backend, so USD 4 is judged as USD, never as "below 100".
+  const currencyCode = currencies.data?.find((c) => c.id === currencyId)?.code;
+  const limit = usePaymentLimit(currencyCode);
+  const priceMsg = priceError(price, currencyCode, limit);
+  const extraMsg = priceError(extraPrice, currencyCode, limit);
+  const pricesOk = personalType === 'PAID' ? priceOk(price, currencyCode, limit) : !extraPrice.trim() || extraMsg === null;
+  const canCreate = mode === 'event' || pricesOk;
+
   const applyEvent = useCallback((ev: EventItem) => {
     setSelectedEvent(ev);
     setTitle((t) => t || `${ev.title} Album`);
@@ -226,8 +235,8 @@ export default function NewAlbumScreen() {
         return setError('Please choose an event for this album.');
       }
     } else if (personalType === 'PAID') {
-      if (!/^\d+$/.test(price) || Number(price) <= 0) {
-        return setError('Please enter a valid price per image.');
+      if (!priceOk(price, currencyCode, limit)) {
+        return setError(priceError(price, currencyCode, limit) ?? 'Please enter a valid price per image.');
       }
       if (!currencyId) {
         return setError('Please select a currency.');
@@ -550,11 +559,17 @@ export default function NewAlbumScreen() {
                 <TextInput
                   style={styles.input}
                   value={price}
-                  onChangeText={(t) => setPrice(t.replace(/[^0-9]/g, ''))}
+                  onChangeText={(t) => setPrice(sanitizePriceInput(t, currencyCode, limit))}
                   placeholder="Enter price per photo"
                   placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
+                  keyboardType={limit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
+                  accessibilityLabel="Price per image"
                 />
+                {priceMsg ? (
+                  <Text style={[styles.detailNoteText, { color: colors.error }]}>{priceMsg}</Text>
+                ) : priceHint(limit) ? (
+                  <Text style={styles.detailNoteText}>{priceHint(limit)}</Text>
+                ) : null}
 
                 <FieldLabel text={trAlb('CURRENCY')} required />
                 <View style={styles.chips}>
@@ -611,11 +626,12 @@ export default function NewAlbumScreen() {
                     <TextInput
                       style={styles.input}
                       value={extraPrice}
-                      onChangeText={(t) => setExtraPrice(t.replace(/[^0-9]/g, ''))}
+                      onChangeText={(t) => setExtraPrice(sanitizePriceInput(t, currencyCode, limit))}
                       placeholder="Blank = no extras"
                       placeholderTextColor={colors.textMuted}
-                      keyboardType="number-pad"
+                      keyboardType={limit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
                     />
+                    {extraMsg ? <Text style={[styles.detailNoteText, { color: colors.error }]}>{extraMsg}</Text> : null}
                   </View>
                 </View>
               </>
@@ -694,9 +710,9 @@ export default function NewAlbumScreen() {
             <Text style={styles.cancelText}>{trAlb('Cancel')}</Text>
           </Pressable>
           <Pressable
-            style={[styles.btn, styles.create, submitting && styles.btnDisabled]}
+            style={[styles.btn, styles.create, (submitting || !canCreate) && styles.btnDisabled]}
             onPress={onSubmit}
-            disabled={submitting}
+            disabled={submitting || !canCreate}
           >
             {submitting ? (
               <ActivityIndicator color={onFill} />

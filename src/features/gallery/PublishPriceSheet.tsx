@@ -10,11 +10,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { useAsync } from '@/hooks/useAsync';
 import { listCurrencies } from '@/features/reference/api';
+import type { PaymentLimit } from '@/features/payments/paymentLimits';
+import { priceError, priceHint, priceOk, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
 import { compactSheet, fontSize, fontWeight, lightPalette, onFill, radii, spacing, useTheme } from '@/theme';
 
-/** The price is valid when it is a whole number of at least 1 and a currency is chosen. */
-export function validPublishPrice(price: string, currencyId: string): boolean {
-  return /^[0-9]+$/.test(price) && parseInt(price, 10) >= 1 && !!currencyId;
+/** The price is valid when it is a positive amount and a currency is chosen. The minimum is judged per currency. */
+export function validPublishPrice(price: string, currencyId: string, limit: PaymentLimit | null = null, code?: string): boolean {
+  return !!currencyId && priceOk(price, code, limit);
 }
 
 export function PublishPriceSheet({
@@ -39,7 +41,10 @@ export function PublishPriceSheet({
   const list = currencies.data ?? [];
   const currencyId = picked || (list.find((c) => c.code === 'RWF') ?? list[0])?.id || '';
 
-  const ok = validPublishPrice(price, currencyId);
+  const code = list.find((c) => c.id === currencyId)?.code;
+  const limit = usePaymentLimit(code);
+  const priceMsg = priceError(price, code, limit);
+  const ok = validPublishPrice(price, currencyId, limit, code);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -61,12 +66,17 @@ export function PublishPriceSheet({
           <TextInput
             style={[styles.input, { color: colors.text, borderColor: colors.stroke, backgroundColor: colors.surface }]}
             value={price}
-            onChangeText={(t) => setPrice(t.replace(/[^0-9]/g, ''))}
+            onChangeText={(t) => setPrice(sanitizePriceInput(t, code, limit))}
             placeholder="Enter price per photo"
             placeholderTextColor={colors.textMuted}
-            keyboardType="number-pad"
+            keyboardType={limit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
             accessibilityLabel="Price per image"
           />
+          {priceMsg ? (
+            <Text style={[styles.sub, { color: colors.error }]}>{priceMsg}</Text>
+          ) : priceHint(limit) ? (
+            <Text style={[styles.sub, { color: colors.textMuted }]}>{priceHint(limit)}</Text>
+          ) : null}
           <Text style={[styles.label, { color: colors.textMuted }]}>CURRENCY</Text>
           {currencies.loading ? (
             <ActivityIndicator color={colors.primary} />
