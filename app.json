@@ -173,6 +173,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-05-price-minimums",
+            "date": "2026-11-05",
+            "title": "Prices checked in your own currency",
+            "items": [
+              {
+                "icon": "pricetag-outline",
+                "title": "The right minimum for each currency",
+                "body": "When you price an album or a live stream, the form now shows the smallest price for the currency you picked, so a price like USD 4 is no longer refused as too low."
+              },
+              {
+                "icon": "calculator-outline",
+                "title": "Cents where they exist",
+                "body": "You can type cents in currencies that have them. Rwandan, Ugandan and CFA francs stay whole numbers."
+              }
+            ]
+          },
+          {
             "id": "2026-11-04-workspace-collaborators",
             "date": "2026-11-04",
             "title": "Invite someone to help run your business",
