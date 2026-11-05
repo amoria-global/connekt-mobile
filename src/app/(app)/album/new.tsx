@@ -20,7 +20,7 @@
  */
 import { MoneyInput, useMoneyCurrency } from '@/components/ui/MoneyInput';
 import { priceError, priceOk, usePaymentLimit } from '@/features/payments/paymentLimits';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,7 +47,9 @@ import { listPhotographerEvents } from '@/features/events/api';
 import { listCurrencies } from '@/features/reference/api';
 import { useAsync } from '@/hooks/useAsync';
 import { pickMultipleFromLibrary, type PickedImage } from '@/services/imagePicker';
-import { isApiError } from '@/store/auth';
+import { FieldError, invalidFieldStyle } from '@/components/ui/FieldError';
+import { pluralize } from '@/features/errors/presentError';
+import { showError } from '@/features/errors/useErrors';
 import type { EventItem } from '@/features/events/types';
 import { spacing, radii, fonts, makeStyles, useTheme, onFill } from '@/theme';
 
@@ -127,6 +129,10 @@ type Mode = 'event' | 'personal';
 type PersonalType = 'PAID' | 'FREE';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/** The inputs on this form that can carry an error under them. The server names them the same way (`field`). */
+type FormField = 'title' | 'price' | 'currency' | 'recipientEmail';
+const FORM_FIELDS: FormField[] = ['title', 'price', 'currency', 'recipientEmail'];
+
 function shortDate(iso?: string) {
   if (!iso) return '';
   const d = new Date(iso);
@@ -168,6 +174,16 @@ export default function NewAlbumScreen() {
 
   const [images, setImages] = useState<PickedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // A problem belongs next to the input it is about, never in a box at the bottom. The input keeps what was typed.
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FormField, string>>>({});
+  const scrollRef = useRef<ScrollView>(null);
+  const fieldY = useRef<Partial<Record<FormField, number>>>({});
+  const showFieldError = (field: FormField, message: string) => {
+    setFieldErrors((prev) => ({ ...prev, [field]: message }));
+    scrollRef.current?.scrollTo({ y: Math.max((fieldY.current[field] ?? 0) - 24, 0), animated: true });
+  };
+  const clearField = (...fields: FormField[]) =>
+    setFieldErrors((prev) => (fields.some((f) => prev[f]) ? { ...prev, ...Object.fromEntries(fields.map((f) => [f, undefined])) } : prev));
   const [submitting, setSubmitting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
@@ -218,8 +234,9 @@ export default function NewAlbumScreen() {
 
   const onSubmit = async () => {
     setError(null);
+    setFieldErrors({});
     if (!title.trim()) {
-      return setError('Please enter an album title.');
+      return showFieldError('title', 'Add a title for this album.');
     }
 
     if (mode === 'event') {
@@ -228,21 +245,21 @@ export default function NewAlbumScreen() {
       }
     } else if (personalType === 'PAID') {
       if (!priceOk(price, currencyCode, limit)) {
-        return setError(priceError(price, currencyCode, limit) ?? 'Please enter a valid price per image.');
+        return showFieldError('price', priceError(price, currencyCode, limit) ?? 'Enter a price per photo.');
       }
       if (!currencyId) {
-        return setError('Please select a currency.');
+        return showFieldError('currency', 'Choose a currency.');
       }
     } else {
       if (!EMAIL_RE.test(recipientEmail.trim())) {
-        return setError('Please enter a valid recipient email address.');
+        return showFieldError('recipientEmail', 'Enter a valid email address for the recipient.');
       }
     }
 
     setSubmitting(true);
     setUploadStatus(
       images.length > 0
-        ? `Creating album & uploading ${images.length} photos…`
+        ? `Creating album & uploading ${pluralize(images.length, 'photo')}…`
         : 'Creating album…',
     );
 
@@ -298,7 +315,11 @@ export default function NewAlbumScreen() {
         router.replace((result.published ? `/album/${result.id}?share=1` : `/album/${result.id}`) as Href);
       }
     } catch (e) {
-      setError(isApiError(e) ? e.message : 'Could not create the album. Please try again.');
+      const shown = showError(e, { intent: 'validate' }, { onRetry: onSubmit, where: 'album.create' });
+      if (shown.kind === 'field') {
+        if (shown.field && (FORM_FIELDS as string[]).includes(shown.field)) showFieldError(shown.field as FormField, shown.message);
+        else setError(shown.message);
+      }
     } finally {
       setSubmitting(false);
       setUploadStatus(null);
@@ -325,6 +346,7 @@ export default function NewAlbumScreen() {
         </Pressable>
       </View>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={[
           styles.scroll,
           { paddingBottom: Math.max(insets.bottom + 40, 60) },
@@ -408,13 +430,20 @@ export default function NewAlbumScreen() {
             )}
 
             <FieldLabel text={trAlb('ALBUM TITLE')} required />
-            <TextInput
-              style={styles.input}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g. Wedding Ceremony, Main Session"
-              placeholderTextColor={colors.textMuted}
-            />
+            <View onLayout={(e) => (fieldY.current.title = e.nativeEvent.layout.y)}>
+              <TextInput
+                style={[styles.input, fieldErrors.title ? invalidFieldStyle(colors) : null]}
+                value={title}
+                onChangeText={(v) => {
+                  setTitle(v);
+                  clearField('title');
+                }}
+                placeholder="e.g. Wedding Ceremony, Main Session"
+                placeholderTextColor={colors.textMuted}
+                accessibilityHint={fieldErrors.title}
+              />
+              <FieldError message={fieldErrors.title} />
+            </View>
 
             <View style={styles.row}>
               <View style={styles.rowItem}>
@@ -550,8 +579,12 @@ export default function NewAlbumScreen() {
                 <MoneyInput
                   label="PRICE PER IMAGE"
                   required
+                  error={fieldErrors.price ?? fieldErrors.currency}
                   value={price}
-                  onChangeText={setPrice}
+                  onChangeText={(v) => {
+                    setPrice(v);
+                    clearField('price', 'currency');
+                  }}
                   currencyId={currencyId}
                   onCurrencyChange={setCurrencyId}
                   currencies={currencies.data ?? []}
@@ -573,14 +606,19 @@ export default function NewAlbumScreen() {
 
                 <FieldLabel text={trAlb('RECIPIENT EMAIL')} required />
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, fieldErrors.recipientEmail ? invalidFieldStyle(colors) : null]}
                   value={recipientEmail}
-                  onChangeText={setRecipientEmail}
+                  onChangeText={(v) => {
+                    setRecipientEmail(v);
+                    clearField('recipientEmail');
+                  }}
                   placeholder="client@example.com"
                   placeholderTextColor={colors.textMuted}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  accessibilityHint={fieldErrors.recipientEmail}
                 />
+                <FieldError message={fieldErrors.recipientEmail} />
 
                 <View style={styles.row}>
                   <View style={styles.rowItem}>
@@ -633,7 +671,7 @@ export default function NewAlbumScreen() {
           {images.length ? (
             <View style={styles.thumbsContainer}>
               <View style={styles.thumbsHeader}>
-                <Text style={styles.thumbsTitle}>{images.length} photos ready to upload</Text>
+                <Text style={styles.thumbsTitle}>{pluralize(images.length, 'photo')} ready to upload</Text>
                 <Pressable onPress={() => setImages([])} hitSlop={8}>
                   <Text style={styles.clearPhotosText}>{trAlb('Clear all')}</Text>
                 </Pressable>
