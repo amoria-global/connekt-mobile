@@ -173,6 +173,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-05-clearer-messages",
+            "date": "2026-11-05",
+            "title": "Groundwork for clearer messages",
+            "items": [
+              {
+                "icon": "chatbubble-ellipses-outline",
+                "title": "Friendlier messages when something goes wrong",
+                "body": "Behind the scenes we prepared plainer messages with a clear next step for when something does not work. You will start to see them on each screen as we move it over."
+              }
+            ]
+          },
+          {
             "id": "2026-11-05-money-input",
             "date": "2026-11-05",
             "title": "Price and currency in one field",
