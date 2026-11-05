@@ -162,7 +162,8 @@
       "expo-web-browser",
       "expo-screen-orientation",
       "expo-audio",
-      "./plugins/withIncomingCall"
+      "./plugins/withIncomingCall",
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,
