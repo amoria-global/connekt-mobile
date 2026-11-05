@@ -18,8 +18,8 @@
  *     an album shell and upload photos later).
  *   • NO LinearGradient, NO top-tear accents — pure solid theme tokens.
  */
-import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
-import { priceError, priceHint, priceOk, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
+import { MoneyInput, useMoneyCurrency } from '@/components/ui/MoneyInput';
+import { priceError, priceOk, usePaymentLimit } from '@/features/payments/paymentLimits';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
@@ -159,7 +159,8 @@ export default function NewAlbumScreen() {
   const [date, setDate] = useState('');
 
   const [price, setPrice] = useState('');
-  const [currencyId, setCurrencyId] = useState('');
+  // One currency per form: the last one this device used, else the account's own, chosen inside the price field.
+  const [currencyId, setCurrencyId] = useMoneyCurrency(currencies.data);
 
   const [recipientEmail, setRecipientEmail] = useState('');
   const [maxFree, setMaxFree] = useState('');
@@ -170,18 +171,9 @@ export default function NewAlbumScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
 
-  // Default currency → RWF (or first available)
-  useEffect(() => {
-    if (!currencyId && currencies.data?.length) {
-      const rwf = currencies.data.find((c) => c.code === 'RWF');
-      setCurrencyId((rwf ?? currencies.data[0]).id);
-    }
-  }, [currencies.data, currencyId]);
-
   // The minimum is per currency and comes from the backend, so USD 4 is judged as USD, never as "below 100".
   const currencyCode = currencies.data?.find((c) => c.id === currencyId)?.code;
   const limit = usePaymentLimit(currencyCode);
-  const priceMsg = priceError(price, currencyCode, limit);
   const extraMsg = priceError(extraPrice, currencyCode, limit);
   const pricesOk = personalType === 'PAID' ? priceOk(price, currencyCode, limit) : !extraPrice.trim() || extraMsg === null;
   const canCreate = mode === 'event' || pricesOk;
@@ -555,37 +547,18 @@ export default function NewAlbumScreen() {
                   <Text style={styles.detailNoteText}>{trAlb('• Album expires in 60 days with warning')}</Text>
                 </View>
 
-                <FieldLabel text="PRICE PER IMAGE" required />
-                <TextInput
-                  style={styles.input}
+                <MoneyInput
+                  label="PRICE PER IMAGE"
+                  required
                   value={price}
-                  onChangeText={(t) => setPrice(sanitizePriceInput(t, currencyCode, limit))}
+                  onChangeText={setPrice}
+                  currencyId={currencyId}
+                  onCurrencyChange={setCurrencyId}
+                  currencies={currencies.data ?? []}
                   placeholder="Enter price per photo"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType={limit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
-                  accessibilityLabel="Price per image"
+                  disabled={submitting}
+                  testID="album-price"
                 />
-                {priceMsg ? (
-                  <Text style={[styles.detailNoteText, { color: colors.error }]}>{priceMsg}</Text>
-                ) : priceHint(limit) ? (
-                  <Text style={styles.detailNoteText}>{priceHint(limit)}</Text>
-                ) : null}
-
-                <FieldLabel text={trAlb('CURRENCY')} required />
-                <View style={styles.chips}>
-                  {(currencies.data ?? []).map((c) => {
-                    const active = currencyId === c.id;
-                    return (
-                      <Pressable
-                        key={c.id}
-                        onPress={() => setCurrencyId(c.id)}
-                        style={[styles.chip, active && styles.chipActive]}
-                      >
-                        <CurrencyLabel code={c.code} textStyle={[styles.chipText, active && styles.chipTextActive]} />
-                      </Pressable>
-                    );
-                  })}
-                </View>
               </>
             ) : (
               <>
@@ -621,19 +594,20 @@ export default function NewAlbumScreen() {
                       keyboardType="number-pad"
                     />
                   </View>
-                  <View style={styles.rowItem}>
-                    <FieldLabel text="PRICE PER EXTRA" />
-                    <TextInput
-                      style={styles.input}
-                      value={extraPrice}
-                      onChangeText={(t) => setExtraPrice(sanitizePriceInput(t, currencyCode, limit))}
-                      placeholder="Blank = no extras"
-                      placeholderTextColor={colors.textMuted}
-                      keyboardType={limit?.wholeNumbersOnly === false ? 'decimal-pad' : 'number-pad'}
-                    />
-                    {extraMsg ? <Text style={[styles.detailNoteText, { color: colors.error }]}>{extraMsg}</Text> : null}
-                  </View>
                 </View>
+
+                <MoneyInput
+                  label="PRICE PER EXTRA PHOTO"
+                  value={extraPrice}
+                  onChangeText={setExtraPrice}
+                  currencyId={currencyId}
+                  onCurrencyChange={setCurrencyId}
+                  currencies={currencies.data ?? []}
+                  placeholder="Blank = no extras"
+                  showQuickPick={false}
+                  disabled={submitting}
+                  testID="album-extra-price"
+                />
               </>
             )}
           </View>

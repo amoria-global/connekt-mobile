@@ -7,7 +7,7 @@
  * a failure part-way keeps the event it already made and retries from the failed step, so a second tap
  * never makes a second event.
  */
-import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
@@ -274,34 +274,21 @@ export default function HostEventScreen() {
 
         {paid ? (
           <View style={styles.group}>
-            <InsetField
+            <MoneyInput
               label="Price"
               value={price}
               onChangeText={setPrice}
+              currencyId={currencies.data?.find((c) => c.code === currencyCode)?.id ?? ''}
+              onCurrencyChange={(id) => {
+                const c = currencies.data?.find((x) => x.id === id);
+                if (c) setCurrencyCode(c.code);
+              }}
+              currencies={currencies.data ?? []}
               placeholder="e.g. 5000"
-              keyboardType="decimal-pad"
-              editable={!busy}
+              disabled={busy}
               error={errors.price}
+              testID="host-price"
             />
-            {currencyList.length > 0 ? (
-              <View style={styles.chips} accessibilityRole="radiogroup">
-                {currencyList.map((c) => {
-                  const on = c.code === currencyCode;
-                  return (
-                    <Pressable
-                      key={c.id}
-                      onPress={() => setCurrencyCode(c.code)}
-                      disabled={busy}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: on }}
-                      style={[styles.chip, on && styles.chipOn]}
-                    >
-                      <CurrencyLabel code={c.code} textStyle={[styles.chipText, on && styles.chipTextOn]} />
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : null}
             {livePreview ? (
               <Text style={styles.preview}>
                 {`You keep ${livePreview.hostPercent}% of each ticket, about ${currencyCode} ${Math.round(livePreview.hostEarnsPerTicket).toLocaleString()}. The platform keeps ${livePreview.platformPercent}%.`}

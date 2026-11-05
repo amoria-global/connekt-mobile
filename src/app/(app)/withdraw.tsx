@@ -8,7 +8,7 @@
  *   done     the request is PENDING_APPROVAL; an admin approval pays it out
  *   failed   the backend's reason, with a way into KYC when that is it
  */
-import { CurrencyLabel } from '@/features/currency/CurrencyFlag';
+import { MoneyInput } from '@/components/ui/MoneyInput';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -417,41 +417,24 @@ export default function WithdrawScreen() {
                 </View>
               ) : null}
 
-              {/* Amount */}
+              {/* Amount: one field, the currency inside it */}
               <View style={styles.section}>
-                <View style={styles.sectionHead}>
-                  <Text style={styles.sectionLabel}>{tr('Amount')}</Text>
-                  <View style={styles.toggle} accessibilityRole="radiogroup">
-                    {currencyList.map((c) => (
-                      <Pressable
-                        key={c.code}
-                        accessibilityRole="radio"
-                        accessibilityState={{ selected: c.code === currency.code }}
-                        onPress={() => {
-                          setCurrencyCode(c.code);
-                          setAmountText('');
-                          setDonation({ mode: 'unset' });
-                        }}
-                        style={[styles.toggleSeg, c.code === currency.code && styles.toggleSegActive]}
-                      >
-                        <CurrencyLabel code={c.code} width={16} textStyle={[styles.toggleText, c.code === currency.code && styles.toggleTextActive]} />
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-                <View style={[styles.amountBox, amountProblem ? { borderColor: colors.error } : null]}>
-                  <Text style={styles.amountPrefix}>{currency.symbol}</Text>
-                  <TextInput
-                    value={amountText}
-                    onChangeText={(t) => setAmountText(t.replace(/[^0-9.,]/g, ''))}
-                    placeholder="0"
-                    placeholderTextColor={colors.textMuted}
-                    keyboardType="decimal-pad"
-                    style={styles.amountInput}
-                    accessibilityLabel={`Amount in ${currency.code}`}
-                  />
-                </View>
-                {amountProblem ? <Text style={styles.fieldError}>{amountProblem}</Text> : null}
+                <MoneyInput
+                  label={tr('Amount')}
+                  value={amountText}
+                  onChangeText={setAmountText}
+                  currencyId={currency.code}
+                  onCurrencyChange={(code) => {
+                    setCurrencyCode(code);
+                    setDonation({ mode: 'unset' });
+                  }}
+                  currencies={currencyList.map((c) => ({ id: c.code, code: c.code, name: c.code }))}
+                  placeholder="0"
+                  showLimits={false}
+                  showQuickPick={false}
+                  error={amountProblem ?? undefined}
+                  testID="withdraw-amount"
+                />
                 {quickAmounts.length ? (
                   <View style={styles.chips}>
                     {quickAmounts.map((q) => (
