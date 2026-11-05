@@ -77,7 +77,7 @@ export const CATALOGUE: Record<string, CatalogueEntry> = {
   },
   SESSION_EXPIRED: {
     title: 'Your sign-in session ended',
-    message: 'Sign in again to continue. Nothing you typed is lost.',
+    message: 'Sign in again to continue.',
     severity: 'signin',
     actions: ['sign-in'],
   },
@@ -142,7 +142,7 @@ export const TRANSPORT: Record<
 > = {
   offline: {
     title: "You're offline",
-    message: "Check your connection and try again. What you typed is kept.",
+    message: 'Check your connection and try again.',
     severity: 'toast',
     tone: 'warning',
     actions: ['retry'],
@@ -156,14 +156,14 @@ export const TRANSPORT: Record<
   },
   server: {
     title: "We can't reach Connekyt right now",
-    message: 'This is on our side, not yours. Your work is saved on this device.',
+    message: 'This is on our side, not yours. Please try again in a moment.',
     severity: 'toast',
     tone: 'danger',
     actions: ['retry'],
   },
   unauthorized: {
     title: 'Your sign-in session ended',
-    message: 'Sign in again to continue. Nothing you typed is lost.',
+    message: 'Sign in again to continue.',
     severity: 'signin',
     actions: ['sign-in'],
   },
