@@ -34,7 +34,7 @@ jest.mock('@/features/auth/api', () => ({
 }));
 
 import { codeErrorFrom } from '@/features/auth/twoFactor';
-import VerifyOtpScreen from './verify-otp';
+import VerifyOtpScreen from '@/app/(auth)/verify-otp';
 
 const text = (r: TestRenderer.ReactTestRenderer) =>
   r.root.findAllByType(Text).map((t) => [t.props.children].flat().flat().join('')).filter(Boolean).join(' | ');
