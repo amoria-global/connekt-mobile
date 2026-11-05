@@ -173,6 +173,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-05-album-errors",
+            "date": "2026-11-05",
+            "title": "Clearer problems when creating an album",
+            "items": [
+              {
+                "icon": "alert-circle-outline",
+                "title": "Problems show next to the field",
+                "body": "When the title, price, currency or recipient email needs fixing, the message now appears right under that field, the screen scrolls to it, and everything you typed stays."
+              },
+              {
+                "icon": "images-outline",
+                "title": "Photo counts read correctly",
+                "body": "The new album screen now says 1 photo instead of 1 photos, and counts the photos it is uploading the same way."
+              },
+              {
+                "icon": "chatbubble-ellipses-outline",
+                "title": "Plain messages when it does not work",
+                "body": "If creating an album fails for another reason, you now get a short, friendly message with a Try again button and a support code you can read out."
+              }
+            ]
+          },
+          {
             "id": "2026-11-05-amount-clears-on-currency-change",
             "date": "2026-11-05",
             "title": "Safer amounts when you change currency",
