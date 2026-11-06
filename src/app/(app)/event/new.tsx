@@ -34,6 +34,7 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
+import { confirmYear } from '@/features/events/farFutureDate';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { Input } from '@/components/ui/Input';
@@ -541,6 +542,8 @@ export default function NewEventScreen() {
       setCoverError('A cover photo is required');
       return;
     }
+
+    if (!(await confirmYear(values.eventDate))) return;
 
     const priceNum = values.price ? Number(sanitizePriceInput(values.price, selectedCurrency, feeLimit)) || 0 : 0;
     const feeMsg = priceNum > 0 ? priceError(String(priceNum), selectedCurrency, feeLimit) : null;

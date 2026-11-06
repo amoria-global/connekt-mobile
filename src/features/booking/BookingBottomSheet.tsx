@@ -31,6 +31,7 @@ import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { formatPrice as formatSelectedPrice } from '@/utils/format';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { confirmYear } from '@/features/events/farFutureDate';
 
 export type BookingBottomSheetProps = {
   photographerId?: string;
@@ -218,6 +219,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
     };
 
     const handleConfirmBooking = async () => {
+      const pickedDay = date ? `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : '';
+      if (!(await confirmYear(pickedDay))) return;
       if (!photographerId || !selectedPackage?.id || !date) {
         Alert.alert('Missing details', 'Please complete every step before confirming.');
         return;

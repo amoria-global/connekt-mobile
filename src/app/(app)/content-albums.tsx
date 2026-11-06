@@ -27,6 +27,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CreateFab, FAB_SPACE, useFabCollapse } from '@/features/events/CreateFab';
+import { useCanCreate } from '@/features/events/useCanCreate';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { Chip, EmptyNote, ErrorNotice, SkeletonCard } from '@/features/photographer/kit';
 import { Screen } from '@/components/ui/Screen';
@@ -133,6 +135,8 @@ export default function ContentAlbumsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
+  const fab = useFabCollapse();
+  const canCreate = useCanCreate();
   const { language } = useLanguage();
   const s = language === 'rw' ? CA_RW : language === 'sw' ? CA_SW : (CA_I18N as any)[language] ?? CA_I18N.en;
 
@@ -240,8 +244,10 @@ export default function ContentAlbumsScreen() {
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: clearance },
+          { paddingBottom: clearance + FAB_SPACE },
         ]}
+        onScroll={fab.onScroll}
+        scrollEventThrottle={16}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         refreshControl={
@@ -328,20 +334,7 @@ export default function ContentAlbumsScreen() {
         }
       />
 
-      {/* Floating Action Button — Create New Content Album */}
-      <Pressable
-        style={[
-          styles.fab,
-          { bottom: clearance },
-        ]}
-        onPress={() => router.push('/content-album/new' as Href)}
-        android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
-        accessibilityRole="button"
-        accessibilityLabel={s.newBtnA11y}
-      >
-        <Ionicons name="add" size={20} color={onFill} />
-        <Text style={styles.fabText}>{s.newBtn}</Text>
-      </Pressable>
+      {canCreate ? <CreateFab label="New post" collapsed={fab.collapsed} onPress={() => router.push('/content-album/new' as Href)} /> : null}
     </Screen>
   );
 }

@@ -38,6 +38,7 @@ import {
   type HostedEventInput,
   type HostingEligibility,
 } from './api';
+import { confirmYear, isFarFuture } from '@/features/events/farFutureDate';
 import { runHostFlow, validateHostForm, type HostFormErrors, type HostProgress } from './hostFlow';
 
 const CURRENCY_ORDER = ['RWF', 'USD', 'EUR', 'KES'];
@@ -137,6 +138,14 @@ export default function HostEventScreen() {
         scrollRef.current?.scrollTo({ y: Math.max(wishInvitesY.current - 12, 0), animated: true });
       }
       return;
+    }
+
+    // A far-future date is confirmed first; the guard holds while the question is open so a second tap cannot start another.
+    if (isFarFuture(date)) {
+      inFlight.current = true;
+      const keep = await confirmYear(date);
+      inFlight.current = false;
+      if (!keep) return;
     }
 
     inFlight.current = true;
