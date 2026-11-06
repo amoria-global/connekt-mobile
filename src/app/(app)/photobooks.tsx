@@ -25,6 +25,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { CreateFab, FAB_SPACE, useFabCollapse } from '@/features/events/CreateFab';
+import { useCanCreate } from '@/features/events/useCanCreate';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
 import { Screen } from '@/components/ui/Screen';
 import { useRole } from '@/features/auth/role';
@@ -137,6 +139,8 @@ export default function PhotobooksScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
+  const fab = useFabCollapse();
+  const canCollab = useCanCreate();
   const { isPhotographer, isCoordinator } = useRole();
   const canCreate = isPhotographer || isCoordinator;
   const { language } = useLanguage();
@@ -293,8 +297,10 @@ export default function PhotobooksScreen() {
         columnWrapperStyle={{ gap: spacing.md }}
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: clearance },
+          { paddingBottom: clearance + FAB_SPACE },
         ]}
+        onScroll={fab.onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
         }
@@ -350,22 +356,7 @@ export default function PhotobooksScreen() {
         }
       />
 
-      {/* Floating Action Button — Create New Photobook */}
-      {canCreate && !received ? (
-        <Pressable
-          style={[
-            styles.fab,
-            { bottom: clearance },
-          ]}
-          onPress={() => router.push('/photobook/new' as Href)}
-          android_ripple={{ color: 'rgba(255,255,255,0.25)' }}
-          accessibilityRole="button"
-          accessibilityLabel={tr.newPhotobookA11y}
-        >
-          <Ionicons name="add" size={20} color={onFill} />
-          <Text style={styles.fabText}>{tr.newPhotobook}</Text>
-        </Pressable>
-      ) : null}
+      {canCreate && canCollab && !received ? <CreateFab label="New photobook" collapsed={fab.collapsed} onPress={() => router.push('/photobook/new' as Href)} /> : null}
     </Screen>
   );
 }
