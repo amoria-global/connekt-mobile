@@ -770,9 +770,10 @@ export function parseOpportunityOfferBrief(opp: PhotographerOpportunity): Parsed
     longVideosLabel: 'None',
     liveStreamLabel: 'Not requested',
     instantWishesLabel: 'Not requested',
-    photoBookLabel: '1 • A4 • 300 photos',
-    photoAlbumLabel: '1 • 30 × 30 cm • 50 prints',
-    wallPortraitsLabel: '2 • 60 × 90 cm • Framed',
+    // An offer with no scope asks for no print products: never invent a book or portraits the client did not request.
+    photoBookLabel: 'None',
+    photoAlbumLabel: 'None',
+    wallPortraitsLabel: 'None',
     instantUpdatesLabel: 'Not requested',
     digitalDeliveryLabel: 'Within 7 days after the event',
     printDeliveryLabel: 'Propose production & handover date',
