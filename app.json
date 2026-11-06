@@ -173,6 +173,16 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-06-host-any-role",
+            "date": "2026-11-06",
+            "title": "Go live from your own event",
+            "items": [
+              {"icon": "videocam-outline", "title": "Host and go live", "body": "Clients and coordinators can now host an event and go live from the home screen, the same way photographers do, free or paid."},
+              {"icon": "calendar-outline", "title": "My hosted events", "body": "A new My hosted events screen lists your upcoming, live and ended events and opens the live studio for each one."},
+              {"icon": "play-circle-outline", "title": "Create event is simpler", "body": "The create event form no longer has the I stream it myself switch. Tap Go live under the form to host and stream your own event."}
+            ]
+          },
+          {
             "id": "2026-11-05-album-errors",
             "date": "2026-11-05",
             "title": "Clearer problems when creating an album",
