@@ -16,7 +16,7 @@ import type { ApiEnvelope } from '@/types';
 
 type Raw = Record<string, unknown>;
 
-export type HostingReason = 'HOSTING_DISABLED' | 'NOT_A_PHOTOGRAPHER' | 'KYC_REQUIRED_FOR_PAID';
+export type HostingReason = 'HOSTING_DISABLED' | 'NOT_A_PHOTOGRAPHER' | 'ROLE_CANNOT_HOST' | 'KYC_REQUIRED_FOR_PAID';
 
 export type HostingEligibility = {
   enabled: boolean;
@@ -47,7 +47,7 @@ export type EarningsPreview = {
   hostEarnsPerTicket: number;
 };
 
-const REASONS: HostingReason[] = ['HOSTING_DISABLED', 'NOT_A_PHOTOGRAPHER', 'KYC_REQUIRED_FOR_PAID'];
+const REASONS: HostingReason[] = ['HOSTING_DISABLED', 'NOT_A_PHOTOGRAPHER', 'ROLE_CANNOT_HOST', 'KYC_REQUIRED_FOR_PAID'];
 
 export function parseEligibility(data: unknown): HostingEligibility {
   const d = (data ?? {}) as Raw;
