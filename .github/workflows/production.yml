@@ -192,7 +192,7 @@ jobs:
           MSG="$TYPED_MESSAGE"
           if [ -z "$MSG" ]; then MSG=$(printf '%s' "$COMMIT_MESSAGE" | head -1); fi
           echo "Publishing: $MSG"
-          npx eas-cli@latest update --branch production --platform "$PLATFORM" --message "$MSG" --non-interactive
+          npx eas-cli@latest update --branch production --platform "$PLATFORM" --environment production --message "$MSG" --non-interactive
       - name: Show what phones will fetch
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
