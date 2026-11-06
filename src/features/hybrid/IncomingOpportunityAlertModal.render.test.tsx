@@ -1,7 +1,7 @@
 import '@/test/autoUnmount';
 import React from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
-import { Text, View } from 'react-native';
+import { Text } from 'react-native';
 
 import { IncomingOpportunityAlertModal } from './IncomingOpportunityAlertModal';
 import type { PhotographerOpportunity } from './types';
@@ -48,7 +48,7 @@ const offer = {
   matchedPackageDeliveryDays: 7,
 } as unknown as PhotographerOpportunity;
 
-function render(stage: 'ringing' | 'details') {
+function render(stage: 'ringing' | 'details', handlers: { onApprove?: jest.Mock; onReject?: jest.Mock } = {}) {
   let r!: TestRenderer.ReactTestRenderer;
   act(() => {
     r = TestRenderer.create(
@@ -56,8 +56,8 @@ function render(stage: 'ringing' | 'details') {
         opportunity={offer}
         visible
         initialStage={stage}
-        onApprove={jest.fn()}
-        onReject={jest.fn()}
+        onApprove={handlers.onApprove ?? jest.fn()}
+        onReject={handlers.onReject ?? jest.fn()}
         onDismiss={jest.fn()}
       />,
     );
@@ -72,10 +72,24 @@ describe('offer details, as the photographer sees it', () => {
     expect(all).toContain('Wedding · Kigali');
     expect(all).toContain('RWF 970,000');
     expect(all).toContain('Offer details');
-    expect(all).toContain('Accept offer');
-    expect(all).toContain('Accept with my delivery package policy');
+    expect(all).toContain('Accept offer · RWF 970,000');
+    expect(all).toContain("Client's delivery schedule");
+    expect(all).toContain('My package delivery policy');
     expect(all).toContain('Reject offer');
-    expect(all).toContain('Diamond · RWF 89,997');
+    expect(all).toContain('Diamond');
+    expect(all).toContain('RWF 89,997');
+  });
+
+  it('words the price difference for the photographer: an offer above the package is good news', () => {
+    const { all } = render('details');
+    expect(all).toContain('Client offers RWF 880,003 more than your package');
+    expect(all).not.toMatch(/below the client's offer/);
+  });
+
+  it('merges the deliverables the client did not ask for into one Not included line', () => {
+    const { all } = render('details');
+    expect(all).toContain('Requested deliverables'.toUpperCase());
+    expect(all.match(/None/g) ?? []).toHaveLength(0);
   });
 
   it('no longer explains how things work or shows the old wordmark', () => {
@@ -89,15 +103,38 @@ describe('offer details, as the photographer sees it', () => {
     expect(all).not.toMatch(/Accept with my delivery terms/);
   });
 
-  it('keeps the two accept buttons together in one row and Reject offer on its own', () => {
-    const { r } = render('details');
-    const holds = (v: TestRenderer.ReactTestInstance, label: string) =>
-      v.findAll((n) => n.props.accessibilityLabel === label).length > 0;
-    // A container that holds both accept buttons but not Reject offer is the row they share.
-    const sharedRow = r.root
-      .findAllByType(View)
-      .filter((v) => holds(v, 'Accept offer') && holds(v, 'Accept with my delivery package policy') && !holds(v, 'Reject offer'));
-    expect(sharedRow.length > 0).toBe(true);
+  const pressByLabel = (r: TestRenderer.ReactTestRenderer, label: string) =>
+    act(() => {
+      r.root.findAll((n) => n.props.accessibilityLabel === label && typeof n.props.onPress === 'function')[0].props.onPress();
+    });
+
+  it('answers from one sticky Accept: the delivery option chosen decides which existing handler runs', async () => {
+    const onApprove = jest.fn();
+    const { r } = render('details', { onApprove });
+    // The client's schedule is chosen by default.
+    await act(async () => {
+      r.root.findAll((n) => n.props.accessibilityLabel === 'Accept offer' && typeof n.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(onApprove).toHaveBeenLastCalledWith(offer, 'CLIENT');
+    // Choose the package policy, then the same button runs the package handler.
+    pressByLabel(r, 'My package delivery policy');
+    await act(async () => {
+      r.root.findAll((n) => n.props.accessibilityLabel === 'Accept offer' && typeof n.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(onApprove).toHaveBeenLastCalledWith(offer, 'PHOTOGRAPHER_PACKAGE');
+    expect(onApprove).toHaveBeenCalledTimes(2);
+  });
+
+  it('offers the delivery choice as two radios, with Reject offer separate', async () => {
+    const onReject = jest.fn();
+    const { r } = render('details', { onReject });
+    const radios = r.root.findAll((n) => n.props.accessibilityRole === 'radio' && typeof n.props.onPress === 'function');
+    expect(radios.map((n) => n.props.accessibilityLabel)).toEqual(["Client's delivery schedule", 'My package delivery policy']);
+    expect(radios.filter((n) => n.props.accessibilityState?.checked)).toHaveLength(1);
+    await act(async () => {
+      r.root.findAll((n) => n.props.accessibilityLabel === 'Reject offer' && typeof n.props.onPress === 'function')[0].props.onPress();
+    });
+    expect(onReject).toHaveBeenCalledWith(offer);
   });
 
   it('lets long values wrap instead of cutting them off', () => {
