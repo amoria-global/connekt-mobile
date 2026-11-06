@@ -16,7 +16,8 @@
  *     filters use the accent, cards are real data only (cover, count, date, photographer). The photographer keeps the
  *     primary-coloured controls and no hero.
  */
-import { HeaderAddButton } from '@/components/help/HeaderAddButton';
+import { CreateFab, FAB_SPACE, useFabCollapse } from '@/features/events/CreateFab';
+import { useCanCreate } from '@/features/events/useCanCreate';
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,6 +56,8 @@ export default function GalleryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const clearance = useTabBarClearance();
+  const fab = useFabCollapse();
+  const canCreate = useCanCreate();
   const { role, isPhotographer } = useRole();
   const accent = !isPhotographer;
 
@@ -201,8 +204,6 @@ export default function GalleryScreen() {
               color={colors.text}
             />
           </Pressable>
-          {/* Create sits here, not floating over the albums (Midnight Glass: nothing floats over a button). */}
-          {isPhotographer ? <HeaderAddButton label="Create new album" onPress={() => router.push('/album/new' as Href)} /> : null}
         </View>
       </View>
 
@@ -323,8 +324,10 @@ export default function GalleryScreen() {
         keyboardDismissMode="on-drag"
         contentContainerStyle={[
           styles.list,
-          { paddingBottom: clearance },
+          { paddingBottom: clearance + (isPhotographer && canCreate ? FAB_SPACE : 0) },
         ]}
+        onScroll={fab.onScroll}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.primary} />
         }
@@ -461,6 +464,7 @@ export default function GalleryScreen() {
           </GlassSheetHost>
         </GlassScrim>
       </Modal>
+      {isPhotographer && canCreate ? <CreateFab label="New album" collapsed={fab.collapsed} onPress={() => router.push('/album/new' as Href)} /> : null}
     </Screen>
   );
 }
