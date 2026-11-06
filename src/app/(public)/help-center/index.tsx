@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '@/components/ui/Screen';
 import { HELP_ARTICLE_COUNT, HELP_CATEGORIES, searchHelp } from '@/content/helpCenter';
 import { helpTone } from '@/features/support/helpTone';
+import { useRole } from '@/features/auth/role';
+import { getStartedActions } from '@/features/events/getStarted';
 import { alpha, fontSize, fontWeight, makeStyles, radii, spacing, useTheme } from '@/theme';
 
 export default function HelpCenterScreen() {
@@ -12,6 +14,8 @@ export default function HelpCenterScreen() {
   const styles = useStyles();
   const [query, setQuery] = useState('');
   const hits = useMemo(() => searchHelp(query), [query]);
+  const role = useRole();
+  const canGetStarted = getStartedActions(role.role, role.isCollaboratorWorkspace).length > 0;
   const searching = query.trim().length > 0;
 
   const openCategory = (id: string, article?: string) =>
@@ -99,6 +103,24 @@ export default function HelpCenterScreen() {
             })}
           </View>
         )}
+
+        {canGetStarted && !searching ? (
+          <Pressable
+            style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+            onPress={() => router.push({ pathname: '/events', params: { getStarted: String(Date.now()) } } as unknown as any)}
+            accessibilityRole="button"
+            accessibilityLabel="Show getting started"
+          >
+            <View style={[styles.iconTile, { backgroundColor: alpha(colors.primary, 0.16) }]}>
+              <Ionicons name="rocket-outline" size={22} color={colors.primary} />
+            </View>
+            <View style={styles.flex}>
+              <Text style={styles.cardTitle}>Show getting started</Text>
+              <Text style={styles.cardDesc}>Reopen the quick start for Events.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </Pressable>
+        ) : null}
 
         <View style={styles.footer}>
           <Text style={styles.footerTitle}>Still need help?</Text>

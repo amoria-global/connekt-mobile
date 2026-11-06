@@ -13,7 +13,8 @@ export default function EventsScreen() {
   const topBarHeight = useTopBarHeight();
   const insets = useSafeAreaInsets();
   const { isPhotographer, isCoordinator } = useRole();
-  const params = useLocalSearchParams<{ q?: string; category?: string }>();
+  const params = useLocalSearchParams<{ q?: string; category?: string; getStarted?: string }>();
+  const reopenGetStarted = params.getStarted;
   const initialSearch = (params.q || params.category || '').trim();
 
   if (isPhotographer) {
@@ -29,7 +30,7 @@ export default function EventsScreen() {
     // screen is the schedule, not chrome. Currency, language and notifications stay on Home's top bar.
     return (
       <Screen padded={false} edges={[]}>
-          <PhotographerEventsDashboard topInset={insets.top} />
+          <PhotographerEventsDashboard topInset={insets.top} reopenGetStarted={reopenGetStarted} />
       </Screen>
     );
   }
@@ -37,7 +38,7 @@ export default function EventsScreen() {
   if (isCoordinator) {
     return (
       <Screen padded={false} edges={[]}>
-        <ClientEventsDashboard coordinator initialSearch={initialSearch} topInset={topBarHeight} />
+        <ClientEventsDashboard coordinator initialSearch={initialSearch} topInset={topBarHeight} reopenGetStarted={reopenGetStarted} />
         <TopBar />
       </Screen>
     );
@@ -51,7 +52,7 @@ export default function EventsScreen() {
    */
   return (
     <Screen padded={false} edges={[]}>
-      <ClientEventsDashboard initialSearch={initialSearch} topInset={topBarHeight} />
+      <ClientEventsDashboard initialSearch={initialSearch} topInset={topBarHeight} reopenGetStarted={reopenGetStarted} />
       <TopBar />
     </Screen>
   );
