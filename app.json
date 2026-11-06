@@ -173,6 +173,17 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-06-offer-restyle",
+            "date": "2026-11-06",
+            "title": "Clearer opportunity offers",
+            "items": [
+              {"icon": "radio-outline", "title": "A calmer opportunity card", "body": "The card now shows the client's offer as the big number, the date, service and delivery at a glance, and the best reasons you were matched. Accepting moved to the offer page."},
+              {"icon": "checkmark-circle-outline", "title": "One Accept on the offer page", "body": "Pick how you want to deliver, the client's schedule or your package policy, then tap one Accept offer button that always shows the amount. Reject stays beside it."},
+              {"icon": "list-outline", "title": "Offer details match the card", "body": "Print products and delivery on the offer page now come from what the client actually asked for, instead of showing None. What the client did not ask for sits in one Not included line."},
+              {"icon": "cash-outline", "title": "Clearer price comparison", "body": "When the client offers more than your package, the page says so in green. Amounts are always written in RWF."}
+            ]
+          },
+          {
             "id": "2026-11-06-instagram-removal",
             "date": "2026-11-06",
             "title": "Removing Instagram is reviewed too",
