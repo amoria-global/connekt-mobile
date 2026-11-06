@@ -279,3 +279,42 @@ describe('get help on the home', () => {
     expect(mockPush).toHaveBeenLastCalledWith('/contact_us');
   });
 });
+
+describe('Go live tiles for a coordinator', () => {
+  /** Serves the home as usual, plus the hosting endpoints the photographer's tiles read. */
+  function serveHosting(eligibility: unknown) {
+    serve({});
+    const base = mockGet.getMockImplementation() as (path: string) => Promise<unknown>;
+    mockGet.mockImplementation(async (path: string) =>
+      path.startsWith('/photographer/hosted-events/eligibility')
+        ? eligibility
+        : path.startsWith('/photographer/hosted-events')
+          ? ok([])
+          : base(path),
+    );
+  }
+
+  it('shows Go live and My hosted events when the server lets this account host, and Go live opens Host an event', async () => {
+    serveHosting(ok({ enabled: true, canHostFree: true, canHostPaid: false, reason: 'KYC_REQUIRED_FOR_PAID' }));
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Go live');
+    expect(text).toContain('My hosted events');
+    await tap(r, 'Go live');
+    expect(mockPush).toHaveBeenCalledWith('/host/new');
+  });
+
+  it('shows neither tile when the server says this account cannot host', async () => {
+    serveHosting(ok({ enabled: true, canHostFree: false, canHostPaid: false, reason: 'ROLE_CANNOT_HOST' }));
+    const text = flat((await mount()).root);
+    expect(text).not.toContain('My hosted events');
+  });
+
+  it('Create event now says it books a photographer, and the Live streams row is for watching', async () => {
+    serveHosting(ok({ enabled: false, canHostFree: false, canHostPaid: false, reason: 'HOSTING_DISABLED' }));
+    const text = flat((await mount()).root);
+    expect(text).toContain('Book a photographer for your event');
+    expect(text).toContain('Watch live now');
+    expect(text).not.toContain('Control and watch');
+  });
+});
