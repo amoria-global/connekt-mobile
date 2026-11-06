@@ -354,6 +354,8 @@ export type ConvertToHybridRescueResult = {
 export type HybridProfile = {
   instagramHandle?: string;
   instagramStatus: 'NONE' | 'PENDING' | 'CONNECTED' | 'NOT_FOUND';
+  /** A replacement handle waiting for admin approval; `instagramHandle` stays live until then. */
+  pendingInstagramHandle?: string;
   city?: string;
   resolvedCity?: string;
   needsCity: boolean;

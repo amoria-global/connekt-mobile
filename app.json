@@ -173,6 +173,14 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-06-instagram-review",
+            "date": "2026-11-06",
+            "title": "Instagram changes are reviewed",
+            "items": [
+              {"icon": "logo-instagram", "title": "Changing your Instagram now needs approval", "body": "When you replace the Instagram account on your matching profile, an admin reviews it first. Your current account keeps working until the new one is approved, and the card tells you it is waiting."}
+            ]
+          },
+          {
             "id": "2026-11-06-event-form",
             "date": "2026-11-06",
             "title": "A clearer create event form",
