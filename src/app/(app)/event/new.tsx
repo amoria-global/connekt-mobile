@@ -42,6 +42,8 @@ import { useAsync } from '@/hooks/useAsync';
 import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError, useAuth } from '@/store/auth';
 import { useRole } from '@/features/auth/role';
+import { showCoverageChoice, showSelfStreamLink } from '@/features/events/coverage';
+import { SelfStreamLink } from '@/features/hosting/SelfStreamLink';
 import { listCurrencies, type Currency } from '@/features/reference/api';
 import {
   deleteGeoPrice,
@@ -1180,9 +1182,10 @@ export default function NewEventScreen() {
               </View>
             ) : null}
 
-            {/* Visibility drives the whole model. A photographer is the one who covers, so the question is not theirs
-                (they go live from Host an event); it stays only on an old self-streamed event so it can still be edited. */}
-            {!isPhotographer || visibility === 'PRIVATE' ? (
+            {/* The wizard is for an event a photographer covers. Streaming it yourself is Go live (Host an event), so the
+                question and its "I stream it myself" answer are gone; they stay only on an old self-streamed event
+                that is being edited, so its fee and visibility can still change. */}
+            {showCoverageChoice({ editing: !!params.editId, visibility }) ? (
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>{tr('b3_evnew_who_covers')}</Text>
               <Segmented
@@ -1201,12 +1204,12 @@ export default function NewEventScreen() {
                   style={styles.visibilityHintIcon}
                 />
                 <Text style={styles.visibilityHint}>
-                  {visibility === 'PRIVATE'
-                    ? 'You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee above the minimum for the currency you pick.'
-                    : 'A photographer covers your event and streams it. Published events appear on connekyt.com.'}
+                  You go live yourself, with no photographer and no booking. Viewers pay to watch, so it needs a fee above the minimum for the currency you pick.
                 </Text>
               </View>
             </View>
+            ) : showSelfStreamLink({ editing: !!params.editId, isPhotographer }) ? (
+              <SelfStreamLink />
             ) : null}
 
             {!isCoordinator && visibility === 'PRIVATE' ? (
