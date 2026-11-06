@@ -426,6 +426,7 @@ function mapProfile(d: any): HybridProfile {
   return {
     instagramHandle: str(d?.instagramHandle),
     instagramStatus: s === 'CONNECTED' || s === 'PENDING' || s === 'NOT_FOUND' ? s : 'NONE',
+    pendingInstagramHandle: str(d?.pendingInstagramHandle),
     city: str(d?.city),
     resolvedCity: str(d?.resolvedCity),
     needsCity: d?.needsCity === true,
