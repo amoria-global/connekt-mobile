@@ -143,6 +143,11 @@ export function MatchingProfileForm({
         </View>
       ) : null}
       {/* Connected says itself in the row above and the card's Live chip; other states still explain. */}
+      {profile?.pendingInstagramHandle ? (
+        <Text style={styles.pendingNote} accessibilityLiveRegion="polite">
+          {`${tr('Waiting for admin approval:')} @${profile.pendingInstagramHandle}. ${tr('Your current Instagram stays until it is approved.')}`}
+        </Text>
+      ) : null}
       {error ? <Text style={styles.error}>{tr(error)}</Text> : status && !showConnected ? <Text style={styles.status}>{tr(status)}</Text> : null}
       <View style={styles.actions}>
         <AccentButton title="Save changes" onPress={() => save()} loading={saving} disabled={!profile} style={styles.grow} />
@@ -273,6 +278,7 @@ const useStyles = makeStyles((c) => ({
   changeText: { fontSize: 15, fontFamily: fonts.semibold, color: c.link },
   error: { color: c.error, backgroundColor: c.errorBg, padding: spacing.sm, borderRadius: radii.md, fontSize: fontSize.sm, fontFamily: fonts.regular },
   status: { color: c.textSoft, backgroundColor: c.tint, padding: spacing.sm, borderRadius: radii.md, fontSize: fontSize.sm, fontFamily: fonts.regular },
+  pendingNote: { color: c.pending, backgroundColor: c.pendingBg, padding: spacing.sm, borderRadius: radii.md, fontSize: fontSize.sm, fontFamily: fonts.regular },
   actions: { flexDirection: 'row', gap: spacing.md, alignItems: 'stretch' },
   grow: { flex: 1 },
   later: { color: c.textMuted, fontFamily: fonts.semibold },
