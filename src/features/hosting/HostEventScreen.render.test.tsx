@@ -108,7 +108,7 @@ describe('HostEventScreen', () => {
     const r = await mount();
     expect(text(r)).toContain('identity verification');
     expect(text(r)).toContain('Verify my identity');
-    expect(r.root.findAll((n) => n.props?.label === 'Price')).toHaveLength(0);
+    expect(r.root.findAll((n) => n.props?.label === 'Price *')).toHaveLength(0);
   });
 
   it('asks for a cover and a title before anything is sent', async () => {
@@ -121,11 +121,19 @@ describe('HostEventScreen', () => {
     expect(mockPost).not.toHaveBeenCalled();
   });
 
-  it('shows every field by default, with no More details, and the two publish buttons in different colours', async () => {
+  it('keeps only optional fields under More options, and the two publish buttons in different colours', async () => {
     serve(eligibility({}));
     const r = await mount();
-    expect(text(r)).not.toContain('More details');
-    for (const l of ['End time', 'Where', 'Description']) expect(r.root.findAll((n) => n.props?.label === l).length).toBeGreaterThan(0);
+    const has = (l: string) => r.root.findAll((n) => n.props?.label === l).length > 0;
+    // Required and main-form fields are always visible.
+    for (const l of ['Title *', 'Date *', 'Start time (optional)']) expect(has(l)).toBe(true);
+    // The optional ones are collapsed until asked for.
+    expect(text(r)).toContain('More options (optional)');
+    for (const l of ['End time (optional)', 'Where (optional)', 'Description (optional)']) expect(has(l)).toBe(false);
+    await act(async () => {
+      byLabel(r, 'More options (optional)').props.onPress();
+    });
+    for (const l of ['End time (optional)', 'Where (optional)', 'Description (optional)']) expect(has(l)).toBe(true);
     expect(titled(r, 'Publish and go live').props.variant).not.toBe('accent');
     expect(titled(r, 'Publish and schedule for later').props.variant).toBe('accent');
   });
@@ -140,7 +148,7 @@ describe('HostEventScreen', () => {
       await byLabel(r, 'Add a cover photo').props.onPress();
     });
     await act(async () => {
-      field(r, 'Title').props.onChangeText('Rooftop set');
+      field(r, 'Title *').props.onChangeText('Rooftop set');
     });
     await act(async () => {
       await titled(r, 'Publish and go live').props.onPress();
@@ -170,7 +178,7 @@ describe('HostEventScreen', () => {
       await byLabel(r, 'Add a cover photo').props.onPress();
     });
     await act(async () => {
-      field(r, 'Title').props.onChangeText('Rooftop set');
+      field(r, 'Title *').props.onChangeText('Rooftop set');
     });
     await act(async () => {
       byLabel(r, 'Enable').props.onPress();
@@ -197,7 +205,7 @@ describe('HostEventScreen', () => {
       await byLabel(r, 'Add a cover photo').props.onPress();
     });
     await act(async () => {
-      field(r, 'Title').props.onChangeText('Rooftop set');
+      field(r, 'Title *').props.onChangeText('Rooftop set');
     });
     await act(async () => {
       byLabel(r, 'Enable').props.onPress();
@@ -225,7 +233,7 @@ describe('HostEventScreen', () => {
       paid.props.onChange('paid');
     });
     await act(async () => {
-      field(r, 'Price').props.onChangeText('5000');
+      field(r, 'Price *').props.onChangeText('5000');
     });
     await act(async () => {
       await new Promise((res) => setTimeout(res, 600));
