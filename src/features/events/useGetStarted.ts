@@ -1,8 +1,15 @@
 /**
  * Drives the Get started sheet on an Events screen: reads "Don't show this again" (device cache first, then the
- * account), opens the sheet when it should, and saves the checkbox to both. `reopen` is for Help.
+ * account), opens the sheet when it should, and saves the checkbox to both. A reopen key is for Help.
+ *
+ * The sheet is for accounts that have created nothing at all: no events, hosted events, albums or photobooks. The
+ * extra lists are read only when the events list is empty and the sheet would otherwise open; a failed read counts as
+ * "unknown" and keeps the sheet closed.
  */
 import { useCallback, useEffect, useState } from 'react';
+import { listAlbums } from '@/features/gallery/api';
+import { listHostedEvents } from '@/features/hosting/api';
+import { listPhotobooks } from '@/features/photobooks/api';
 import { useRole } from '@/features/auth/role';
 import { getPreferences, preferencesBase } from '@/features/preferences/api';
 import { api } from '@/api/client';
@@ -18,6 +25,21 @@ export function useGetStarted({ listLoaded, hasItems, reopenKey }: { listLoaded:
   const cacheKey = `${GET_STARTED_PREF_KEY}.${userId ?? 'anon'}`;
   const [dismissed, setDismissed] = useState<boolean | null>(null);
   const [open, setOpen] = useState(false);
+  const [created, setCreated] = useState<boolean | null>(null);
+  const wantCheck = listLoaded && !hasItems && dismissed === false && actions.length > 0 && !session.shown;
+
+  useEffect(() => {
+    if (!wantCheck) return;
+    let live = true;
+    const checks: Promise<unknown[]>[] = [listPhotobooks()];
+    if (role.isPhotographer) checks.push(listHostedEvents(), listAlbums(true));
+    Promise.all(checks)
+      .then((lists) => live && setCreated(lists.some((l) => l.length > 0)))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [wantCheck, role.isPhotographer]);
 
   // The device cache answers at once; the account is the source of truth and wins when it says "true".
   useEffect(() => {
@@ -40,7 +62,7 @@ export function useGetStarted({ listLoaded, hasItems, reopenKey }: { listLoaded:
   }, [base, cacheKey]);
 
   // State is adjusted while rendering (React's pattern for "open when this becomes true"), so no effect sets it.
-  if (!open && shouldAutoOpen({ actions: actions.length, listLoaded, hasItems, dismissed, shownThisSession: session.shown })) {
+  if (!open && shouldAutoOpen({ actions: actions.length, listLoaded: listLoaded && created !== null, hasItems: hasItems || created === true, dismissed, shownThisSession: session.shown })) {
     session.shown = true;
     setOpen(true);
   }
