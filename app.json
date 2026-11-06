@@ -173,6 +173,14 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-06-instagram-removal",
+            "date": "2026-11-06",
+            "title": "Removing Instagram is reviewed too",
+            "items": [
+              {"icon": "logo-instagram", "title": "Removing your Instagram needs approval", "body": "When you remove the Instagram account from your matching profile, an admin reviews it first. Your current account stays until the removal is approved, and the card tells you it is waiting."}
+            ]
+          },
+          {
             "id": "2026-11-06-instagram-review",
             "date": "2026-11-06",
             "title": "Instagram changes are reviewed",

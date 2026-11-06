@@ -143,9 +143,11 @@ export function MatchingProfileForm({
         </View>
       ) : null}
       {/* Connected says itself in the row above and the card's Live chip; other states still explain. */}
-      {profile?.pendingInstagramHandle ? (
+      {profile?.pendingInstagramHandle || profile?.pendingInstagramRemoval ? (
         <Text style={styles.pendingNote} accessibilityLiveRegion="polite">
-          {`${tr('Waiting for admin approval:')} @${profile.pendingInstagramHandle}. ${tr('Your current Instagram stays until it is approved.')}`}
+          {profile.pendingInstagramHandle
+            ? `${tr('Waiting for admin approval:')} @${profile.pendingInstagramHandle}. ${tr('Your current Instagram stays until it is approved.')}`
+            : `${tr('Waiting for admin approval to remove your Instagram.')} ${tr('Your current Instagram stays until it is approved.')}`}
         </Text>
       ) : null}
       {error ? <Text style={styles.error}>{tr(error)}</Text> : status && !showConnected ? <Text style={styles.status}>{tr(status)}</Text> : null}

@@ -356,6 +356,8 @@ export type HybridProfile = {
   instagramStatus: 'NONE' | 'PENDING' | 'CONNECTED' | 'NOT_FOUND';
   /** A replacement handle waiting for admin approval; `instagramHandle` stays live until then. */
   pendingInstagramHandle?: string;
+  /** The saved handle is waiting for an admin to approve removing it. */
+  pendingInstagramRemoval?: boolean;
   city?: string;
   resolvedCity?: string;
   needsCity: boolean;

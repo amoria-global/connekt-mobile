@@ -21,4 +21,14 @@ describe('getHybridProfile pending Instagram change', () => {
     );
     expect((await getHybridProfile()).pendingInstagramHandle).toBeUndefined();
   });
+
+  it('reports a removal waiting for approval while the handle stays live', async () => {
+    (api.get as jest.Mock).mockResolvedValue(
+      envelope({ instagramHandle: 'joseph.maranatha', instagramStatus: 'CONNECTED', pendingInstagramHandle: null, pendingInstagramRemoval: true }),
+    );
+    const p = await getHybridProfile();
+    expect(p.instagramHandle).toBe('joseph.maranatha');
+    expect(p.pendingInstagramRemoval).toBe(true);
+    expect(p.pendingInstagramHandle).toBeUndefined();
+  });
 });
