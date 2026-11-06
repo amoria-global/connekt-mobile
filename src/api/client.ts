@@ -5,6 +5,7 @@
  * auth bearer token, timeouts, normalized errors, and automatic access-token
  * refresh on 401 (single-flight, retries the original request once).
  */
+import Constants from 'expo-constants';
 import { env } from '@/config/env';
 import { storage, StorageKeys } from '@/services/storage';
 import type { ApiError } from '@/types';
@@ -44,6 +45,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
   const finalHeaders: Record<string, string> = {
     Accept: 'application/json',
+    // Names this app and its version to the server, which logs it where an old client behaves differently.
+    'X-Client': `connekt-mobile/${Constants.expoConfig?.version ?? 'unknown'}`,
     // For multipart, let fetch set Content-Type (it adds the boundary).
     ...(isForm ? {} : { 'Content-Type': 'application/json' }),
     ...(headers as Record<string, string>),

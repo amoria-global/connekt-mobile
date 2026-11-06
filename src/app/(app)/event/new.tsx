@@ -1,15 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { MoneyInput } from '@/components/ui/MoneyInput';
 import { priceError, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { Controller, useForm, type FieldErrors } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { WishInvitesField } from '@/features/wishes/WishInvitesField';
-import { useScrollToField } from '@/features/wishes/useScrollToField';
+import { useScrollToKey } from '@/features/events/useScrollToKey';
+import { AttendanceField } from '@/features/events/AttendanceField';
 import { invitesOn, wishInvitesError } from '@/features/wishes/wishInvites';
+import { FieldError, invalidFieldStyle } from '@/components/ui/FieldError';
+import { parsePhone } from '@/lib/phoneKit';
+import {
+  attendanceFromSaved,
+  firstInvalidField,
+  locationPayload,
+  maxGuestsPayload,
+  validateEventForm,
+  type AttendanceChoice,
+  type RequiredFieldKey,
+} from '@/features/events/eventFormRules';
 import {
   ActivityIndicator,
   FlatList,
@@ -23,7 +34,6 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
-import { z } from 'zod';
 import { Button } from '@/components/ui/Button';
 import { DateField } from '@/components/ui/DateField';
 import { Input } from '@/components/ui/Input';
@@ -71,34 +81,25 @@ import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /**
- * Required → optional split mirrors the web event form: title /
- * category / date / start time and the headline location + organizer +
- * description are required; the "more settings" reveal (price /
- * maxGuests / city / country / visibility / tags) keep their fields
- * optional so a quick draft is still possible.
- *
- * Previously the "more settings" group was entirely optional which let
- * users save half-empty events that needed re-editing later; now the
- * organizer name and description are required so the published event
- * is at least usable on the public site.
+ * The values the form holds. Which of them are required is decided in one place, `eventFormRules`, which also drives the
+ * Create button and the inline errors. Required fields are always in the main form. "More options (optional)" holds only
+ * fields the server treats as optional, so collapsing it can never block Create.
  */
-const schema = z.object({
-  title: z.string().min(1, 'Give your event a title'),
-  category: z.string().min(1, 'Pick a category'),
-  eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Pick a date'),
-  startTime: z.string().regex(/^\d{1,2}:\d{2}$/, 'Pick a start time'),
-  endTime: z.string().optional(),
-  venueName: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  country: z.string().optional(),
-  price: z.string().optional(),
-  maxGuests: z.string().optional(),
-  organizer: z.string().optional(),
-  description: z.string().optional(),
-});
-
-type FormValues = z.infer<typeof schema>;
+type FormValues = {
+  title: string;
+  category: string;
+  eventDate: string;
+  startTime: string;
+  endTime?: string;
+  venueName: string;
+  address: string;
+  city: string;
+  country: string;
+  price?: string;
+  maxGuests?: string;
+  organizer?: string;
+  description?: string;
+};
 
 
 export default function NewEventScreen() {
@@ -131,17 +132,19 @@ export default function NewEventScreen() {
   const [showMore, setShowMore] = useState(false);
   // Wish invites: no default on a new event, so the choice is required before it can be saved.
   const [wishInvites, setWishInvites] = useState<boolean | null>(null);
-  const [wishInvitesErr, setWishInvitesErr] = useState<string | null>(null);
-  const { scrollRef, fieldRef, onScroll, scrollToField } = useScrollToField();
+  // Errors stay hidden until the first tap on Create, then follow the form live as the person fixes each field.
+  const [showErrors, setShowErrors] = useState(false);
+  // How guests attend: no default on a new event, so the choice is required (see eventFormRules).
+  const [attendance, setAttendance] = useState<AttendanceChoice | null>(null);
+  // An edited event's saved location is one joined string, so venue and city cannot be told apart until it is retyped.
+  const [legacyLocation, setLegacyLocation] = useState(false);
+  const { scrollRef, onScroll, holder, input, scrollTo } = useScrollToKey<RequiredFieldKey>();
 
   // Optional, non-text controls
   const [visibility, setVisibility] = useState<'PUBLIC' | 'PRIVATE'>('PUBLIC');
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [escrow, setEscrow] = useState<'50' | '70' | '100'>('50');
-  // Organizer attestation for app-store purposes: guests can physically attend
-  // at the venue. On by default; untick for a stream-only event.
-  const [inPerson, setInPerson] = useState(true);
 
   // Currencies & Geo-pricing (Coordinator role parity)
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
@@ -187,9 +190,9 @@ export default function NewEventScreen() {
     handleSubmit,
     reset,
     setValue,
-    formState: { errors, isSubmitting },
+    watch,
+    formState: { isSubmitting },
   } = useForm<FormValues>({
-    resolver: zodResolver(schema),
     defaultValues: {
       title: '',
       category: isCoordinator ? 'Entertainment' : '',
@@ -199,7 +202,8 @@ export default function NewEventScreen() {
       venueName: '',
       address: '',
       city: '',
-      country: 'Rwanda',
+      // The country of the phone number on the profile; empty when it cannot be told.
+      country: parsePhone(user?.phone ?? '').country?.name ?? '',
       price: '',
       maxGuests: '',
       organizer: `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
@@ -257,7 +261,9 @@ export default function NewEventScreen() {
             ev.organizer ?? `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim(),
           description: ev.description ?? '',
         });
-        setInPerson(ev.attendanceMode !== 'STREAM_ONLY');
+        // Preselect the saved mode, and keep the saved location as one string until the person retypes it.
+        setAttendance(attendanceFromSaved(ev.attendanceMode, ev.location));
+        setLegacyLocation(!!ev.location);
         // The saved value; an event from before the setting reads as on.
         setWishInvites(invitesOn(ev.allowWishInvites));
         if (ev.currency) {
@@ -270,12 +276,7 @@ export default function NewEventScreen() {
         // Open the "more settings" reveal automatically when the
         // existing event uses any of those values, so the user can see
         // (and edit) the data that's actually on the record.
-        if (
-          ev.price != null ||
-          ev.maxGuests != null ||
-          ev.eventVisibility ||
-          (ev.tags?.length ?? 0) > 0
-        ) {
+        if (ev.maxGuests != null || (ev.tags?.length ?? 0) > 0 || ev.description || ev.organizer) {
           setShowMore(true);
         }
 
@@ -493,44 +494,48 @@ export default function NewEventScreen() {
     );
   };
 
-  const onInvalid = (fieldErrors: FieldErrors<FormValues>) => {
-    if (
-      fieldErrors.venueName ||
-      fieldErrors.address ||
-      fieldErrors.city ||
-      fieldErrors.country ||
-      fieldErrors.maxGuests ||
-      fieldErrors.organizer
-    ) {
-      setShowMore(true);
-    }
-    const firstKey = Object.keys(fieldErrors)[0] as keyof FormValues;
-    const msg = fieldErrors[firstKey]?.message;
-    if (msg) {
-      Alert.alert('Required field', msg);
-    }
-  };
+  const live = watch();
+  const hasCover = !!cover || !!(isEditing && existingCover);
+  // A fee problem only counts where the fee field is on screen: a private (self-streamed) event.
+  const livePrice = live.price ? Number(sanitizePriceInput(live.price, selectedCurrency, feeLimit)) || 0 : 0;
+  const liveFeeMsg = livePrice > 0 ? priceError(String(livePrice), selectedCurrency, feeLimit) : null;
+  const feeProblem =
+    visibility === 'PRIVATE' && (livePrice <= 0 || liveFeeMsg)
+      ? (liveFeeMsg ?? 'A private event needs a live stream fee.')
+      : null;
+  const rules = validateEventForm(
+    {
+      hasCover,
+      title: live.title ?? '',
+      category: live.category ?? '',
+      eventDate: live.eventDate ?? '',
+      startTime: live.startTime ?? '',
+      attendance,
+      venueName: live.venueName ?? '',
+      city: live.city ?? '',
+      wishInvites,
+    },
+    { legacyLocation, priceError: feeProblem },
+  );
+  const canCreate = Object.keys(rules).length === 0;
+  const shown = showErrors ? rules : {};
 
   const submit = () => {
-    const missing = wishInvitesError(wishInvites);
-    setWishInvitesErr(missing ?? null);
-    if (missing) {
-      scrollToField();
-      Alert.alert('Wish invites', 'Please choose whether viewers can invite others to send wishes.');
+    setServerError(null);
+    setShowErrors(true);
+    // Required fields are never inside "More options", so an error never needs it opened: scroll to the first one.
+    const first = firstInvalidField(rules);
+    if (first) {
+      if (first === 'cover') scrollRef.current?.scrollTo({ y: 0, animated: true });
+      else scrollTo(first);
       return;
     }
-    if (!cover && !(isEditing && existingCover)) {
-      setCoverError('A cover photo is required');
-      scrollRef.current?.scrollTo({ y: 0, animated: true });
-      Alert.alert('Cover photo required', 'Please add a cover photo for your event.');
-      return;
-    }
-    void handleSubmit(onSubmit, onInvalid)();
+    void handleSubmit(onSubmit)();
   };
 
   const onSubmit = async (values: FormValues) => {
     setServerError(null);
-    if (wishInvitesError(wishInvites)) return;
+    if (wishInvitesError(wishInvites) || !attendance) return;
     // A cover photo is required to create; on edit the existing one is kept.
     if (!cover && !(isEditing && existingCover)) {
       setCoverError('A cover photo is required');
@@ -560,10 +565,13 @@ export default function NewEventScreen() {
     // never reach the server for a public client event.
     const feeNum = isCoordinator || visibility === 'PRIVATE' ? priceNum : 0;
 
-    const location = [values.venueName, values.address, values.city, values.country]
-      .map((s) => s?.trim())
-      .filter(Boolean)
-      .join(', ');
+    // Only an in-person event has a venue; a stream-only event sends none.
+    const location = locationPayload(attendance, {
+      venueName: values.venueName ?? '',
+      address: values.address ?? '',
+      city: values.city ?? '',
+      country: values.country ?? '',
+    });
 
     const photographerId = params.photographerId ?? selPhotog?.id;
     const packageId = params.packageId ?? selPackage?.id;
@@ -576,7 +584,7 @@ export default function NewEventScreen() {
       startTime: values.startTime,
       endTime: values.endTime || undefined,
       location: location || undefined,
-      attendanceMode: inPerson ? ('IN_PERSON' as const) : ('STREAM_ONLY' as const),
+      attendanceMode: attendance === 'STREAM_ONLY' ? ('STREAM_ONLY' as const) : ('IN_PERSON' as const),
       organizer: values.organizer?.trim() || undefined,
       price: amount ?? (feeNum || undefined),
       // The "Live stream fee" field IS the stream fee (viewer paywall). Booking
@@ -585,7 +593,7 @@ export default function NewEventScreen() {
       // The fee is charged in the picked currency (coordinators always, clients on a self-streamed event).
       currency: isCoordinator || visibility === 'PRIVATE' ? selectedCurrency : params.currency,
       streamFeeCurrencyId: feeNum ? currenciesList.find((c) => c.code === selectedCurrency)?.id : undefined,
-      maxGuests: values.maxGuests ? Number(values.maxGuests.replace(/[^\d]/g, '')) : undefined,
+      maxGuests: maxGuestsPayload(values.maxGuests),
       eventVisibility: visibility,
       allowWishInvites: wishInvites === true,
       tags: tags.length ? tags : undefined,
@@ -714,8 +722,8 @@ export default function NewEventScreen() {
             <Text style={styles.formEyebrow}>EVENT</Text>
             {/* Cover photo (required) */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>{tr('b3_evnew_cover_photo')}</Text>
-              <Pressable onPress={pickCover} style={[styles.cover, !!coverError && styles.coverError]}>
+              <Text style={styles.fieldLabel}>{tr('b3_evnew_cover_photo')} *</Text>
+              <Pressable onPress={pickCover} style={[styles.cover, (!!coverError || !!shown.cover) && styles.coverError]}>
                 {cover || existingCover ? (
                   <>
                     <Image source={{ uri: cover?.uri ?? existingCover! }} style={styles.coverImg} contentFit="cover" />
@@ -730,20 +738,20 @@ export default function NewEventScreen() {
                   </View>
                 )}
               </Pressable>
-              {coverError ? <Text style={styles.errText}>{coverError}</Text> : null}
+              <FieldError message={shown.cover ?? coverError} />
             </View>
 
             <Controller
               control={control}
               name="title"
               render={({ field: { onChange, onBlur, value } }) => (
-                <Input label={tr('b3_evnew_title_label')} placeholder={tr('b3_evnew_title_ph')} value={value} onChangeText={onChange} onBlur={onBlur} error={errors.title?.message} />
+                <View ref={holder('title')}><Input ref={input('title')} label={`${tr('b3_evnew_title_label')} *`} placeholder={tr('b3_evnew_title_ph')} value={value} onChangeText={onChange} onBlur={onBlur} error={shown.title} /></View>
               )}
             />
 
             {/* Category */}
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>{tr('b3_evnew_category_label')}</Text>
+            <View style={styles.fieldGroup} ref={holder('category')}>
+              <Text style={styles.fieldLabel}>{tr('b3_evnew_category_label')} *</Text>
               {isCoordinator ? (
                 <Controller
                   control={control}
@@ -794,7 +802,7 @@ export default function NewEventScreen() {
                   )}
                 />
               )}
-              {errors.category ? <Text style={styles.errText}>{errors.category.message}</Text> : null}
+              <FieldError message={shown.category} />
             </View>
 
             <Text style={styles.formEyebrow}>WHEN</Text>
@@ -802,7 +810,7 @@ export default function NewEventScreen() {
               control={control}
               name="eventDate"
               render={({ field: { onChange, value } }) => (
-                <DateField label={tr('b3_evnew_date_label')} value={value} onChange={onChange} error={errors.eventDate?.message} minimumDate={new Date()} />
+                <View ref={holder('eventDate')}><DateField label={`${tr('b3_evnew_date_label')} *`} value={value} onChange={onChange} error={shown.eventDate} minimumDate={new Date()} /></View>
               )}
             />
 
@@ -812,7 +820,7 @@ export default function NewEventScreen() {
                   control={control}
                   name="startTime"
                   render={({ field: { onChange, value } }) => (
-                    <TimeField label={tr('b3_evnew_start_label')} value={value} onChange={onChange} error={errors.startTime?.message} />
+                    <View ref={holder('startTime')}><TimeField label={`${tr('b3_evnew_start_label')} *`} value={value} onChange={onChange} error={shown.startTime} /></View>
                   )}
                 />
               </View>
@@ -821,11 +829,45 @@ export default function NewEventScreen() {
                   control={control}
                   name="endTime"
                   render={({ field: { onChange, value } }) => (
-                    <TimeField label={tr('b3_evnew_end_label')} value={value ?? ''} onChange={onChange} />
+                    <TimeField label={`${tr('b3_evnew_end_label')} (optional)`} value={value ?? ''} onChange={onChange} />
                   )}
                 />
               </View>
             </View>
+
+            <Text style={styles.formEyebrow}>WHERE</Text>
+            <AttendanceField
+              value={attendance}
+              containerRef={holder('attendance')}
+              error={shown.attendance}
+              disabled={busy}
+              onChange={(v) => setAttendance(v)}
+            />
+            {attendance === 'IN_PERSON' ? (
+              <>
+                <Controller control={control} name="venueName" render={({ field: { onChange, onBlur, value } }) => (
+                  <View ref={holder('venueName')}>
+                    <Input
+                      ref={input('venueName')}
+                      label={`${tr('b3_evnew_venue_label')} *`}
+                      placeholder={tr('b3_evnew_venue_ph')}
+                      value={value}
+                      onChangeText={(t) => { setLegacyLocation(false); onChange(t); }}
+                      onBlur={onBlur}
+                      error={shown.venueName}
+                    />
+                  </View>
+                )} />
+                <Controller control={control} name="city" render={({ field: { onChange, onBlur, value } }) => (
+                  <View ref={holder('city')}>
+                    <Input ref={input('city')} label={`${tr('b3_evnew_city_label')} *`} placeholder={tr('b3_evnew_city_label')} value={value} onChangeText={onChange} onBlur={onBlur} error={shown.city} />
+                  </View>
+                )} />
+                <Controller control={control} name="address" render={({ field: { onChange, onBlur, value } }) => (
+                  <Input label={`${tr('b3_evnew_address_label')} (optional)`} placeholder={tr('b3_evnew_address_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                )} />
+              </>
+            ) : null}
 
             {/* Coordinator: Pricing & Stream Fee (Prominently displayed) */}
             {isCoordinator ? (
@@ -866,12 +908,9 @@ export default function NewEventScreen() {
             {isCoordinator ? (
               <WishInvitesField
                 value={wishInvites}
-                containerRef={fieldRef}
-                error={wishInvitesErr}
-                onChange={(v) => {
-                  setWishInvites(v);
-                  setWishInvitesErr(null);
-                }}
+                containerRef={holder('wishInvites')}
+                error={shown.wishInvites}
+                onChange={(v) => setWishInvites(v)}
               />
             ) : null}
 
@@ -1227,6 +1266,7 @@ export default function NewEventScreen() {
                       currencies={moneyCurrencies}
                       placeholder={tr('b3_evnew_stream_fee_ph')}
                       testID="event-stream-fee"
+                      error={shown.price}
                     />
                   )}
                 />
@@ -1236,73 +1276,34 @@ export default function NewEventScreen() {
             {!isCoordinator ? (
               <WishInvitesField
                 value={wishInvites}
-                containerRef={fieldRef}
-                error={wishInvitesErr}
-                onChange={(v) => {
-                  setWishInvites(v);
-                  setWishInvitesErr(null);
-                }}
+                containerRef={holder('wishInvites')}
+                error={shown.wishInvites}
+                onChange={(v) => setWishInvites(v)}
               />
             ) : null}
 
-            {/* More options */}
-            <Pressable style={styles.moreToggle} onPress={() => setShowMore((v) => !v)}>
+            {/* More options: only fields the server treats as optional. Nothing in here can block Create. */}
+            <Pressable style={styles.moreToggle} onPress={() => setShowMore((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: showMore }}>
               <Text style={styles.moreToggleText}>{tr('b3_evnew_more_options')}</Text>
               <Ionicons name={showMore ? 'chevron-up' : 'chevron-down'} size={18} color={colors.primary} />
             </Pressable>
 
             {showMore ? (
               <View style={styles.moreSection}>
-                {/* Location breakdown */}
-                <Controller control={control} name="venueName" render={({ field: { onChange, onBlur, value } }) => (
-                  <Input label={tr('b3_evnew_venue_label')} placeholder={tr('b3_evnew_venue_ph')} value={value} onChangeText={onChange} onBlur={onBlur} error={errors.venueName?.message} />
-                )} />
-                <Pressable
-                  onPress={() => setInPerson((v) => !v)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: inPerson }}
-                  style={styles.attestRow}
-                >
-                  <Ionicons
-                    name={inPerson ? 'checkbox' : 'square-outline'}
-                    size={24}
-                    color={inPerson ? colors.primary : colors.textMuted}
-                  />
-                  <View style={styles.attestBody}>
-                    <Text style={styles.attestTitle}>{tr('b3_evnew_in_person_title')}</Text>
-                    <Text style={styles.hint}>
-                      {tr('b3_evnew_in_person_hint')}
-                    </Text>
-                  </View>
-                </Pressable>
-                <Controller control={control} name="address" render={({ field: { onChange, onBlur, value } }) => (
-                  <Input label={tr('b3_evnew_address_label')} placeholder={tr('b3_evnew_address_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                )} />
-                <View style={styles.row}>
-                  <View style={styles.rowItem}>
-                    <Controller control={control} name="city" render={({ field: { onChange, onBlur, value } }) => (
-                      <Input label={tr('b3_evnew_city_label')} placeholder={tr('b3_evnew_city_label')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                    )} />
-                  </View>
-                  <View style={styles.rowItem}>
-                    <Controller control={control} name="country" render={({ field: { onChange, onBlur, value } }) => (
-                      <Input label={tr('b3_evnew_country_label')} placeholder={tr('b3_evnew_country_label')} value={value} onChangeText={onChange} onBlur={onBlur} />
-                    )} />
-                  </View>
-                </View>
+                {attendance === 'IN_PERSON' ? (
+                  <Controller control={control} name="country" render={({ field: { onChange, onBlur, value } }) => (
+                    <Input label={`${tr('b3_evnew_country_label')} (optional)`} placeholder={tr('b3_evnew_country_label')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                  )} />
+                ) : null}
 
-                {/* Max guests */}
-                <View style={styles.row}>
-                  <View style={styles.rowItem}>
-                    <Controller control={control} name="maxGuests" render={({ field: { onChange, onBlur, value } }) => (
-                      <Input label={tr('b3_evnew_max_guests')} placeholder="0" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
-                    )} />
-                  </View>
-                </View>
+                {/* Max guests: empty means no limit and sends nothing */}
+                <Controller control={control} name="maxGuests" render={({ field: { onChange, onBlur, value } }) => (
+                  <Input label={`${tr('b3_evnew_max_guests')} (optional)`} placeholder="No limit" keyboardType="number-pad" value={value} onChangeText={onChange} onBlur={onBlur} />
+                )} />
 
                 {/* Tags */}
                 <View style={styles.fieldGroup}>
-                  <Text style={styles.fieldLabel}>{tr('b3_evnew_tags')}</Text>
+                  <Text style={styles.fieldLabel}>{tr('b3_evnew_tags')} (optional)</Text>
                   <View style={styles.tagRow}>
                     <View style={styles.tagInput}>
                       <Input placeholder={tr('b3_evnew_add_tag_ph')} value={tagInput} onChangeText={setTagInput} onSubmitEditing={addTag} returnKeyType="done" />
@@ -1325,7 +1326,11 @@ export default function NewEventScreen() {
 
                 {/* Organizer */}
                 <Controller control={control} name="organizer" render={({ field: { onChange, onBlur, value } }) => (
-                  <Input label={tr('b3_evnew_organizer_label')} placeholder={tr('b3_evnew_organizer_ph')} value={value} onChangeText={onChange} onBlur={onBlur} error={errors.organizer?.message} />
+                  <Input label={`${tr('b3_evnew_organizer_label')} (optional)`} placeholder={tr('b3_evnew_organizer_ph')} value={value} onChangeText={onChange} onBlur={onBlur} />
+                )} />
+
+                <Controller control={control} name="description" render={({ field: { onChange, onBlur, value } }) => (
+                  <Input label={`${tr('b3_evnew_desc_label')} (optional)`} placeholder={tr('b3_evnew_desc_ph')} value={value} onChangeText={onChange} onBlur={onBlur} multiline style={styles.multiline} />
                 )} />
 
                 {/* Assign photographer — public events only; a private event is
@@ -1384,15 +1389,6 @@ export default function NewEventScreen() {
               </View>
             ) : null}
 
-            <Text style={styles.formEyebrow}>ABOUT</Text>
-            <Controller
-              control={control}
-              name="description"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <Input label={tr('b3_evnew_desc_label')} placeholder={tr('b3_evnew_desc_ph')} value={value} onChangeText={onChange} onBlur={onBlur} multiline style={styles.multiline} error={errors.description?.message} />
-              )}
-            />
-
           </View>
         </ScrollView>
         <View style={styles.stickyBar}>
@@ -1407,6 +1403,10 @@ export default function NewEventScreen() {
             }
             onPress={submit}
             loading={busy}
+            // Looks disabled until every required field is valid, but stays tappable: a tap shows what is missing and
+            // scrolls to the first such field, which a truly disabled button could not do.
+            style={!canCreate ? styles.softDisabled : undefined}
+            accessibilityHint={!canCreate ? 'Some required fields are missing. Tap to see which.' : undefined}
           />
         </View>
       </KeyboardAvoidingView>
@@ -1551,6 +1551,7 @@ const useStyles = makeStyles((c) => ({
   moreToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.xs },
   moreToggleText: { fontSize: fontSize.md, fontWeight: fontWeight.bold, color: c.primary },
   moreSection: { gap: spacing.lg },
+  softDisabled: { opacity: 0.55 },
 
   tagRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   tagInput: { flex: 1 },
