@@ -173,6 +173,17 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-06-events-get-started",
+            "date": "2026-11-06",
+            "title": "Easier to create in Events",
+            "items": [
+              {"icon": "add-circle-outline", "title": "A create button you can find", "body": "The small plus in the corner is now a labelled button at the bottom right: Create event, New album, New photobook or New post, depending on the tab. It shrinks to a round plus while you scroll down."},
+              {"icon": "rocket-outline", "title": "Get started with Events", "body": "New to Events? A quick sheet offers what you can do first. Tick Don't show this again to hide it on every device, or open it any time from Help."},
+              {"icon": "calendar-outline", "title": "Check the year", "body": "If you set an event date more than a year ahead, the app asks whether the year is right before it saves, so a typo like 2028 does not hide your event."},
+              {"icon": "radio-outline", "title": "Still live reminder", "body": "If your stream has had no signal for two hours, you get a reminder with a shortcut to end it. Streams are never ended for you."}
+            ]
+          },
+          {
             "id": "2026-11-06-offer-restyle",
             "date": "2026-11-06",
             "title": "Clearer opportunity offers",

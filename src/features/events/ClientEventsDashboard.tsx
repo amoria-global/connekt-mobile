@@ -62,6 +62,11 @@ import {
   type EventSort,
 } from './clientEventsModel';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
+import { CreateFab, FAB_SPACE, useFabCollapse } from './CreateFab';
+import { CREATE_LABEL, type GetStartedKey } from './getStarted';
+import { GetStartedSheet } from './GetStartedSheet';
+import { useGetStarted } from './useGetStarted';
+import { useCanCreate } from './useCanCreate';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 
@@ -85,10 +90,12 @@ export function ClientEventsDashboard({
   topInset = 0,
   initialSearch = '',
   coordinator = false,
+  reopenGetStarted,
 }: {
   topInset?: number;
   initialSearch?: string;
   coordinator?: boolean;
+  reopenGetStarted?: string;
 }) {
   const styles = useStyles();
   const clearance = useTabBarClearance();
@@ -98,6 +105,9 @@ export function ClientEventsDashboard({
   const router = useRouter();
   const { data, loading, error, refresh, refreshQuietly } = useAsync(coordinator ? listCoordinatorEvents : listEvents);
   const [pulling, setPulling] = useState(false);
+  const fab = useFabCollapse();
+  const canCreate = useCanCreate();
+  const getStarted = useGetStarted({ listLoaded: !!data, hasItems: (data?.length ?? 0) > 0, reopenKey: reopenGetStarted });
 
   // Quiet on return from an edit so the change shows without a spinner flash. Not on the first
   // focus: the screen is already loading, and a quiet tick then would swallow that request's failure.
@@ -182,7 +192,6 @@ export function ClientEventsDashboard({
             {coordinator ? 'Events you coordinate: bookings, photographers and live sessions.' : tr('Your bookings, sessions and live events.')}
           </Text>
         </View>
-        <ActionButton label="New" icon="add" variant="primary" compact onPress={newEvent} />
       </View>
 
       <View style={[styles.row, styles.pad]}>
@@ -276,7 +285,9 @@ export function ClientEventsDashboard({
         data={isList ? rows : []}
         keyExtractor={(e) => String(e.id)}
         ListHeaderComponent={header}
-        contentContainerStyle={[styles.listContent, { paddingBottom: clearance }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: clearance + FAB_SPACE }]}
+        onScroll={fab.onScroll}
+        scrollEventThrottle={16}
         ItemSeparatorComponent={ListGap}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={pulling} onRefresh={onPull} tintColor={colors.primary} progressViewOffset={topInset} />}
@@ -367,6 +378,23 @@ export function ClientEventsDashboard({
           )
         }
       />
+
+      {canCreate ? <CreateFab label={CREATE_LABEL.events} collapsed={fab.collapsed} onPress={newEvent} /> : null}
+
+      {getStarted.open ? (
+        <GetStartedSheet
+          actions={getStarted.actions}
+          createLabel={CREATE_LABEL.events}
+          initialDismissed={getStarted.dismissed}
+          onClose={getStarted.close}
+          onDismissChange={getStarted.setForever}
+          onPick={(key: GetStartedKey) => {
+            getStarted.close();
+            if (key === 'photobook') open('/photobook/new');
+            else newEvent();
+          }}
+        />
+      ) : null}
 
       <EventQrSheet visible={!!qrTarget} onClose={() => setQrTarget(null)} eventId={qrTarget?.id ?? ''} title={qrTarget?.title ?? ''} published={!!qrTarget?.published} />
 
