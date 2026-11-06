@@ -90,10 +90,10 @@ describe('HostEventScreen', () => {
     expect(titled(r, 'Publish and go live')).toBeUndefined();
   });
 
-  it('tells a non-photographer account that hosting is for photographers', async () => {
-    serve(eligibility({ canHostFree: false, canHostPaid: false, reason: 'NOT_A_PHOTOGRAPHER' }));
+  it('tells a viewer account that hosting is not available for it', async () => {
+    serve(eligibility({ canHostFree: false, canHostPaid: false, reason: 'ROLE_CANNOT_HOST' }));
     const r = await mount();
-    expect(text(r)).toContain('photographer accounts');
+    expect(text(r)).toContain('not available for this account type');
   });
 
   it('shows an error with a retry when eligibility cannot be read', async () => {

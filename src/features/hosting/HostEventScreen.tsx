@@ -49,8 +49,8 @@ function todayYmd(): string {
 
 export function NotAvailable({ eligibility }: { eligibility: HostingEligibility }) {
   const message =
-    eligibility.reason === 'NOT_A_PHOTOGRAPHER'
-      ? 'Hosting your own events is for photographer accounts.'
+    eligibility.reason === 'ROLE_CANNOT_HOST' || eligibility.reason === 'NOT_A_PHOTOGRAPHER'
+      ? 'Hosting your own events is not available for this account type.'
       : 'Hosting your own events is not available yet. We will let you know when it is.';
   return <EmptyState icon="videocam-off-outline" title="Hosting is not available" message={message} />;
 }
