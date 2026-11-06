@@ -48,7 +48,7 @@ describe('Get started sheet', () => {
     const text = flat(r.root);
     expect(text).toContain('Get started with Events');
     expect(text).toContain('What would you like to do first?');
-    expect(text).toContain('Go live');
+    expect(text).toContain('Host an event');
     expect(text).toContain('New album');
     expect(text).toContain('Photobook');
     expect(text).not.toContain('Book a photographer for your event');
@@ -62,7 +62,7 @@ describe('Get started sheet', () => {
     const { r, onPick } = await mount('Photographer');
     await press(r, 'New album');
     expect(onPick).toHaveBeenLastCalledWith('new-album');
-    await press(r, 'Go live');
+    await press(r, 'Host an event');
     expect(onPick).toHaveBeenLastCalledWith('go-live');
   });
 

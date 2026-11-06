@@ -54,6 +54,7 @@ import { CreateFab, FAB_SPACE, useFabCollapse } from './CreateFab';
 import { CREATE_LABEL, type GetStartedKey } from './getStarted';
 import { GetStartedSheet } from './GetStartedSheet';
 import { useGetStarted } from './useGetStarted';
+import { useCanCreate } from './useCanCreate';
 import { formatDate } from '@/utils/format';
 import {
   acceptEventBooking,
@@ -117,6 +118,7 @@ export function PhotographerEventsDashboard({ topInset = 0, reopenGetStarted }: 
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
   const fab = useFabCollapse();
+  const canCreate = useCanCreate();
   const getStarted = useGetStarted({ listLoaded: !!data, hasItems: (data?.length ?? 0) > 0, reopenKey: reopenGetStarted });
 
   const viewTabs: { key: ViewTab; label: string; icon: keyof typeof Ionicons.glyphMap; route?: Href }[] = useMemo(
@@ -364,12 +366,12 @@ export function PhotographerEventsDashboard({ topInset = 0, reopenGetStarted }: 
         }
       />
 
-      <CreateFab label={CREATE_LABEL.events} collapsed={fab.collapsed} onPress={() => router.push('/host/new' as Href)} />
+      {canCreate ? <CreateFab label={CREATE_LABEL.host} collapsed={fab.collapsed} onPress={() => router.push('/host/new' as Href)} /> : null}
 
       {getStarted.open ? (
         <GetStartedSheet
           actions={getStarted.actions}
-          createLabel={CREATE_LABEL.events}
+          createLabel={CREATE_LABEL.host}
           initialDismissed={getStarted.dismissed}
           onClose={getStarted.close}
           onDismissChange={getStarted.setForever}

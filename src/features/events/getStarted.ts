@@ -16,14 +16,14 @@ export type GetStartedAction = { key: GetStartedKey; title: string; body: string
 
 const ALL: Record<GetStartedKey, GetStartedAction> = {
   'create-event': { key: 'create-event', title: 'Create event', body: 'Book a photographer for your event', icon: 'calendar-outline', tone: 'primary' },
-  'go-live': { key: 'go-live', title: 'Go live', body: 'Host and stream an event yourself', icon: 'radio-outline', tone: 'live' },
+  'go-live': { key: 'go-live', title: 'Host an event', body: 'Host and stream an event yourself', icon: 'radio-outline', tone: 'live' },
   'new-album': { key: 'new-album', title: 'New album', body: 'Upload, share or sell photos', icon: 'images-outline', tone: 'active' },
   photobook: { key: 'photobook', title: 'Photobook', body: 'Design a printed book', icon: 'book-outline', tone: 'accent' },
 };
 
 /**
  * What each role can start. A photographer's "create event" is hosting one (the event screen sends them to /host/new),
- * so they get Go live. A workspace collaborator gets nothing: the server decides what they may do.
+ * so they get Host an event (the Go live flow). A workspace collaborator gets nothing: the server decides what they may do.
  */
 export function getStartedActions(role: Role | undefined, collaborator = false): GetStartedAction[] {
   if (collaborator) return [];
@@ -40,7 +40,7 @@ export function getStartedActions(role: Role | undefined, collaborator = false):
 }
 
 /** The label of the floating create button for each section tab. */
-export const CREATE_LABEL = { events: 'Create event', albums: 'New album', photobooks: 'New photobook', content: 'New post' } as const;
+export const CREATE_LABEL = { events: 'Create event', host: 'Host an event', albums: 'New album', photobooks: 'New photobook', content: 'New post' } as const;
 
 /** Whether the sheet should open by itself now. */
 export function shouldAutoOpen(s: { actions: number; listLoaded: boolean; hasItems: boolean; dismissed: boolean | null; shownThisSession: boolean }): boolean {

@@ -99,7 +99,7 @@ describe('Events screen: tabs and default state', () => {
 
   it('puts creation in a labelled floating button and opens an event with one tap', async () => {
     const r = await mount();
-    await press(byLabel(r, 'Create event')[0]);
+    await press(byLabel(r, 'Host an event')[0]);
     expect(mockPush).toHaveBeenCalledWith('/host/new');
     await press(r.root.findAll((n) => String(n.props?.accessibilityLabel).startsWith('Booking Testing.') && typeof n.props.onPress === 'function')[0]);
     expect(mockPush).toHaveBeenCalledWith('/event/soon');

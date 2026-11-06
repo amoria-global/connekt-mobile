@@ -66,6 +66,7 @@ import { CreateFab, FAB_SPACE, useFabCollapse } from './CreateFab';
 import { CREATE_LABEL, type GetStartedKey } from './getStarted';
 import { GetStartedSheet } from './GetStartedSheet';
 import { useGetStarted } from './useGetStarted';
+import { useCanCreate } from './useCanCreate';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 
@@ -105,6 +106,7 @@ export function ClientEventsDashboard({
   const { data, loading, error, refresh, refreshQuietly } = useAsync(coordinator ? listCoordinatorEvents : listEvents);
   const [pulling, setPulling] = useState(false);
   const fab = useFabCollapse();
+  const canCreate = useCanCreate();
   const getStarted = useGetStarted({ listLoaded: !!data, hasItems: (data?.length ?? 0) > 0, reopenKey: reopenGetStarted });
 
   // Quiet on return from an edit so the change shows without a spinner flash. Not on the first
@@ -377,7 +379,7 @@ export function ClientEventsDashboard({
         }
       />
 
-      <CreateFab label={CREATE_LABEL.events} collapsed={fab.collapsed} onPress={newEvent} />
+      {canCreate ? <CreateFab label={CREATE_LABEL.events} collapsed={fab.collapsed} onPress={newEvent} /> : null}
 
       {getStarted.open ? (
         <GetStartedSheet
