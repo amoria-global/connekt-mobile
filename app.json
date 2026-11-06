@@ -173,6 +173,15 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-06-events-get-started",
+            "date": "2026-11-06",
+            "title": "Easier to create in Events",
+            "items": [
+              {"icon": "add-circle-outline", "title": "A create button you can find", "body": "The small plus in the corner is now a labelled button at the bottom right: Create event, New album, New photobook or New post, depending on the tab. It shrinks to a round plus while you scroll down."},
+              {"icon": "rocket-outline", "title": "Get started with Events", "body": "New to Events? A quick sheet offers what you can do first. Tick Don't show this again to hide it on every device, or open it any time from Help."}
+            ]
+          },
+          {
             "id": "2026-11-06-offer-restyle",
             "date": "2026-11-06",
             "title": "Clearer opportunity offers",

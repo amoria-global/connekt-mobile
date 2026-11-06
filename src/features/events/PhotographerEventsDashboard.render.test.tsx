@@ -9,7 +9,7 @@ import { dayLabel } from './eventsFilter';
 /**
  * RENDERED Events screen (react-test-renderer, not a device) over a faked transport. Pins: the four section tabs, the
  * default state (List, All, Any date), chip counts that equal the rows shown, the opt-in calendar and the removable date
- * chip, the empty-result help, creation in the title row, and Remove on finished events.
+ * chip, the empty-result help, the labelled create button, and Remove on finished events.
  */
 import '@/test/autoUnmount';
 
@@ -97,9 +97,9 @@ describe('Events screen: tabs and default state', () => {
     expect(rowTitles(r)).toEqual(['Past engagement', 'Old summit']);
   });
 
-  it('puts creation in the title row and opens an event with one tap', async () => {
+  it('puts creation in a labelled floating button and opens an event with one tap', async () => {
     const r = await mount();
-    await press(byLabel(r, 'Create new event')[0]);
+    await press(byLabel(r, 'Create event')[0]);
     expect(mockPush).toHaveBeenCalledWith('/host/new');
     await press(r.root.findAll((n) => String(n.props?.accessibilityLabel).startsWith('Booking Testing.') && typeof n.props.onPress === 'function')[0]);
     expect(mockPush).toHaveBeenCalledWith('/event/soon');
