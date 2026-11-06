@@ -97,6 +97,7 @@ import { fontSize, fontWeight, fonts, makeStyles, radii, spacing, useTheme, onFi
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 import { glassTile } from '@/components/ui/GlassCard';
+import { confirmYear } from '@/features/events/farFutureDate';
 import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
 
 export type BookingStep = 'select' | 1 | 2 | 3 | 4 | 5;
@@ -832,11 +833,12 @@ export function BookingModeSelector({
     return null;
   };
 
-  const next = () => {
+  const next = async () => {
     setError(null);
     if (step === 1) {
       const e = validateStep1();
       if (e) return setError(e);
+      if (!(await confirmYear(draft.date))) return;
       setStep(2);
       scrollToTop();
       void persistDraftToServer(draft, 2);
