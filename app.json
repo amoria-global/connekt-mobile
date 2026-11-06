@@ -173,6 +173,16 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-06-event-form",
+            "date": "2026-11-06",
+            "title": "A clearer create event form",
+            "items": [
+              {"icon": "people-outline", "title": "Choose how guests attend", "body": "Create event now asks whether guests join in person with the live stream, or by live stream only. For an in person event, the venue and city show right below."},
+              {"icon": "checkmark-circle-outline", "title": "Required fields are always visible", "body": "Everything you must fill in sits in the main form, marked with a star. More options holds only optional extras, and the form shows exactly what is missing."},
+              {"icon": "infinite-outline", "title": "Max guests has no limit by default", "body": "Leave Max guests empty for no limit. Your country is now filled in from your profile phone number instead of always being Rwanda."}
+            ]
+          },
+          {
             "id": "2026-11-06-host-any-role",
             "date": "2026-11-06",
             "title": "Go live from your own event",

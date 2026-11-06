@@ -85,6 +85,7 @@ export default function HostEventScreen() {
   const progress = useRef<HostProgress>({});
 
   const [saved, setSaved] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [preview, setPreview] = useState<(EarningsPreview & { fee: number }) | null>(null);
   const [previewFailedFor, setPreviewFailedFor] = useState<number | null>(null);
 
@@ -235,7 +236,7 @@ export default function HostEventScreen() {
         {errors.cover ? <Text style={[styles.err, { color: colors.error }]}>{errors.cover}</Text> : null}
 
         <InsetField
-          label="Title"
+          label="Title *"
           value={title}
           onChangeText={setTitle}
           placeholder="e.g. Friday night live set"
@@ -275,7 +276,7 @@ export default function HostEventScreen() {
         {paid ? (
           <View style={styles.group}>
             <MoneyInput
-              label="Price"
+              label="Price *"
               value={price}
               onChangeText={setPrice}
               currencyId={currencies.data?.find((c) => c.code === currencyCode)?.id ?? ''}
@@ -312,19 +313,34 @@ export default function HostEventScreen() {
           }}
         />
 
-        <DateField label="Date" value={date} onChange={setDate} error={errors.date} minimumDate={new Date()} />
+        <DateField label="Date *" value={date} onChange={setDate} error={errors.date} minimumDate={new Date()} />
         <TimeField label="Start time (optional)" value={startTime} onChange={setStartTime} error={errors.startTime} />
 
-        <TimeField label="End time" value={endTime} onChange={setEndTime} />
-        <InsetField label="Where" value={location} onChangeText={setLocation} placeholder="Place or online" editable={!busy} />
-        <InsetField
-          label="Description"
-          value={description}
-          onChangeText={setDescription}
-          placeholder="What will you stream?"
-          multiline
-          editable={!busy}
-        />
+        {/* Only fields the server treats as optional live here, so collapsing it can never block publishing. */}
+        <Pressable
+          style={styles.moreToggle}
+          onPress={() => setShowMore((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel="More options (optional)"
+          accessibilityState={{ expanded: showMore }}
+        >
+          <Text style={[styles.moreToggleText, { color: colors.primary }]}>{tr('More options (optional)')}</Text>
+          <Ionicons name={showMore ? 'chevron-up' : 'chevron-down'} size={18} color={colors.primary} />
+        </Pressable>
+        {showMore ? (
+          <View style={styles.moreSection}>
+            <TimeField label="End time (optional)" value={endTime} onChange={setEndTime} />
+            <InsetField label="Where (optional)" value={location} onChangeText={setLocation} placeholder="Place or online" editable={!busy} />
+            <InsetField
+              label="Description (optional)"
+              value={description}
+              onChangeText={setDescription}
+              placeholder="What will you stream?"
+              multiline
+              editable={!busy}
+            />
+          </View>
+        ) : null}
 
         <View style={styles.notice}>
           <Ionicons name="videocam-outline" size={18} color={colors.primary} />
@@ -354,6 +370,9 @@ export default function HostEventScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
+  moreToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.xs },
+  moreToggleText: { fontWeight: '700' },
+  moreSection: { gap: spacing.lg },
   content: { gap: spacing.md, paddingBottom: spacing.lg },
   footer: { gap: spacing.sm, paddingTop: spacing.sm, paddingBottom: spacing.md },
   scroll: { flex: 1 },
