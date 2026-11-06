@@ -104,6 +104,9 @@ export function notificationTarget(n: NotificationRouteInput): Href {
       case 'EVENT':
       case 'ASSIGNMENT':
         return `/event/${ref}` as Href;
+      // "Your stream is still live. End it?": the stream controls, where End stream is one tap.
+      case 'STREAM_REMINDER':
+        return (SAFE_ID.test(ref) ? `/stream/control/${ref}` : '/events') as Href;
       case 'CANDIDATE':
       case 'CANDIDATES':
       case 'PHOTOGRAPHER_AVAILABLE':

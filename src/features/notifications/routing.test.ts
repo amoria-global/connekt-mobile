@@ -10,6 +10,10 @@ describe('Incoming offer & deep-link notification routing', () => {
     resetNavigationDedup();
   });
 
+  it('opens the stream controls from a still-live reminder', () => {
+    expect(notificationTarget({ type: 'STREAM_REMINDER', referenceId: 'ev-1', eventId: 'ev-1' })).toBe('/stream/control/ev-1');
+  });
+
   it('opens the exact opportunity from its relative link', () => {
     expect(notificationTarget({ type: 'OPPORTUNITY', link: '/opportunities/abc-123' })).toBe(
       '/bookings?tab=opportunities&candidate=abc-123',
