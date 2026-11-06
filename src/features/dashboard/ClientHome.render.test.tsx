@@ -390,3 +390,32 @@ describe('client trend chart', () => {
     expect(text).toContain('Trend data could not be loaded');
   });
 });
+
+describe('Go live tiles for a client', () => {
+  function serveHosting(eligibility: unknown) {
+    serve({});
+    const base = mockGet.getMockImplementation() as (path: string) => Promise<unknown>;
+    mockGet.mockImplementation(async (path: string) =>
+      path.startsWith('/photographer/hosted-events/eligibility')
+        ? eligibility
+        : path.startsWith('/photographer/hosted-events')
+          ? ok([])
+          : base(path),
+    );
+  }
+
+  it('shows Go live and My hosted events when the server lets this account host, and Go live opens Host an event', async () => {
+    serveHosting(ok({ enabled: true, canHostFree: true, canHostPaid: false, reason: 'KYC_REQUIRED_FOR_PAID' }));
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Go live');
+    expect(text).toContain('My hosted events');
+    await press(r, 'Go live. Host your own event');
+    expect(mockPush).toHaveBeenCalledWith('/host/new');
+  });
+
+  it('shows neither tile when the server says this account cannot host', async () => {
+    serveHosting(ok({ enabled: true, canHostFree: false, canHostPaid: false, reason: 'ROLE_CANNOT_HOST' }));
+    expect(flat((await mount()).root)).not.toContain('My hosted events');
+  });
+});
