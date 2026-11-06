@@ -90,6 +90,7 @@ import {
 } from '@/features/client/homeModel';
 import { useCurrency } from '@/store/currency';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { HostEntry } from '@/features/hosting/HostEntry';
 import { formatDate } from '@/utils/format';
 import { makeStyles, radii, spacing, useTheme, type Palette } from '@/theme';
 import { DashboardGreeting } from './DashboardGreeting';
@@ -369,6 +370,10 @@ export function ClientHome() {
               }}
             />
           ) : null}
+        </View>
+        {/* The same Go live and My hosted events tiles the photographer has; the server decides who sees them. */}
+        <View style={styles.stack}>
+          <HostEntry />
         </View>
         <View style={styles.row}>
           <ActionButton label="My albums" icon="images-outline" onPress={() => open('/gallery')} style={styles.flex} />
