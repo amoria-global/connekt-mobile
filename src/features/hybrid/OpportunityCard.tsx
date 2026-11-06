@@ -1,16 +1,22 @@
 /**
- * One Post My Event opportunity for a photographer.
- * Renders the structured 4-step offer summary (Event details, Coverage & print
- * products, Delivery & budget) and opens the full Offer details page on tap or button click.
+ * One Post My Event opportunity for a photographer, in the Home screen's style: glass card, Space Grotesk numbers, blue
+ * for the action, magenta for the opportunity, amber for the deadline, green only for a good match.
+ *
+ * The card previews; it does not accept. "View offer" opens Offer details, where the photographer accepts or rejects.
  */
 import React from 'react';
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage, type TranslationKey } from '@/store/language';
-import { fontSize, fontWeight, makeStyles, radii, spacing, useTheme, onFill, type Palette } from '@/theme';
+import { fonts, fontSize, fontWeight, makeStyles, radii, spacing, useTheme, type Palette } from '@/theme';
+import { GlassCard } from '@/components/ui/GlassCard';
+import { GhostButton, PrimaryButton } from '@/components/ui/Button';
+import { IconTile } from '@/components/ui/IconTile';
+import { chipColors } from '@/components/ui/StatusChip';
 import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
-import { countdownString, EventStartClock, MODE_META, useCountdown } from './hybridUi';
+import { countdownString, EventStartClock, useCountdown } from './hybridUi';
 import { parseOpportunityOfferBrief } from './offerBrief';
+import { cardLines, formatMoney, matchChips, titleCasePlace } from './offerPresentation';
 
 type Props = {
   opportunity: PhotographerOpportunity;
@@ -35,24 +41,11 @@ const STATUS = (c: Palette): Record<string, { key: TranslationKey; color: string
 const prettyDate = (d: string, lang: string) => {
   const t = Date.parse(`${d.slice(0, 10)}T00:00:00`);
   const locale = lang === 'fr' ? 'fr-FR' : lang === 'es' ? 'es-ES' : 'en-GB';
-  return Number.isFinite(t) ? new Date(t).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : d;
-};
-
-const formatRwf = (n?: number | null) => `RWF ${Math.round(n || 450000).toLocaleString('en-US')}`;
-
-/** "kigali" reads "Kigali": a capital at the start of each word. */
-const titleCase = (text: string) => text.replace(/(^|[\s·•-]+)([a-z])/g, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
-
-/** Venue and city, without saying the same place twice. */
-const placeLine = (venue?: string | null, city?: string | null): string | null => {
-  const v = venue ? titleCase(venue.trim()) : '';
-  const c = city ? titleCase(city.trim()) : '';
-  if (v && c && v.toLowerCase() !== c.toLowerCase() && !v.toLowerCase().includes(c.toLowerCase())) return `${v} • ${c}`;
-  return v || c || null;
+  return Number.isFinite(t) ? new Date(t).toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short' }) : d;
 };
 
 export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, busy, highlighted }: Props) {
-  const { colors } = useTheme();
+  const { colors, gradients, isDark } = useTheme();
   const { language, t } = useLanguage();
   const styles = useStyles();
   const open = (o.status ?? 'INVITED') === 'INVITED';
@@ -61,239 +54,152 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
   const urgent = open && !!left && !left.done && left.ms < 5 * 60 * 1000;
   const st = STATUS(colors)[o.status ?? 'INVITED'] ?? STATUS(colors).INVITED;
   const brief = parseOpportunityOfferBrief(o);
-  const clientOfferRwf = o.maxBudget || o.minBudget || 450000;
-  const dateStr = o.eventDate ? prettyDate(o.eventDate, language) : t('oppDateTbc');
-  const locStr = placeLine(o.venue, o.city) ?? t('oppLocationSharedOnBooking');
-  const eventTypeLabel = titleCase(o.eventType || o.eventTitle || 'Event');
+  const clientOffer = o.maxBudget || o.minBudget || null;
+  const dateText = o.eventDate ? prettyDate(o.eventDate, language) : t('oppDateTbc');
+  const title = titleCasePlace([o.eventType || o.eventTitle || 'Event', o.city].filter(Boolean).join(' · '));
+  const lines = cardLines(o, brief, dateText);
+  const { chips, more } = matchChips(o.matchReasons, 3, o.city);
+  // The deadline is amber; the last five minutes turn red because the offer is about to disappear.
+  const timer = chipColors(colors, gradients, isDark, urgent ? 'error' : 'pending');
 
-  const handleOpenOrApprove = () => {
-    if (onPress) {
-      onPress(o);
-    } else {
-      onApprove(o, 'CLIENT');
-    }
-  };
-
-  const handleOpenOrReject = () => {
-    if (onPress) {
-      onPress(o);
-    } else {
-      onReject(o);
-    }
-  };
+  // The card never accepts. Without a details screen to open (no onPress), View offer keeps the old behaviour.
+  const viewOffer = () => (onPress ? onPress(o) : onApprove(o, 'CLIENT'));
+  const decline = () => (onPress ? onPress(o) : onReject(o));
 
   return (
-    <Pressable
-      onPress={onPress ? () => onPress(o) : undefined}
-      style={[styles.card, (open || highlighted) && { borderColor: MODE_META.HYBRID.color }, highlighted && { borderWidth: 2 }]}
-      accessibilityRole={onPress ? 'button' : undefined}
-    >
-      <View style={styles.headerRow}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1 }}>
-          <Ionicons name={st.icon} size={13} color={st.color} />
-          <Text style={[styles.eyebrow, { color: st.color }]} numberOfLines={1}>{t(st.key).toUpperCase()}</Text>
-        </View>
-        {open && left ? (
-          <View style={[styles.timer, urgent && { backgroundColor: colors.errorBg }]} accessibilityLabel={`Time left to answer ${countdownString(left)}`}>
-            <Ionicons name="stopwatch-outline" size={12} color={urgent ? colors.error : MODE_META.HYBRID.color} />
-            <Text style={[styles.timerText, urgent && { color: colors.error }]}>{countdownString(left, '00m 00s')}</Text>
+    <GlassCard style={[styles.card, (open || highlighted) && { borderColor: colors.accent }, highlighted && { borderWidth: 2 }]}>
+      <Pressable
+        onPress={onPress ? () => onPress(o) : undefined}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={onPress ? `${title}. ${t(st.key)}` : undefined}
+        style={styles.body}
+      >
+        <View style={styles.header}>
+          <IconTile icon={st.icon} tone={open ? 'accent' : 'neutral'} />
+          <View style={styles.headerText}>
+            <Text style={[styles.eyebrow, { color: st.color }]}>{open ? 'NEW NEARBY OPPORTUNITY' : t(st.key).toUpperCase()}</Text>
+            <Text style={styles.title}>{title}</Text>
           </View>
-        ) : null}
-      </View>
-
-      {/* Requested service badge */}
-      <View style={styles.requestedRow}>
-        <View style={styles.requestedPill}>
-          <Ionicons name="videocam-outline" size={13} color={colors.accent} />
-          <Text style={styles.requestedText}>Requested: {brief.coverageModeLabel}</Text>
+          {open && left ? (
+            <View
+              style={[styles.timer, { backgroundColor: timer.bg }]}
+              accessibilityLabel={`Time left to answer ${countdownString(left)}`}
+            >
+              <Ionicons name="stopwatch-outline" size={13} color={timer.fg} />
+              <Text style={[styles.timerText, { color: timer.fg }]}>{countdownString(left, '00m 00s')}</Text>
+            </View>
+          ) : null}
         </View>
-        <Text style={styles.clientKindBadge}>{brief.clientTypeLabel}</Text>
-      </View>
 
-      {/* Client Offer Banner */}
-      <View style={styles.offerBanner}>
-        <View style={{ flex: 1 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <Ionicons name="wallet-outline" size={13} color={colors.accent} />
+        <View style={styles.offerRow}>
+          <View style={styles.offerText}>
             <Text style={styles.offerEyebrow}>{"CLIENT'S OFFER"}</Text>
+            <Text style={styles.offerAmount}>{clientOffer != null ? formatMoney(clientOffer) : 'Flexible budget'}</Text>
+            <Text style={styles.offerSub}>Full requested scope</Text>
           </View>
-          <Text style={styles.offerPrice}>{formatRwf(clientOfferRwf)}</Text>
-          <Text style={styles.offerSub}>For the complete requested scope</Text>
+          <View style={styles.kind}>
+            <Text style={styles.kindText}>{brief.clientTypeLabel}</Text>
+          </View>
         </View>
-        {onPress ? (
-          <View style={styles.compareChip}>
-            <Text style={styles.compareChipText}>Offer details</Text>
-            <Ionicons name="chevron-forward" size={13} color={colors.primary} />
+
+        <View style={styles.list}>
+          {lines.map((l) => (
+            <View key={l.icon} style={styles.line}>
+              <Ionicons name={l.icon} size={16} color={colors.textMuted} style={styles.lineIcon} />
+              <Text style={styles.lineLeft}>{l.left}</Text>
+              {l.right ? <Text style={styles.lineRight}>{l.right}</Text> : null}
+            </View>
+          ))}
+        </View>
+
+        {chips.length ? (
+          <View style={styles.chips}>
+            {chips.map((c) => {
+              const ok = chipColors(colors, gradients, isDark, 'success');
+              return (
+                <View key={c} style={[styles.chip, { backgroundColor: ok.bg }]}>
+                  <Ionicons name="checkmark" size={13} color={ok.fg} />
+                  <Text style={[styles.chipText, { color: ok.fg }]}>{c}</Text>
+                </View>
+              );
+            })}
+            {more > 0 ? (
+              <View style={[styles.chip, styles.chipMore]}>
+                <Text style={styles.chipMoreText}>{`+${more} more`}</Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
-      </View>
 
-      {/* 2-Column Compact Offer Summary Strip */}
-      <View style={styles.summaryStrip}>
-        <View style={styles.summaryCol}>
-          <SummaryLine
-            icon="calendar-outline"
-            text={`${eventTypeLabel} • ${dateStr} • ${locStr} • ${brief.coverageHoursLabel}`}
-          />
-          <SummaryLine
-            icon="camera-outline"
-            text={`${brief.editedPhotosLabel} photos • ${brief.shortVideosLabel !== 'None' || brief.longVideosLabel !== 'None' ? `${brief.shortVideosLabel !== 'None' ? `Short ${brief.shortVideosLabel}` : ''}${brief.shortVideosLabel !== 'None' && brief.longVideosLabel !== 'None' ? ' / ' : ''}${brief.longVideosLabel !== 'None' ? `Long ${brief.longVideosLabel}` : ''}` : 'No video'} • ${brief.instantUpdatesLabel.startsWith('Yes') ? 'Instant updates' : 'No instant updates'}`}
-          />
-          <SummaryLine
-            icon="book-outline"
-            text={`Book: ${brief.photoBookLabel} • Album: ${brief.photoAlbumLabel} • Portraits: ${brief.wallPortraitsLabel}`}
-          />
-        </View>
-        <View style={styles.summaryDivider} />
-        <View style={styles.summaryColRight}>
-          <SummaryLine icon="document-text-outline" text={brief.digitalDeliveryLabel} />
-          <SummaryLine icon="print-outline" text={brief.printDeliveryLabel} />
-          <SummaryLine icon="cash-outline" text={formatRwf(clientOfferRwf)} strong />
-        </View>
-      </View>
+        {o.status === 'APPROVED' && o.deliveryPolicy ? (
+          <View style={styles.policyPill}>
+            <Ionicons
+              name={o.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'cube-outline' : 'checkmark-circle-outline'}
+              size={14}
+              color={colors.primary}
+            />
+            <Text style={styles.policyPillText}>
+              {o.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+                ? 'Accepted with your package delivery policy'
+                : "Accepted with client's delivery schedule"}
+            </Text>
+          </View>
+        ) : null}
 
-      {o.status === 'APPROVED' && o.deliveryPolicy ? (
-        <View style={styles.policyPill}>
-          <Ionicons
-            name={o.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'cube-outline' : 'checkmark-circle-outline'}
-            size={13}
-            color={colors.primary}
-          />
-          <Text style={styles.policyPillText}>
-            {o.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
-              ? 'Accepted with your package delivery policy'
-              : "Accepted with client's delivery schedule"}
-          </Text>
-        </View>
-      ) : null}
-
-      {o.status === 'SELECTED' && o.eventStartAt ? <EventStartClock startAt={o.eventStartAt} /> : null}
+        {o.status === 'SELECTED' && o.eventStartAt ? <EventStartClock startAt={o.eventStartAt} /> : null}
+      </Pressable>
 
       {open ? (
         <View style={styles.actions}>
-          <Pressable
-            onPress={handleOpenOrReject}
-            disabled={busy || expired}
-            style={[styles.secondary, (busy || expired) && styles.disabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t('oppNotThisTime')}
-          >
-            <Text style={styles.secondaryText}>Decline</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleOpenOrApprove}
-            disabled={busy || expired}
-            style={[styles.primary, (busy || expired) && styles.disabled]}
-            accessibilityRole="button"
-            accessibilityLabel={t('oppYesAvailable')}
-          >
-            {busy ? <ActivityIndicator color={onFill} /> : (
-              <>
-                <Ionicons name="checkmark" size={18} color={onFill} />
-                <Text style={styles.primaryText}>{expired ? t('oppTimeIsUp') : 'Accept'}</Text>
-              </>
-            )}
-          </Pressable>
+          <View style={styles.declineWrap}>
+            <GhostButton title="Decline" onPress={decline} disabled={busy || expired} accessibilityLabel={t('oppNotThisTime')} />
+          </View>
+          <View style={styles.viewWrap}>
+            <PrimaryButton
+              title={expired ? t('oppTimeIsUp') : 'View offer'}
+              onPress={viewOffer}
+              loading={busy}
+              disabled={expired}
+              accessibilityLabel="View offer"
+            />
+          </View>
         </View>
       ) : null}
-    </Pressable>
-  );
-}
-
-function SummaryLine({
-  icon,
-  text,
-  strong,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  text: string;
-  strong?: boolean;
-}) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  return (
-    <View style={styles.summaryLine}>
-      <Ionicons name={icon} size={13} color={colors.primary} style={{ marginTop: 1 }} />
-      <Text
-        style={[styles.summaryText, strong && { fontWeight: fontWeight.extrabold, color: colors.text }]}
-      >
-        {text}
-      </Text>
-    </View>
+      {open ? <Text style={styles.note}>Accepting happens on Offer details, after you review scope and policies.</Text> : null}
+    </GlassCard>
   );
 }
 
 const useStyles = makeStyles((c) => ({
-  card: { backgroundColor: c.card, borderRadius: radii.xl, borderWidth: 1, borderColor: c.border, padding: spacing.md, gap: spacing.sm },
-  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
-  eyebrow: { fontSize: 11, fontWeight: fontWeight.extrabold, letterSpacing: 0.6 },
-  timer: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: c.tintAccent },
-  timerText: { fontSize: 12, fontWeight: fontWeight.extrabold, color: c.accent, fontVariant: ['tabular-nums'] },
-  requestedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.xs },
-  requestedPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.tintAccent, borderRadius: radii.full, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: c.accent },
-  requestedText: { fontSize: 11, fontWeight: fontWeight.bold, color: c.text },
-  clientKindBadge: { fontSize: 11, fontWeight: fontWeight.semibold, color: c.textMuted },
-  offerBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: c.tintAccent,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.primary,
-    padding: spacing.sm,
-    gap: spacing.sm,
-  },
-  offerEyebrow: { fontSize: 10, fontWeight: fontWeight.extrabold, color: c.primary, letterSpacing: 0.5 },
-  offerPrice: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
-  offerSub: { fontSize: 11, color: c.textSoft },
-  compareChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: c.card,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.full,
-    borderWidth: 1,
-    borderColor: c.border,
-  },
-  compareChipText: { fontSize: 11, fontWeight: fontWeight.bold, color: c.primary },
-  summaryStrip: {
-    flexDirection: 'row',
-    backgroundColor: c.surfaceMuted,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.border,
-    padding: spacing.sm,
-    gap: spacing.sm,
-  },
-  summaryCol: { flex: 1.4, gap: 6 },
-  summaryColRight: { flex: 1, gap: 6 },
-  summaryDivider: { width: 1, backgroundColor: c.border },
-  summaryLine: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  summaryText: { fontSize: 11, color: c.textSoft, flex: 1, lineHeight: 15 },
-  policyPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radii.md,
-    backgroundColor: c.tint,
-  },
-  policyPillText: {
-    fontSize: 11.5,
-    fontWeight: fontWeight.bold,
-    color: c.primary,
-  },
-  reasons: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  reason: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: c.successBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full },
-  reasonText: { fontSize: 11, color: c.text },
-  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
-  primary: { flex: 1.4, minHeight: 48, borderRadius: radii.md, backgroundColor: c.success, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  primaryText: { color: c.textOnPrimary, fontWeight: fontWeight.extrabold, fontSize: fontSize.sm },
-  secondary: { flex: 1, minHeight: 48, borderRadius: radii.md, borderWidth: 1.5, borderColor: c.border, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { color: c.textSoft, fontWeight: fontWeight.bold, fontSize: fontSize.sm },
-  disabled: { opacity: 0.5 },
+  card: { borderRadius: radii.xl, borderWidth: 1, borderColor: c.stroke, padding: spacing.md, gap: spacing.md },
+  body: { gap: spacing.md },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  headerText: { flex: 1, gap: 2 },
+  eyebrow: { fontFamily: fonts.semibold, fontSize: fontSize.xs, letterSpacing: 0.8 },
+  title: { fontFamily: fonts.display, fontSize: fontSize.lg, color: c.text },
+  timer: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 32, paddingHorizontal: spacing.md, borderRadius: radii.full },
+  timerText: { fontFamily: fonts.bold, fontSize: fontSize.xs },
+  offerRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.md },
+  offerText: { flex: 1, gap: 2 },
+  offerEyebrow: { fontFamily: fonts.semibold, fontSize: fontSize.xs, letterSpacing: 0.8, color: c.textMuted },
+  offerAmount: { fontFamily: fonts.display, fontSize: fontSize['2xl'], color: c.text },
+  offerSub: { fontFamily: fonts.regular, fontSize: fontSize.sm, color: c.textSoft },
+  kind: { minHeight: 32, justifyContent: 'center', paddingHorizontal: spacing.md, borderRadius: radii.full, backgroundColor: c.well, borderWidth: 1, borderColor: c.stroke },
+  kindText: { fontFamily: fonts.medium, fontSize: fontSize.xs, color: c.textSoft },
+  list: { borderRadius: radii.md, borderWidth: 1, borderColor: c.stroke, backgroundColor: c.well, padding: spacing.md, gap: spacing.md },
+  line: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  lineIcon: { marginTop: 2 },
+  lineLeft: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, lineHeight: 20, color: c.textSoft },
+  lineRight: { flexShrink: 1, maxWidth: '55%', textAlign: 'right', fontFamily: fonts.semibold, fontSize: fontSize.sm, lineHeight: 20, color: c.text },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 28, paddingHorizontal: spacing.md, borderRadius: radii.full },
+  chipText: { fontFamily: fonts.medium, fontSize: fontSize.xs },
+  chipMore: { backgroundColor: c.well, borderWidth: 1, borderColor: c.stroke },
+  chipMoreText: { fontFamily: fonts.medium, fontSize: fontSize.xs, color: c.textSoft },
+  policyPill: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.md, borderRadius: radii.md, backgroundColor: c.well },
+  policyPillText: { flex: 1, fontFamily: fonts.medium, fontSize: fontSize.sm, color: c.primary },
+  actions: { flexDirection: 'row', gap: spacing.md },
+  declineWrap: { flex: 1 },
+  viewWrap: { flex: 1.5 },
+  note: { fontFamily: fonts.regular, fontSize: fontSize.xs, lineHeight: 18, color: c.textMuted },
 }));

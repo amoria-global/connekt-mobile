@@ -12,12 +12,10 @@ import {
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   Text,
   Vibration,
   View,
 } from 'react-native';
-import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -31,6 +29,8 @@ import Animated, {
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from '@/utils/safeAudio';
 import { fonts, fontSize, fontWeight, makeStyles, onFill, radii, spacing, useTheme } from '@/theme';
 import { serverNowMs } from './api';
+import { parseOpportunityOfferBrief } from './offerBrief';
+import { OfferDetailsView } from './OfferDetailsView';
 import { timeLeft } from './countdown';
 import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
 import { useSharedT } from '@/i18n/sharedStrings';
@@ -69,101 +69,6 @@ interface Props {
   onOpenOfferPage?: (opp: PhotographerOpportunity) => void;
 }
 
-type ParsedBriefScope = {
-  coverageModeLabel: string;
-  coverageHoursLabel: string;
-  editedPhotosLabel: string;
-  shortVideosLabel: string;
-  longVideosLabel: string;
-  liveStreamLabel: string;
-  wishesShareLabel: string;
-  photoBookLabel: string;
-  photoAlbumLabel: string;
-  wallPortraitsLabel: string;
-  instantUpdatesLabel: string;
-  digitalDeliveryLabel: string;
-  printDeliveryLabel: string;
-  budgetModeLabel: string;
-  notesText: string;
-};
-
-function parseOpportunityScope(opp: PhotographerOpportunity): ParsedBriefScope {
-  const raw = opp.instructions ?? '';
-  const map: Record<string, string> = {};
-  const freeNotes: string[] = [];
-  let inScopeBlock = false;
-
-  for (const line of raw.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (trimmed === '[OFFER_SCOPE]') {
-      inScopeBlock = true;
-      continue;
-    }
-    if (trimmed.startsWith('[DRAFT_STATE]')) {
-      continue;
-    }
-    const colonIdx = trimmed.indexOf(':');
-    if (inScopeBlock && colonIdx > 0) {
-      const k = trimmed.slice(0, colonIdx).trim();
-      const v = trimmed.slice(colonIdx + 1).trim();
-      map[k] = v;
-    } else if (!inScopeBlock) {
-      freeNotes.push(trimmed);
-    }
-  }
-
-  const coverageModeLabel =
-    map.Coverage ||
-    (opp.hasLiveStream ? 'Photography + video + live stream' : 'Photography + video');
-
-  const hours =
-    opp.durationLabel ||
-    (opp.durationHours ? `${opp.durationHours} hours` : undefined) ||
-    (opp.durationMinutes ? `${Math.max(1, Math.round(opp.durationMinutes / 60))} hours` : '6 hours');
-
-  const editedPhotosLabel =
-    map.EditedPhotos ||
-    (opp.minimumPhotos != null && opp.minimumPhotos > 0 ? String(opp.minimumPhotos) : '100');
-
-  const shortVideosLabel = map.ShortVideos || '2 × 30 seconds';
-  const longVideosLabel = map.LongVideos || 'None';
-  const liveStreamLabel =
-    map.LiveStream || (opp.hasLiveStream ? 'Requested' : 'Not requested');
-  const wishesShareLabel =
-    map.WishesShare || (opp.allowWishInvites ? 'Enabled' : 'Not requested');
-  const photoBookLabel = map.PhotoBook || 'None';
-  const photoAlbumLabel = map.PhotoAlbum || 'None';
-  const wallPortraitsLabel = map.WallPortraits || 'None';
-  const instantUpdatesLabel = map.InstantUpdates || 'Not requested';
-  const digitalDeliveryLabel = map.DigitalDelivery || 'Within 7 days after the event';
-  const printDeliveryLabel =
-    map.PrintDelivery && map.PrintDelivery !== 'None'
-      ? map.PrintDelivery
-      : 'You propose the production and handover date';
-  const budgetModeLabel =
-    map.BudgetMode === 'RECOMMENDED'
-      ? 'Client used recommended package pricing.'
-      : 'Client published their own budget.';
-
-  return {
-    coverageModeLabel,
-    coverageHoursLabel: hours,
-    editedPhotosLabel,
-    shortVideosLabel,
-    longVideosLabel,
-    liveStreamLabel,
-    wishesShareLabel,
-    photoBookLabel,
-    photoAlbumLabel,
-    wallPortraitsLabel,
-    instantUpdatesLabel,
-    digitalDeliveryLabel,
-    printDeliveryLabel,
-    budgetModeLabel,
-    notesText: map.Notes || freeNotes.join(' '),
-  };
-}
 
 export function IncomingOpportunityAlertModal({
   opportunity,
@@ -184,11 +89,6 @@ export function IncomingOpportunityAlertModal({
   const [busyAction, setBusyAction] = useState<
     'accept_client' | 'accept_package' | 'reject' | null
   >(null);
-  const [showVenueSchedule, setShowVenueSchedule] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<
-    'coordinator' | 'availability' | 'policies' | null
-  >(null);
-  const [bookmarked, setBookmarked] = useState(false);
 
   const playerRef = useRef<AudioPlayer | null>(null);
   const pulseAnim = useSharedValue(1);
@@ -215,8 +115,6 @@ export function IncomingOpportunityAlertModal({
       setStage(initialStage);
       setRingSecondsLeft(OPPORTUNITY_RING_DURATION_SECONDS);
       setBusyAction(null);
-      setShowVenueSchedule(false);
-      setExpandedSection(null);
     }
   }, [visible, opportunity?.candidateId, initialStage]);
 
@@ -297,7 +195,7 @@ export function IncomingOpportunityAlertModal({
   }));
 
   const brief = useMemo(
-    () => (opportunity ? parseOpportunityScope(opportunity) : null),
+    () => (opportunity ? parseOpportunityOfferBrief(opportunity) : null),
     [opportunity],
   );
 
@@ -330,22 +228,6 @@ export function IncomingOpportunityAlertModal({
   const matchedPkgCurrency = opportunity.matchedPackageCurrency || currency;
   const matchedPkgName = opportunity.matchedPackageName || tr('Complete');
 
-  const packageDiffLabel = (() => {
-    if (matchedPkgPrice == null) {
-      return tr('Configure packages in Profile to compare.');
-    }
-    if (clientOfferNum == null) {
-      return `${money(matchedPkgPrice, matchedPkgCurrency)} package rate`;
-    }
-    const diff = Math.round(matchedPkgPrice - clientOfferNum);
-    if (Math.abs(diff) < 500) {
-      return tr("Matches the client's offer");
-    }
-    if (diff > 0) {
-      return `${money(diff, matchedPkgCurrency)} ${tr("above the client's offer")}`;
-    }
-    return `${money(Math.abs(diff), matchedPkgCurrency)} ${tr("below the client's offer")}`;
-  })();
 
   const formattedDate = (() => {
     if (!opportunity.eventDate) return tr('Date to be confirmed');
@@ -402,10 +284,6 @@ export function IncomingOpportunityAlertModal({
     }
   };
 
-  const toggleSection = (sec: 'coordinator' | 'availability' | 'policies') => {
-    setExpandedSection((prev) => (prev === sec ? null : sec));
-  };
-
   const eventHeadline = titleCase(
     opportunity.eventTitle ||
       (opportunity.eventType ? `${opportunity.eventType} coverage` : tr('Wedding coverage')),
@@ -414,10 +292,6 @@ export function IncomingOpportunityAlertModal({
   const locationAndDateLine = `${titleCase(opportunity.city || opportunity.venue || 'Kigali')} · ${formattedDate}`;
 
   const expired = !!left?.done;
-  const locked = busyAction !== null || expired;
-  const diff =
-    matchedPkgPrice != null && clientOfferNum != null ? Math.round(matchedPkgPrice - clientOfferNum) : null;
-  const diffColor = diff == null || Math.abs(diff) < 500 ? colors.textSoft : diff > 0 ? colors.warning : colors.success;
   const packageDays = opportunity.matchedPackageDeliveryDays;
 
   return (
@@ -494,311 +368,31 @@ export function IncomingOpportunityAlertModal({
           </View>
         </View>
       ) : (
-        <View
-          style={[
-            styles.root,
-            { paddingTop: Math.max(insets.top, 12), paddingBottom: Math.max(insets.bottom, 10) },
-          ]}
-        >
-          <View style={styles.header}>
-            <Pressable
-              onPress={onDismiss}
-              style={styles.iconBtn}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel={tr('Back')}
-            >
-              <Ionicons name="chevron-back" size={22} color={colors.text} />
-            </Pressable>
-            <Text style={styles.headerTitle} accessibilityRole="header">
-              {tr('Offer details')}
-            </Text>
-            <Pressable
-              onPress={() => setBookmarked((b) => !b)}
-              style={styles.iconBtn}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel={tr('Bookmark offer')}
-            >
-              <Ionicons
-                name={bookmarked ? 'bookmark' : 'bookmark-outline'}
-                size={21}
-                color={bookmarked ? colors.accent : colors.textSoft}
-              />
-            </Pressable>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <Image source={{ uri: HERO_COVER_URI }} style={styles.heroImage} contentFit="cover" />
-
-            <View style={styles.titleBlock}>
-              <View style={styles.titleText}>
-                <Text style={styles.headline}>{eventHeadline}</Text>
-                <View style={styles.metaRow}>
-                  <Ionicons name="location-outline" size={15} color={colors.textMuted} style={styles.metaIcon} />
-                  <Text style={styles.metaText}>{locationAndDateLine}</Text>
-                </View>
-              </View>
-              <View style={[styles.statusChip, expired && styles.statusChipOff]}>
-                <View style={[styles.statusDot, expired && { backgroundColor: colors.textMuted }]} />
-                <Text style={[styles.statusChipText, expired && { color: colors.textMuted }]}>
-                  {expired ? tr('Expired') : tr('Open offer')}
-                </Text>
-              </View>
-            </View>
-
-            {left && !left.done ? (
-              <View style={styles.timerChip}>
-                <Ionicons name="time-outline" size={14} color={colors.primary} />
-                <Text style={styles.timerChipText}>
-                  {tr('Expires in')} {left.label}
-                </Text>
-              </View>
-            ) : null}
-
-            <View style={styles.requestedBanner}>
-              <Ionicons name="videocam-outline" size={18} color={colors.accent} />
-              <Text style={styles.requestedBannerText}>
-                {tr('Requested')}: {brief.coverageModeLabel}
-              </Text>
-            </View>
-
-            <View style={[styles.card, styles.offerCard]}>
-              <View style={styles.eyebrowRow}>
-                <Ionicons name="wallet-outline" size={14} color={colors.primary} />
-                <Text style={[styles.eyebrow, { color: colors.primary }]}>{tr("CLIENT'S OFFER")}</Text>
-              </View>
-              <Text style={styles.amount}>{offerBudgetLabel}</Text>
-              <Text style={styles.cardSub}>{tr('For the complete requested scope')}</Text>
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.eyebrowRow}>
-                <Ionicons name="pricetag-outline" size={14} color={colors.info} />
-                <Text style={[styles.eyebrow, { color: colors.info }]}>{tr('YOUR PACKAGE')}</Text>
-              </View>
-              <Text style={styles.amount}>
-                {matchedPkgPrice != null ? `${matchedPkgName} · ${money(matchedPkgPrice, matchedPkgCurrency)}` : tr('No active package')}
-              </Text>
-              <Text style={[styles.diffText, { color: diffColor }]}>{packageDiffLabel}</Text>
-              {packageDays != null && packageDays > 0 ? (
-                <Text style={styles.cardSub}>
-                  {tr('Delivers in')} {packageDays} {packageDays === 1 ? tr('day') : tr('days')}
-                </Text>
-              ) : null}
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="list-outline" size={17} color={colors.primary} />
-                <Text style={styles.cardTitle}>{tr('Requested deliverables')}</Text>
-              </View>
-              <DetailRow icon="time-outline" label={tr('Coverage')} value={brief.coverageHoursLabel} />
-              <DetailRow icon="images-outline" label={tr('Edited photos')} value={brief.editedPhotosLabel} />
-              <DetailRow icon="videocam-outline" label={tr('Short videos')} value={brief.shortVideosLabel} />
-              <DetailRow icon="film-outline" label={tr('Long videos')} value={brief.longVideosLabel} />
-              <DetailRow icon="book-outline" label={tr('Photo book')} value={brief.photoBookLabel} />
-              <DetailRow icon="albums-outline" label={tr('Photo album')} value={brief.photoAlbumLabel} />
-              <DetailRow icon="image-outline" label={tr('Wall portraits')} value={brief.wallPortraitsLabel} />
-              <DetailRow icon="flash-outline" label={tr('Instant updates')} value={brief.instantUpdatesLabel} />
-              {opportunity.hasLiveStream || brief.liveStreamLabel !== 'Not requested' ? (
-                <DetailRow icon="radio-outline" label={tr('Live stream')} value={brief.liveStreamLabel} />
-              ) : null}
-              {opportunity.allowWishInvites || brief.wishesShareLabel !== 'Not requested' ? (
-                <DetailRow icon="heart-outline" label={tr('Wishes & memories')} value={brief.wishesShareLabel} />
-              ) : null}
-            </View>
-
-            <View style={styles.card}>
-              <View style={styles.cardHeader}>
-                <Ionicons name="calendar-outline" size={17} color={colors.primary} />
-                <Text style={styles.cardTitle}>{tr('Delivery requested')}</Text>
-              </View>
-              <DetailRow icon="cloud-outline" label={tr('Digital')} value={brief.digitalDeliveryLabel} />
-              <DetailRow icon="print-outline" label={tr('Print products')} value={brief.printDeliveryLabel} />
-
-              <Pressable
-                onPress={() => setShowVenueSchedule((s) => !s)}
-                style={styles.linkRow}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: showVenueSchedule }}
-              >
-                <Ionicons name="location-outline" size={16} color={colors.link} />
-                <Text style={styles.linkText}>{tr('Venue and schedule')}</Text>
-                <Ionicons
-                  name={showVenueSchedule ? 'chevron-up' : 'chevron-forward'}
-                  size={16}
-                  color={colors.textMuted}
-                />
-              </Pressable>
-              {showVenueSchedule ? (
-                <View style={styles.expandContent}>
-                  <Text style={styles.expandTitle}>
-                    {titleCase(opportunity.venue || opportunity.city || 'Kigali')}
-                    {opportunity.distanceLabel ? ` (${opportunity.distanceLabel})` : ''}
-                  </Text>
-                  <Text style={styles.expandText}>
-                    {formattedDate}
-                    {opportunity.startTime ? ` · ${opportunity.startTime.slice(0, 5)}` : ''}
-                    {opportunity.endTime ? `–${opportunity.endTime.slice(0, 5)}` : ''}
-                  </Text>
-                  {brief.notesText ? <Text style={styles.expandText}>{brief.notesText}</Text> : null}
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.accordion}>
-              <Pressable
-                onPress={() => toggleSection('coordinator')}
-                style={styles.expandRow}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: expandedSection === 'coordinator' }}
-              >
-                <Ionicons name="people-outline" size={20} color={colors.primary} />
-                <View style={styles.expandRowText}>
-                  <Text style={styles.expandRowTitle}>{tr('Offer coordination services')}</Text>
-                  <Text style={styles.expandRowSub}>{tr('Define a separate scope and price.')}</Text>
-                </View>
-                <Ionicons
-                  name={expandedSection === 'coordinator' ? 'chevron-up' : 'chevron-forward'}
-                  size={17}
-                  color={colors.textMuted}
-                />
-              </Pressable>
-              {expandedSection === 'coordinator' ? (
-                <View style={styles.expandContent}>
-                  <Text style={styles.expandText}>
-                    {tr('After you accept, you can propose event coordination as a separate service, with its own scope and fee.')}
-                  </Text>
-                </View>
-              ) : null}
-
-              <Pressable
-                onPress={() => toggleSection('availability')}
-                style={styles.expandRow}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: expandedSection === 'availability' }}
-              >
-                <Ionicons name="calendar-number-outline" size={19} color={colors.primary} />
-                <View style={styles.expandRowText}>
-                  <Text style={styles.expandRowTitle}>{tr('Availability and team')}</Text>
-                </View>
-                <Ionicons
-                  name={expandedSection === 'availability' ? 'chevron-up' : 'chevron-forward'}
-                  size={17}
-                  color={colors.textMuted}
-                />
-              </Pressable>
-              {expandedSection === 'availability' ? (
-                <View style={styles.expandContent}>
-                  <Text style={styles.expandText}>
-                    {formattedDate} · {opportunity.startTime?.slice(0, 5) || tr('Time to be confirmed')}
-                    {opportunity.endTime ? `–${opportunity.endTime.slice(0, 5)}` : ''} · {brief.coverageModeLabel} (
-                    {brief.coverageHoursLabel})
-                  </Text>
-                </View>
-              ) : null}
-
-              <Pressable
-                onPress={() => toggleSection('policies')}
-                style={styles.expandRow}
-                accessibilityRole="button"
-                accessibilityState={{ expanded: expandedSection === 'policies' }}
-              >
-                <Ionicons name="document-text-outline" size={19} color={colors.primary} />
-                <View style={styles.expandRowText}>
-                  <Text style={styles.expandRowTitle}>{tr('Policies and exclusions')}</Text>
-                </View>
-                <Ionicons
-                  name={expandedSection === 'policies' ? 'chevron-up' : 'chevron-forward'}
-                  size={17}
-                  color={colors.textMuted}
-                />
-              </Pressable>
-              {expandedSection === 'policies' ? (
-                <View style={styles.expandContent}>
-                  <Text style={styles.expandText}>
-                    {tr("Client's schedule")}: {brief.digitalDeliveryLabel}
-                  </Text>
-                  <Text style={styles.expandText}>
-                    {tr('Your package')}:{' '}
-                    {packageDays != null && packageDays > 0 ? `${packageDays} ${packageDays === 1 ? tr('day') : tr('days')}` : tr('Not set')}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-
-            <View style={styles.actions}>
-              <View style={styles.actionsRow}>
-                <Pressable
-                  style={({ pressed }) => [styles.acceptBtn, pressed && styles.btnPressed, locked && styles.btnDisabled]}
-                  onPress={handleAcceptClientPolicy}
-                  disabled={locked}
-                  accessibilityRole="button"
-                  accessibilityLabel={tr('Accept offer')}
-                >
-                  <Ionicons name="checkmark-circle" size={22} color={onFill} />
-                  <Text style={styles.acceptBtnText}>
-                    {busyAction === 'accept_client' ? tr('Sending...') : tr('Accept offer')}
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={({ pressed }) => [styles.packageBtn, pressed && styles.btnPressed, locked && styles.btnDisabled]}
-                  onPress={handleAcceptPackagePolicy}
-                  disabled={locked}
-                  accessibilityRole="button"
-                  accessibilityLabel={tr('Accept with my delivery package policy')}
-                >
-                  <Ionicons name="cube-outline" size={22} color={colors.link} />
-                  <Text style={styles.packageBtnText}>
-                    {busyAction === 'accept_package' ? tr('Sending...') : tr('Accept with my delivery package policy')}
-                  </Text>
-                </Pressable>
-              </View>
-
-              <Pressable
-                style={({ pressed }) => [styles.declineBtn, pressed && styles.btnPressed, busyAction !== null && styles.btnDisabled]}
-                onPress={handleRejectOffer}
-                disabled={busyAction !== null}
-                accessibilityRole="button"
-                accessibilityLabel={tr('Reject offer')}
-              >
-                <Ionicons name="close-circle-outline" size={20} color={colors.error} />
-                <Text style={styles.declineBtnText}>
-                  {busyAction === 'reject' ? tr('Sending...') : tr('Reject offer')}
-                </Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-        </View>
+        <OfferDetailsView
+          opportunity={opportunity}
+          brief={brief}
+          coverUri={HERO_COVER_URI}
+          headline={eventHeadline}
+          dateText={formattedDate}
+          placeText={titleCase(opportunity.venue || opportunity.city || 'Kigali')}
+          timeLeft={left && !left.done ? left.label : null}
+          expired={expired}
+          offer={clientOfferNum}
+          currency={currency}
+          pkg={matchedPkgPrice != null ? { name: matchedPkgName, price: matchedPkgPrice, currency: matchedPkgCurrency, days: packageDays } : null}
+          busyAction={busyAction}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          tr={tr}
+          onBack={onDismiss}
+          onAccept={(choice) => void (choice === 'CLIENT' ? handleAcceptClientPolicy() : handleAcceptPackagePolicy())}
+          onReject={() => void handleRejectOffer()}
+        />
       )}
     </Modal>
   );
 }
 
-/** One line of an offer: what it is on the left, the value on the right, wrapping onto more lines when it is long. */
-function DetailRow({
-  icon,
-  label,
-  value,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  value: string;
-}) {
-  const styles = useStyles();
-  const { colors } = useTheme();
-  return (
-    <View style={styles.detailRow}>
-      <View style={styles.detailLabelCol}>
-        <Ionicons name={icon} size={15} color={colors.textMuted} />
-        <Text style={styles.detailLabel}>{label}</Text>
-      </View>
-      <Text style={styles.detailValue}>{value}</Text>
-    </View>
-  );
-}
 
 const useStyles = makeStyles((c) => ({
   // ── Offer details ───────────────────────────────────────────────────────────────────────────
