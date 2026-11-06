@@ -173,6 +173,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-06-problem-reports",
+            "date": "2026-11-06",
+            "title": "Help us fix problems faster",
+            "items": [
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Problems reach us with your support code",
+                "body": "When something goes wrong, the app now sends us a short report that carries the same support code you see on screen, so we can find and fix it quickly."
+              },
+              {
+                "icon": "lock-closed-outline",
+                "title": "Nothing personal is sent",
+                "body": "Reports leave out your name, email, phone number and anything you typed. They only describe what failed and where."
+              }
+            ]
+          },
+          {
             "id": "2026-11-05-album-errors",
             "date": "2026-11-05",
             "title": "Clearer problems when creating an album",
