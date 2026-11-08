@@ -24,6 +24,7 @@ const extra = (Constants.expoConfig?.extra ?? {}) as Extra;
  */
 const GOOGLE_IOS_CLIENT_ID = '728809448366-69tueodvvmookki9pfnpmmg3cnunmihe.apps.googleusercontent.com';
 const GOOGLE_ANDROID_CLIENT_ID = '728809448366-p7n5gjov2ubgkcl0poun7argihmgk71c.apps.googleusercontent.com';
+const DEFAULT_GOOGLE_MAPS_API_KEY = 'AIzaSyDdbOwGJ0I-WTnZVWvjh8aCjxA5y8FRN6Y';
 
 export const env = {
   /** Base URL of the amoria-connect (Spring Boot) API, including /api/remote. */
@@ -65,6 +66,10 @@ export const env = {
   googleWebClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ?? '',
   googleIosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || GOOGLE_IOS_CLIENT_ID,
   googleAndroidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || GOOGLE_ANDROID_CLIENT_ID,
+
+  /** Google Maps / Places API key for search-as-you-type location suggestions. */
+  googleMapsApiKey:
+    process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || DEFAULT_GOOGLE_MAPS_API_KEY,
 
   /**
    * Dual Direct & Hybrid Booking Engine feature flag.
