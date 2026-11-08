@@ -613,7 +613,7 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                     }}
                   >
                     {locationSearch.results.map((item: LocationSuggestion, index: number) => {
-                      const isRecommended = index < 3 || item.source === 'recommended';
+                      const isSuggestion = index === 0 && item.source === 'recommended';
                       return (
                         <Pressable
                           key={item.id}
@@ -635,9 +635,9 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                           }}
                         >
                           <Ionicons
-                            name={isRecommended ? 'sparkles-outline' : 'location-outline'}
+                            name={isSuggestion ? 'sparkles-outline' : 'location-outline'}
                             size={15}
-                            color={isRecommended ? colors.primary : colors.link}
+                            color={isSuggestion ? colors.primary : colors.link}
                           />
                           <View style={{ flex: 1 }}>
                             <Text
@@ -661,10 +661,10 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
                             style={{
                               fontSize: 9.5,
                               fontWeight: fontWeight.extrabold,
-                              color: isRecommended ? colors.primary : colors.link,
+                              color: isSuggestion ? colors.primary : colors.link,
                             }}
                           >
-                            {isRecommended ? tr('Recommended') : 'Google Maps'}
+                            {isSuggestion ? tr('Suggestion') : 'Google Maps'}
                           </Text>
                         </Pressable>
                       );
