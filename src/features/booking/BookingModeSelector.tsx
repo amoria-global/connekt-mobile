@@ -46,6 +46,8 @@ import {
   DIGITAL_DEADLINE_PRESETS,
   EDITING_STYLES,
   EVENT_TYPE_PRESETS,
+  getEventTypePresetsForClient,
+  isOrganizationOnlyCategory,
   LONG_VIDEO_CUSTOM_OPTIONS,
   LONG_VIDEO_DURATIONS,
   LONG_VIDEO_QTY_PRESETS,
@@ -1228,7 +1230,18 @@ export function BookingModeSelector({
               return (
                 <Pressable
                   key={val}
-                  onPress={() => updateDraft('clientType', val)}
+                  onPress={() => {
+                    updateDraft('clientType', val);
+                    const nextPresets = getEventTypePresetsForClient(val);
+                    if (!nextPresets.some((p) => p.key === draft.eventTypeKey)) {
+                      const fallbackKey = nextPresets[0]?.key || 'Wedding';
+                      updateDraft('eventTypeKey', fallbackKey);
+                      const matched = options.eventTypes.find((t) =>
+                        t.name.toLowerCase().includes(fallbackKey.toLowerCase()),
+                      );
+                      updateDraft('eventTypeId', matched ? matched.id : '');
+                    }
+                  }}
                   style={[styles.segmentCard, active && styles.segmentCardActive]}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
@@ -1247,7 +1260,7 @@ export function BookingModeSelector({
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionTitle}>{tr('What are you planning?')}</Text>
           <View style={styles.eventTypeGrid}>
-            {EVENT_TYPE_PRESETS.map((presetItem) => {
+            {getEventTypePresetsForClient(draft.clientType).map((presetItem) => {
               const active = draft.eventTypeKey === presetItem.key;
               return (
                 <Pressable
@@ -1277,14 +1290,18 @@ export function BookingModeSelector({
           </View>
           {draft.eventTypeKey === 'Other' && options.eventTypes.length > 0 ? (
             <View style={[styles.wrap, { marginTop: spacing.xs }]}>
-              {options.eventTypes.map((t) => (
-                <Chip
-                  key={t.id}
-                  selected={draft.eventTypeId === t.id}
-                  label={t.name}
-                  onPress={() => updateDraft('eventTypeId', t.id)}
-                />
-              ))}
+              {options.eventTypes
+                .filter((t) =>
+                  draft.clientType === 'INDIVIDUAL' ? !isOrganizationOnlyCategory(t.name) : true,
+                )
+                .map((t) => (
+                  <Chip
+                    key={t.id}
+                    selected={draft.eventTypeId === t.id}
+                    label={t.name}
+                    onPress={() => updateDraft('eventTypeId', t.id)}
+                  />
+                ))}
             </View>
           ) : null}
         </View>
