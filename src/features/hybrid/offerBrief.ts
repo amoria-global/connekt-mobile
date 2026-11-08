@@ -24,15 +24,48 @@ export type EventTypePreset = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
-export const EVENT_TYPE_PRESETS: EventTypePreset[] = [
+export const INDIVIDUAL_EVENT_TYPE_PRESETS: EventTypePreset[] = [
   { key: 'Wedding', label: 'Wedding', icon: 'heart-outline' },
   { key: 'Birthday', label: 'Birthday', icon: 'gift-outline' },
-  { key: 'Corporate', label: 'Corporate', icon: 'business-outline' },
-  { key: 'Conference', label: 'Conference', icon: 'people-outline' },
-  { key: 'Commercial', label: 'Commercial', icon: 'megaphone-outline' },
-  { key: 'Fashion', label: 'Fashion', icon: 'shirt-outline' },
   { key: 'Other', label: 'Other', icon: 'ellipsis-horizontal' },
 ];
+
+export const ORGANIZATION_EVENT_TYPE_PRESETS: EventTypePreset[] = [
+  { key: 'Conference', label: 'Conference', icon: 'people-outline' },
+  { key: 'Corporate', label: 'Corporate', icon: 'business-outline' },
+  { key: 'Commercial', label: 'Commercial', icon: 'megaphone-outline' },
+  { key: 'Fashion', label: 'Fashion', icon: 'shirt-outline' },
+  { key: 'Entertainment', label: 'Entertainment', icon: 'film-outline' },
+  { key: 'Graduation', label: 'Graduation', icon: 'school-outline' },
+  { key: 'Concert', label: 'Concert', icon: 'musical-notes-outline' },
+  { key: 'Cultural', label: 'Cultural', icon: 'globe-outline' },
+  { key: 'Wedding', label: 'Wedding', icon: 'heart-outline' },
+  { key: 'Other', label: 'Other', icon: 'ellipsis-horizontal' },
+];
+
+export const EVENT_TYPE_PRESETS: EventTypePreset[] = INDIVIDUAL_EVENT_TYPE_PRESETS;
+
+export const ORGANIZATION_ONLY_CATEGORY_KEYS = [
+  'conference',
+  'corporate',
+  'commercial',
+  'fashion',
+  'entertainment',
+  'graduation',
+  'concert',
+  'cultural',
+] as const;
+
+export function isOrganizationOnlyCategory(nameOrKey: string): boolean {
+  const lower = (nameOrKey || '').trim().toLowerCase();
+  return ORGANIZATION_ONLY_CATEGORY_KEYS.some((k) => lower.includes(k));
+}
+
+export function getEventTypePresetsForClient(clientType: ClientEntityType): EventTypePreset[] {
+  return clientType === 'ORGANIZATION'
+    ? ORGANIZATION_EVENT_TYPE_PRESETS
+    : INDIVIDUAL_EVENT_TYPE_PRESETS;
+}
 
 export const POPULAR_VENUES_BY_CITY: Record<string, string[]> = {
   Kigali: [
