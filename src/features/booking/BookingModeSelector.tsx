@@ -1439,11 +1439,11 @@ export function BookingModeSelector({
             ) : null}
           </View>
 
-          {/* Search-as-you-type suggestions: 1st–3rd Recommended like-places, 4th+ Google Maps API */}
+          {/* Search-as-you-type suggestions: 1st Suggestion, 2nd+ Google Maps API */}
           {venueSearchOpen && draft.venue.trim().length > 0 && venueSearch.results.length > 0 ? (
             <View style={styles.locationSuggestionsBox} accessibilityRole="menu">
               {venueSearch.results.map((item: LocationSuggestion, index: number) => {
-                const isRecommended = index < 3 || item.source === 'recommended';
+                const isSuggestion = index === 0 && item.source === 'recommended';
                 return (
                   <Pressable
                     key={item.id}
@@ -1463,19 +1463,19 @@ export function BookingModeSelector({
                     ]}
                     accessibilityRole="menuitem"
                     accessibilityLabel={`${item.title}, ${item.subtitle}, ${
-                      isRecommended ? tr('Recommended') : 'Google Maps'
+                      isSuggestion ? tr('Suggestion') : 'Google Maps'
                     }`}
                   >
                     <View
                       style={[
                         styles.locationSuggestionIcon,
-                        { backgroundColor: isRecommended ? colors.tint : colors.surfaceMuted },
+                        { backgroundColor: isSuggestion ? colors.tint : colors.surfaceMuted },
                       ]}
                     >
                       <Ionicons
-                        name={isRecommended ? 'sparkles-outline' : 'location-outline'}
+                        name={isSuggestion ? 'sparkles-outline' : 'location-outline'}
                         size={14}
-                        color={isRecommended ? colors.primary : colors.link}
+                        color={isSuggestion ? colors.primary : colors.link}
                       />
                     </View>
                     <View style={{ flex: 1, gap: 1 }}>
@@ -1489,18 +1489,18 @@ export function BookingModeSelector({
                     <View
                       style={[
                         styles.locationSourceBadge,
-                        isRecommended ? styles.locationSourceRec : styles.locationSourceGoogle,
+                        isSuggestion ? styles.locationSourceRec : styles.locationSourceGoogle,
                       ]}
                     >
                       <Text
                         style={[
                           styles.locationSourceBadgeText,
-                          isRecommended
+                          isSuggestion
                             ? styles.locationSourceRecText
                             : styles.locationSourceGoogleText,
                         ]}
                       >
-                        {isRecommended ? tr('Recommended') : 'Google Maps'}
+                        {isSuggestion ? tr('Suggestion') : 'Google Maps'}
                       </Text>
                     </View>
                   </Pressable>
@@ -2205,7 +2205,7 @@ export function BookingModeSelector({
                 addressSearch.results.length > 0 ? (
                   <View style={styles.locationSuggestionsBox} accessibilityRole="menu">
                     {addressSearch.results.map((item: LocationSuggestion, index: number) => {
-                      const isRecommended = index < 3 || item.source === 'recommended';
+                      const isSuggestion = index === 0 && item.source === 'recommended';
                       return (
                         <Pressable
                           key={item.id}
@@ -2226,13 +2226,13 @@ export function BookingModeSelector({
                           <View
                             style={[
                               styles.locationSuggestionIcon,
-                              { backgroundColor: isRecommended ? colors.tint : colors.surfaceMuted },
+                              { backgroundColor: isSuggestion ? colors.tint : colors.surfaceMuted },
                             ]}
                           >
                             <Ionicons
-                              name={isRecommended ? 'sparkles-outline' : 'location-outline'}
+                              name={isSuggestion ? 'sparkles-outline' : 'location-outline'}
                               size={14}
-                              color={isRecommended ? colors.primary : colors.link}
+                              color={isSuggestion ? colors.primary : colors.link}
                             />
                           </View>
                           <View style={{ flex: 1, gap: 1 }}>
@@ -2246,18 +2246,18 @@ export function BookingModeSelector({
                           <View
                             style={[
                               styles.locationSourceBadge,
-                              isRecommended ? styles.locationSourceRec : styles.locationSourceGoogle,
+                              isSuggestion ? styles.locationSourceRec : styles.locationSourceGoogle,
                             ]}
                           >
                             <Text
                               style={[
                                 styles.locationSourceBadgeText,
-                                isRecommended
+                                isSuggestion
                                   ? styles.locationSourceRecText
                                   : styles.locationSourceGoogleText,
                               ]}
                             >
-                              {isRecommended ? tr('Recommended') : 'Google Maps'}
+                              {isSuggestion ? tr('Suggestion') : 'Google Maps'}
                             </Text>
                           </View>
                         </Pressable>

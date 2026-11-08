@@ -24,16 +24,21 @@ describe('booking location search-as-you-type', () => {
     }
   });
 
-  it('returns 3 recommended like-places for positions 1 to 3', () => {
-    const recs = getRecommendedLikePlaces('Hotel', 'Kigali');
-    expect(recs).toHaveLength(3);
-    expect(recs.every((r) => r.source === 'recommended')).toBe(true);
-    expect(recs.some((r) => /Hotel/i.test(r.title))).toBe(true);
+  it('returns 1 Suggestion tailored to what the user is typing for position 1', () => {
+    const recs = getRecommendedLikePlaces('Marriott', 'Kigali');
+    expect(recs).toHaveLength(1);
+    expect(recs[0].source).toBe('recommended');
+    expect(recs[0].title).toBe('Kigali Marriott Hotel');
+
+    // When typing a custom venue not in curated presets, suggests what the user is typing
+    const custom = getRecommendedLikePlaces('Chez Lando', 'Kigali');
+    expect(custom).toHaveLength(1);
+    expect(custom[0].title).toBe('Chez Lando');
   });
 
-  it('orders results 1 to 3 as recommended like-places and 4+ from Google Maps API', () => {
+  it('orders result 1 as Suggestion and results 2+ from Google Maps API', () => {
     const googleMock: LocationSuggestion[] = [
-      // Duplicate of a recommended place should be deduplicated
+      // Duplicate of the 1st suggestion should be deduplicated
       {
         id: 'g-dup',
         title: 'Kigali Marriott Hotel',
@@ -57,17 +62,16 @@ describe('booking location search-as-you-type', () => {
       },
     ];
 
-    const combined = buildOrderedLocationResults('Hotel', 'Kigali', googleMock);
-    expect(combined.length).toBe(5);
-    // 1st to 3rd results are recommended like-places
+    const combined = buildOrderedLocationResults('Marriott', 'Kigali', googleMock);
+    expect(combined.length).toBe(3);
+    // 1st result is the single Suggestion
     expect(combined[0].source).toBe('recommended');
-    expect(combined[1].source).toBe('recommended');
-    expect(combined[2].source).toBe('recommended');
-    // 4th+ results are Google Maps API search results
-    expect(combined[3].source).toBe('google');
-    expect(combined[3].title).toBe('Hotel des Mille Collines');
-    expect(combined[4].source).toBe('google');
-    expect(combined[4].title).toBe('Grand Legacy Hotel');
+    expect(combined[0].title).toBe('Kigali Marriott Hotel');
+    // 2nd+ results are Google Maps API search results
+    expect(combined[1].source).toBe('google');
+    expect(combined[1].title).toBe('Hotel des Mille Collines');
+    expect(combined[2].source).toBe('google');
+    expect(combined[2].title).toBe('Grand Legacy Hotel');
   });
 
   it('fetches Google Maps Places predictions using the configured API key', async () => {

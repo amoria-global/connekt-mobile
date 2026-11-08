@@ -2,9 +2,8 @@
  * Search-as-you-type location service for the booking flow.
  *
  * Rules:
- *   - Results 1 to 3 (indices 0..2): Curated recommendations of like places
- *     (matching venues, hotels, event centers, and neighborhoods).
- *   - Results 4+ (indices 3+): Live Google Maps API search results using the
+ *   - Result 1 (index 0): A single "Suggestion" tailored to what the user is typing.
+ *   - Results 2+ (indices 1+): Live Google Maps API search results using the
  *     configured Google Maps API key.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -21,7 +20,7 @@ export type LocationSuggestion = {
   fullText: string;
   /** City name if known */
   city?: string;
-  /** 'recommended' for slots 1–3, 'google' for slots 4+ */
+  /** 'recommended' for the 1st Suggestion slot, 'google' for slots 2+ */
   source: 'recommended' | 'google';
 };
 
@@ -50,7 +49,15 @@ export const CURATED_PLACES: readonly CuratedPlace[] = [
     subtitle: 'Remera, Kigali',
     city: 'Kigali',
     category: 'arena',
-    keywords: ['arena', 'stadium', 'remera', 'amaho', 'amahoro', 'concert', 'sports', 'large'],
+    keywords: ['bk', 'arena', 'stadium', 'remera', 'amahoro', 'concert', 'sports', 'large'],
+  },
+  {
+    id: 'rec-amahoro',
+    title: 'Amahoro National Stadium',
+    subtitle: 'Remera, Kigali',
+    city: 'Kigali',
+    category: 'arena',
+    keywords: ['amahoro', 'stadium', 'remera', 'sports', 'concert'],
   },
   {
     id: 'rec-marriott',
@@ -58,7 +65,7 @@ export const CURATED_PLACES: readonly CuratedPlace[] = [
     subtitle: 'KN 3 Ave, Nyarugenge, Kigali',
     city: 'Kigali',
     category: 'hotel',
-    keywords: ['marriott', 'hotel', 'serena', 'nyarugenge', 'downtown', 'kiyovu', 'wedding', 'ballroom'],
+    keywords: ['marriott', 'hotel', 'nyarugenge', 'downtown', 'kiyovu', 'wedding', 'ballroom'],
   },
   {
     id: 'rec-radisson',
@@ -75,6 +82,38 @@ export const CURATED_PLACES: readonly CuratedPlace[] = [
     city: 'Kigali',
     category: 'hotel',
     keywords: ['serena', 'hotel', 'kiyovu', 'ballroom', 'conference', 'wedding'],
+  },
+  {
+    id: 'rec-mille-collines',
+    title: 'Hôtel des Mille Collines',
+    subtitle: 'KN 2 Ave, Kiyovu, Kigali',
+    city: 'Kigali',
+    category: 'hotel',
+    keywords: ['mille', 'collines', 'hotel', 'kiyovu', 'pool', 'garden', 'wedding'],
+  },
+  {
+    id: 'rec-four-points',
+    title: 'Four Points by Sheraton Kigali',
+    subtitle: 'KN 3 Ave, Kiyovu, Kigali',
+    city: 'Kigali',
+    category: 'hotel',
+    keywords: ['four', 'points', 'sheraton', 'hotel', 'kiyovu'],
+  },
+  {
+    id: 'rec-lemigo',
+    title: 'Lemigo Hotel',
+    subtitle: 'KG 624 St, Kimihurura, Kigali',
+    city: 'Kigali',
+    category: 'hotel',
+    keywords: ['lemigo', 'hotel', 'kimihurura', 'conference', 'wedding'],
+  },
+  {
+    id: 'rec-grand-legacy',
+    title: 'Grand Legacy Hotel',
+    subtitle: 'KN 3 Rd, Remera, Kigali',
+    city: 'Kigali',
+    category: 'hotel',
+    keywords: ['grand', 'legacy', 'hotel', 'remera', 'airport'],
   },
   {
     id: 'rec-intare',
@@ -114,12 +153,20 @@ export const CURATED_PLACES: readonly CuratedPlace[] = [
     subtitle: 'Mount Kigali, Nyamirambo',
     city: 'Kigali',
     category: 'garden',
-    keywords: ['fazenda', 'sengha', 'mount', 'outdoor', 'garden', 'photoshoot', 'wedding'],
+    keywords: ['fazenda', 'sengha', 'mount', 'outdoor', 'garden', 'photoshoot', 'wedding', 'nyamirambo'],
+  },
+  {
+    id: 'rec-juru-park',
+    title: 'Juru Park Rebero',
+    subtitle: 'Rebero, Kicukiro, Kigali',
+    city: 'Kigali',
+    category: 'garden',
+    keywords: ['juru', 'park', 'rebero', 'kicukiro', 'garden', 'wedding'],
   },
   {
     id: 'rec-nyarutarama',
-    title: 'Nyarutarama Golf & Gardens',
-    subtitle: 'Nyarutarama, Kigali',
+    title: 'Nyarutarama',
+    subtitle: 'Gasabo, Kigali',
     city: 'Kigali',
     category: 'neighborhood',
     keywords: ['nyarutarama', 'golf', 'garden', 'lover', 'lake', 'kg 9', 'home'],
@@ -142,11 +189,59 @@ export const CURATED_PLACES: readonly CuratedPlace[] = [
   },
   {
     id: 'rec-remera',
-    title: 'Remera & Gisimenti',
+    title: 'Remera',
     subtitle: 'Gasabo, Kigali',
     city: 'Kigali',
     category: 'neighborhood',
-    keywords: ['remera', 'gisimenti', 'kibagabaga', 'gacuriro', 'kanombe', 'home'],
+    keywords: ['remera', 'gisimenti', 'amahoro', 'home'],
+  },
+  {
+    id: 'rec-kibagabaga',
+    title: 'Kibagabaga',
+    subtitle: 'Gasabo, Kigali',
+    city: 'Kigali',
+    category: 'neighborhood',
+    keywords: ['kibagabaga', 'kimironko', 'gasabo', 'kigali'],
+  },
+  {
+    id: 'rec-kimironko',
+    title: 'Kimironko',
+    subtitle: 'Gasabo, Kigali',
+    city: 'Kigali',
+    category: 'neighborhood',
+    keywords: ['kimironko', 'zindiro', 'kigali'],
+  },
+  {
+    id: 'rec-gacuriro',
+    title: 'Gacuriro',
+    subtitle: 'Vision City, Gasabo, Kigali',
+    city: 'Kigali',
+    category: 'neighborhood',
+    keywords: ['gacuriro', 'vision', 'city', 'umucyo', 'kigali'],
+  },
+  {
+    id: 'rec-kicukiro',
+    title: 'Kicukiro',
+    subtitle: 'Kicukiro, Kigali',
+    city: 'Kigali',
+    category: 'neighborhood',
+    keywords: ['kicukiro', 'sonatubes', 'niboye', 'kagarama', 'gikondo', 'kanombe'],
+  },
+  {
+    id: 'rec-kanombe',
+    title: 'Kanombe',
+    subtitle: 'Kicukiro, Kigali',
+    city: 'Kigali',
+    category: 'neighborhood',
+    keywords: ['kanombe', 'airport', 'busanza', 'kigali'],
+  },
+  {
+    id: 'rec-nyamata',
+    title: 'La Palisse Hotel Nyamata',
+    subtitle: 'Nyamata, Bugesera',
+    city: 'Kigali',
+    category: 'resort',
+    keywords: ['nyamata', 'bugesera', 'palisse', 'hotel', 'garden', 'wedding'],
   },
   // Musanze
   {
@@ -226,84 +321,102 @@ export const CURATED_PLACES: readonly CuratedPlace[] = [
 ];
 
 function inferDesiredCategory(q: string): CuratedPlace['category'] | null {
-  if (/hotel|marriott|radisson|serena|hilton|mille|boutique|inn|lodge/.test(q)) return 'hotel';
+  if (/hotel|marriott|radisson|serena|hilton|mille|boutique|inn|lodge|sheraton|lemigo/.test(q)) return 'hotel';
   if (/convention|conference|hall|centre|center|hub|corporate/.test(q)) return 'convention';
   if (/arena|stadium|amahoro|concert|dome/.test(q)) return 'arena';
-  if (/garden|outdoor|park|beach|lake|rebero|fazenda|golf/.test(q)) return 'garden';
-  if (/resort|kivu|volcano|nest|safari/.test(q)) return 'resort';
-  if (/street|ave|kg|kn|kk|road|house|home|sector|nyarutarama|kimihurura|kacyiru|remera/.test(q)) {
+  if (/garden|outdoor|park|beach|lake|rebero|fazenda|golf|juru/.test(q)) return 'garden';
+  if (/resort|kivu|volcano|nest|safari|palisse/.test(q)) return 'resort';
+  if (/street|ave|kg|kn|kk|road|house|home|sector|nyarutarama|kimihurura|kacyiru|remera|kimironko|kicukiro|gacuriro|kibagabaga/.test(q)) {
     return 'neighborhood';
   }
   return null;
 }
 
 /**
- * Returns the 1st to 3rd recommended like-places for the user's current search text.
- * Always returns up to `limit` (default 3) curated recommendations so the first 3
- * rows are recommendations of like places before Google Maps API results at 4+.
+ * Returns the single best "Suggestion" (or up to `limit`, default 1) strictly
+ * matching what the user is typing. If no curated venue matches the typed letters,
+ * builds a direct suggestion from the user's typed text so the suggestion always
+ * reflects what the user is typing.
  */
 export function getRecommendedLikePlaces(
   query: string,
   city = 'Kigali',
-  limit = 3,
+  limit = 1,
 ): LocationSuggestion[] {
-  const clean = (query || '').trim().toLowerCase();
+  const rawTrimmed = (query || '').trim();
+  const clean = rawTrimmed.toLowerCase();
+  if (!clean) return [];
+
   const normalizedCity = (city || 'Kigali').trim();
   const desiredCategory = inferDesiredCategory(clean);
   const tokens = clean.split(/\s+/).filter(Boolean);
 
   const scored = CURATED_PLACES.map((place, index) => {
-    let score = 0;
+    let matchScore = 0;
     const titleLower = place.title.toLowerCase();
     const subLower = place.subtitle.toLowerCase();
     const cityLower = place.city.toLowerCase();
 
-    if (cityLower === normalizedCity.toLowerCase()) {
-      score += 20;
+    if (titleLower === clean) {
+      matchScore += 200;
+    } else if (titleLower.startsWith(clean)) {
+      matchScore += 140;
+    } else if (titleLower.includes(clean)) {
+      matchScore += 100;
     }
 
-    if (clean) {
-      if (titleLower === clean) {
-        score += 150;
-      } else if (titleLower.startsWith(clean)) {
-        score += 110;
-      } else if (titleLower.includes(clean)) {
-        score += 80;
-      }
+    if (subLower.includes(clean)) {
+      matchScore += 60;
+    }
 
-      if (subLower.includes(clean)) {
-        score += 45;
+    for (const token of tokens) {
+      if (titleLower.split(/\s+/).some((w) => w.startsWith(token))) {
+        matchScore += 50;
+      } else if (titleLower.includes(token)) {
+        matchScore += 30;
       }
-
-      for (const token of tokens) {
-        if (titleLower.split(/\s+/).some((w) => w.startsWith(token))) {
-          score += 35;
-        } else if (titleLower.includes(token)) {
-          score += 20;
-        }
-        if (place.keywords.some((k) => k.startsWith(token) || token.startsWith(k))) {
-          score += 28;
-        }
-      }
-
-      if (desiredCategory && place.category === desiredCategory) {
-        score += 32;
+      if (place.keywords.some((k) => k.startsWith(token) || token.startsWith(k))) {
+        matchScore += 40;
       }
     }
 
-    return { place, score, index };
-  });
+    if (desiredCategory && place.category === desiredCategory) {
+      matchScore += 35;
+    }
+
+    // Only apply city tie-breaker when the place actually matches what the user typed
+    if (matchScore > 0 && cityLower === normalizedCity.toLowerCase()) {
+      matchScore += 15;
+    }
+
+    return { place, score: matchScore, index };
+  }).filter((item) => item.score > 0);
 
   scored.sort((a, b) => b.score - a.score || a.index - b.index);
 
-  return scored.slice(0, limit).map(({ place }) => ({
-    id: place.id,
-    title: place.title,
-    subtitle: place.subtitle,
-    fullText: place.title,
-    city: place.city,
-    source: 'recommended' as const,
-  }));
+  if (scored.length > 0) {
+    return scored.slice(0, limit).map(({ place }) => ({
+      id: place.id,
+      title: place.title,
+      subtitle: place.subtitle,
+      fullText: place.title,
+      city: place.city,
+      source: 'recommended' as const,
+    }));
+  }
+
+  // When typing a custom venue/location not in the preset list, suggest what the user is typing
+  const capitalized = rawTrimmed.charAt(0).toUpperCase() + rawTrimmed.slice(1);
+  return [
+    {
+      id: `rec-typed-${clean}`,
+      title: capitalized,
+      subtitle: `${normalizedCity}, Rwanda`,
+      fullText: capitalized,
+      city: normalizedCity,
+      source: 'recommended' as const,
+    },
+  ].slice(0, limit);
 }
 
 let webMapsScriptPromise: Promise<any> | null = null;
@@ -319,10 +432,30 @@ function loadWebGoogleMapsPlaces(apiKey: string): Promise<any> {
   if (webMapsScriptPromise) return webMapsScriptPromise;
 
   webMapsScriptPromise = new Promise((resolve) => {
+    const finish = async () => {
+      try {
+        if (w.google?.maps?.importLibrary) {
+          const lib = await w.google.maps.importLibrary('places');
+          if (lib?.AutocompleteService) {
+            resolve(lib);
+            return;
+          }
+        }
+      } catch {
+        // fallback to window.google.maps.places
+      }
+      resolve(w.google?.maps?.places ?? null);
+    };
+
+    if (w.google?.maps) {
+      void finish();
+      return;
+    }
+
     const script = document.createElement('script');
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
     script.async = true;
-    script.onload = () => resolve((window as any).google?.maps?.places ?? null);
+    script.onload = () => void finish();
     script.onerror = () => resolve(null);
     document.head.appendChild(script);
   });
@@ -380,7 +513,7 @@ async function fetchWebAutocompletePredictions(
 
 /**
  * Queries Google Maps APIs using the configured Google Maps API key:
- *   1. On Web: Google Maps JS SDK Places AutocompleteService (avoids browser CORS)
+ *   1. On Web: Google Maps JS SDK Places AutocompleteService
  *   2. Google Places Autocomplete HTTP API (`maps.googleapis.com/maps/api/place/autocomplete/json`)
  *   3. Google Maps Geocoding API (`maps.googleapis.com/maps/api/geocode/json`, CORS-enabled everywhere)
  */
@@ -478,18 +611,18 @@ export async function fetchGoogleMapsLocations(
 }
 
 /**
- * Combines the 1st–3rd recommended like-places with 4th+ Google Maps API results.
+ * Combines the 1st "Suggestion" (index 0) with 2nd+ Google Maps API results (indices 1+).
  * Guarantees:
- *   - Results 1..3 (indices 0..2) are recommendations of like places.
- *   - Results 4+ (indices 3+) are Google Maps API search results (deduplicated).
+ *   - Result 1 (index 0) is the single Suggestion matching what the user is typing.
+ *   - Results 2+ (indices 1+) are Google Maps API search results (deduplicated).
  */
 export function buildOrderedLocationResults(
   query: string,
   city: string,
   googleResults: LocationSuggestion[],
 ): LocationSuggestion[] {
-  const recommended = getRecommendedLikePlaces(query, city, 3);
-  const seenTitles = new Set(recommended.map((r) => r.title.trim().toLowerCase()));
+  const suggestion = getRecommendedLikePlaces(query, city, 1);
+  const seenTitles = new Set(suggestion.map((r) => r.title.trim().toLowerCase()));
 
   const deduplicatedGoogle: LocationSuggestion[] = [];
   for (const g of googleResults) {
@@ -499,13 +632,13 @@ export function buildOrderedLocationResults(
     deduplicatedGoogle.push({ ...g, source: 'google' });
   }
 
-  return [...recommended, ...deduplicatedGoogle];
+  return [...suggestion, ...deduplicatedGoogle];
 }
 
 /**
  * Hook that drives search-as-you-type location suggestions:
- *   - Immediately provides 3 recommended like-places (positions 1–3)
- *   - Fetches Google Maps API locations and places them at positions 4+
+ *   - Immediately provides 1 Suggestion tailored to what the user is typing (position 1)
+ *   - Fetches Google Maps API locations and places them at positions 2+
  */
 export function useLocationSearch(query: string, city = 'Kigali', active = true) {
   const trimmed = (query || '').trim();
