@@ -33,7 +33,7 @@ on:
       platform:
         description: Platform to publish
         required: true
-        default: android
+        default: all
         type: choice
         options: [android, all, ios]
       message:
@@ -99,7 +99,7 @@ jobs:
       - name: Export update bundle
         env:
           EXPO_PUBLIC_API_BASE_URL: https://backend.connekyt.com/api/remote
-        run: npx expo export --platform android
+        run: npx expo export --platform all
       - uses: actions/upload-artifact@v4
         with:
           name: update-bundle
@@ -119,7 +119,7 @@ jobs:
           node-version: "22"
       - name: Check OTA compatibility with the installed build
         env:
-          PLATFORM: ${{ inputs.platform || 'android' }}
+          PLATFORM: ${{ inputs.platform || 'all' }}
         run: node scripts/check-ota-compatibility.mjs --platform "$PLATFORM"
 
   deploy:
@@ -172,7 +172,7 @@ jobs:
           fi
       - name: Re-check compatibility at publish time
         env:
-          PLATFORM: ${{ inputs.platform || 'android' }}
+          PLATFORM: ${{ inputs.platform || 'all' }}
         run: node scripts/check-ota-compatibility.mjs --platform "$PLATFORM"
       # Proves the secret authenticates before anything irreversible happens.
       - name: Check the Expo credential
@@ -185,7 +185,7 @@ jobs:
         if: github.event_name == 'push' || inputs.confirm == 'publish'
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-          PLATFORM: ${{ inputs.platform || 'android' }}
+          PLATFORM: ${{ inputs.platform || 'all' }}
           TYPED_MESSAGE: ${{ inputs.message }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
