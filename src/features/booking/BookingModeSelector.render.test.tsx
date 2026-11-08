@@ -89,4 +89,49 @@ describe('booking flow pages', () => {
     expect(one.all).toContain('Kigali Marriott Hotel');
     expect(one.all).not.toContain('CanalOlympia Rebero');
   });
+
+  it('step 1 hides organization categories when Individual is selected and shows them for Organization', async () => {
+    const one = await open(1);
+    // Individual is selected by default
+    expect(one.all).toContain('Wedding');
+    expect(one.all).toContain('Birthday');
+    for (const orgCat of [
+      'Conference',
+      'Corporate',
+      'Commercial',
+      'Fashion',
+      'Entertainment',
+      'Graduation',
+      'Concert',
+      'Cultural',
+    ]) {
+      expect(one.all).not.toContain(orgCat);
+    }
+
+    // Switch to Organization
+    const orgBtn = one.r.root.find(
+      (n) =>
+        n.props.accessibilityRole === 'button' &&
+        n.findAllByType(Text).some((t) => t.props.children === 'Organization'),
+    );
+    await act(async () => {
+      orgBtn.props.onPress();
+    });
+    const afterOrg = one.r.root
+      .findAllByType(Text)
+      .map((t) => [t.props.children].flat(4).filter((c) => typeof c === 'string' || typeof c === 'number').join(''))
+      .join('\n');
+    for (const orgCat of [
+      'Conference',
+      'Corporate',
+      'Commercial',
+      'Fashion',
+      'Entertainment',
+      'Graduation',
+      'Concert',
+      'Cultural',
+    ]) {
+      expect(afterOrg).toContain(orgCat);
+    }
+  });
 });
