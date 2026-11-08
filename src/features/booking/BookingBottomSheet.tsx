@@ -32,6 +32,7 @@ import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
 import { formatPrice as formatSelectedPrice } from '@/utils/format';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { confirmYear } from '@/features/events/farFutureDate';
+import { useLocationSearch, type LocationSuggestion } from './locationSearch';
 
 export type BookingBottomSheetProps = {
   photographerId?: string;
@@ -98,6 +99,8 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [location, setLocation] = useState('');
+  const [locationSearchOpen, setLocationSearchOpen] = useState(false);
+  const locationSearch = useLocationSearch(location, 'Kigali', currentStep === 1 && locationSearchOpen);
   const [minBudget, setMinBudget] = useState('');
   const [maxBudget, setMaxBudget] = useState('');
     const TAGS = ['Live Stream', 'Photobook', 'Video Coverage', 'Drone', 'Same-Day Edits', 'Photo Booth'];
@@ -575,22 +578,99 @@ const BookingBottomSheetComponent: React.ForwardRefRenderFunction<BottomSheet, B
               <View style={styles.formGroup}>
                 <Text style={styles.label}>{tr('Where is it taking place? *')}</Text>
                 <View style={styles.inputWithIconContainer}>
-                  <Ionicons name="navigate-outline" size={18} color={colors.textMuted} style={styles.inputLeadingIcon} />
+                  <Ionicons name="search-outline" size={18} color={colors.textMuted} style={styles.inputLeadingIcon} />
                   <BottomSheetTextInput 
                     ref={locationInputRef}
                     style={styles.bottomSheetInputLeading} 
                     placeholderTextColor={colors.textMuted} 
                     placeholder="e.g. Kigali Convention Center" 
                     value={location} 
-                    onChangeText={setLocation}
+                    onFocus={() => setLocationSearchOpen(true)}
+                    onChangeText={(val) => {
+                      setLocationSearchOpen(true);
+                      setLocation(val);
+                    }}
                     autoCapitalize="words"
                     autoCorrect={false}
                     returnKeyType="next"
-                    onSubmitEditing={() => minBudgetInputRef.current?.focus()}
+                    onSubmitEditing={() => {
+                      setLocationSearchOpen(false);
+                      minBudgetInputRef.current?.focus();
+                    }}
                     blurOnSubmit={false}
                     inputAccessoryViewID={KEYBOARD_ACCESSORY_ID}
                   />
                 </View>
+                {locationSearchOpen && location.trim().length > 0 && locationSearch.results.length > 0 ? (
+                  <View
+                    style={{
+                      marginTop: 6,
+                      borderWidth: 1,
+                      borderColor: colors.borderSoft,
+                      borderRadius: radii.md,
+                      backgroundColor: colors.surface,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {locationSearch.results.map((item: LocationSuggestion, index: number) => {
+                      const isRecommended = index < 3 || item.source === 'recommended';
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => {
+                            setLocation(item.fullText);
+                            setLocationSearchOpen(false);
+                          }}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: spacing.sm,
+                            paddingHorizontal: spacing.sm,
+                            paddingVertical: 9,
+                            borderBottomWidth:
+                              index < locationSearch.results.length - 1
+                                ? StyleSheet.hairlineWidth
+                                : 0,
+                            borderBottomColor: colors.borderSoft,
+                          }}
+                        >
+                          <Ionicons
+                            name={isRecommended ? 'sparkles-outline' : 'location-outline'}
+                            size={15}
+                            color={isRecommended ? colors.primary : colors.link}
+                          />
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={{
+                                fontSize: fontSize.xs,
+                                fontWeight: fontWeight.bold,
+                                color: colors.text,
+                              }}
+                              numberOfLines={1}
+                            >
+                              {item.title}
+                            </Text>
+                            <Text
+                              style={{ fontSize: 11, color: colors.textMuted }}
+                              numberOfLines={1}
+                            >
+                              {item.subtitle}
+                            </Text>
+                          </View>
+                          <Text
+                            style={{
+                              fontSize: 9.5,
+                              fontWeight: fontWeight.extrabold,
+                              color: isRecommended ? colors.primary : colors.link,
+                            }}
+                          >
+                            {isRecommended ? tr('Recommended') : 'Google Maps'}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
               </View>
 
               <View style={styles.formGroup}>
