@@ -173,6 +173,15 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-08-booking-places-categories",
+            "date": "2026-11-08",
+            "title": "Smarter venue search and clearer event types",
+            "items": [
+              {"icon": "location-outline", "title": "Search venues with Google Maps", "body": "Type where your event is happening or where prints should be delivered to see a quick suggestion at the top followed by live Google Maps places."},
+              {"icon": "options-outline", "title": "Event categories tailored to you", "body": "When you book as an individual, the event list shows personal occasions like weddings and birthdays. Switch to Organization to see conferences, corporate events and more."}
+            ]
+          },
+          {
             "id": "2026-11-06-events-get-started",
             "date": "2026-11-06",
             "title": "Easier to create in Events",
