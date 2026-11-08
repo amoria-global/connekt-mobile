@@ -71,7 +71,7 @@ jobs:
       - name: Ask the gate whether phones can run this
         id: gate
         run: |
-          if node scripts/check-ota-compatibility.mjs; then
+          if node scripts/check-ota-compatibility.mjs --platform all; then
             echo "compatible=true" >> "$GITHUB_OUTPUT"
           else
             echo "compatible=false" >> "$GITHUB_OUTPUT"
