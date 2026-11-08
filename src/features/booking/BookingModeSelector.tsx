@@ -99,6 +99,7 @@ import { SheetCornerClose } from '@/components/ui/SheetCloseButton';
 import { glassTile } from '@/components/ui/GlassCard';
 import { confirmYear } from '@/features/events/farFutureDate';
 import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
+import { useLocationSearch, type LocationSuggestion } from './locationSearch';
 
 export type BookingStep = 'select' | 1 | 2 | 3 | 4 | 5;
 
@@ -111,7 +112,7 @@ const WIZARD_STEPS = [
 ] as const;
 
 const HOME_DELIVERY_AREAS_BY_CITY: Record<string, string[]> = {
-  Kigali: ['Nyarutarama', 'Kimihurura', 'Kacyiru', 'Remera', 'Kibagabaga', 'Kiyovu', 'Gacuriro', 'Kanombe'],
+  Kigali: ['Nyarutarama', 'Kimihurura', 'Kacyiru'],
   Musanze: ['Muhoza', 'Kinigi', 'Cyuve'],
   Rubavu: ['Gisenyi Town', 'Nyamyumba', 'Rubavu Sector'],
   Huye: ['Ngoma', 'Tumba', 'Butare Center'],
@@ -308,6 +309,15 @@ export function BookingModeSelector({
   const [printDatePickerOpen, setPrintDatePickerOpen] = useState(false);
   const [activeSheet, setActiveSheet] = useState<PickerSheetKey>(null);
   const [customSheetText, setCustomSheetText] = useState('');
+  const [venueSearchOpen, setVenueSearchOpen] = useState(false);
+  const [addressSearchOpen, setAddressSearchOpen] = useState(false);
+
+  const venueSearch = useLocationSearch(draft.venue, draft.city, visible && step === 1 && venueSearchOpen);
+  const addressSearch = useLocationSearch(
+    draft.printDeliveryAddress,
+    draft.city,
+    visible && step === 3 && addressSearchOpen,
+  );
 
   const [preview, setPreview] = useState<MatchPreviewResult | null>(null);
   const [previewBaseline, setPreviewBaseline] = useState<{
@@ -1381,8 +1391,116 @@ export function BookingModeSelector({
             />
           </View>
 
+          {/* Search-as-you-type is the first option */}
+          <View style={styles.venueInputRow}>
+            <Ionicons name="search-outline" size={17} color={colors.primary} />
+            <TextInput
+              value={draft.venue}
+              onFocus={() => setVenueSearchOpen(true)}
+              onChangeText={(t) => {
+                setVenueSearchOpen(true);
+                updateDraft('venue', t);
+              }}
+              maxLength={200}
+              style={styles.venueInput}
+              placeholder={tr('Search venue or enter location')}
+              placeholderTextColor={colors.textMuted}
+              accessibilityLabel={tr('Search venue or enter location')}
+            />
+            {draft.venue ? (
+              <Pressable
+                onPress={() => {
+                  updateDraft('venue', '');
+                  setVenueSearchOpen(false);
+                }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={tr('Clear location')}
+              >
+                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+
+          {/* Search-as-you-type suggestions: 1st–3rd Recommended like-places, 4th+ Google Maps API */}
+          {venueSearchOpen && draft.venue.trim().length > 0 && venueSearch.results.length > 0 ? (
+            <View style={styles.locationSuggestionsBox} accessibilityRole="menu">
+              {venueSearch.results.map((item: LocationSuggestion, index: number) => {
+                const isRecommended = index < 3 || item.source === 'recommended';
+                return (
+                  <Pressable
+                    key={item.id}
+                    onPress={() => {
+                      updateDraft('venue', item.fullText);
+                      if (
+                        item.city &&
+                        options.cities.some((c) => c.name.toLowerCase() === item.city?.toLowerCase())
+                      ) {
+                        updateDraft('city', item.city);
+                      }
+                      setVenueSearchOpen(false);
+                    }}
+                    style={[
+                      styles.locationSuggestionRow,
+                      index < venueSearch.results.length - 1 && styles.locationSuggestionDivider,
+                    ]}
+                    accessibilityRole="menuitem"
+                    accessibilityLabel={`${item.title}, ${item.subtitle}, ${
+                      isRecommended ? tr('Recommended') : 'Google Maps'
+                    }`}
+                  >
+                    <View
+                      style={[
+                        styles.locationSuggestionIcon,
+                        { backgroundColor: isRecommended ? colors.tint : colors.surfaceMuted },
+                      ]}
+                    >
+                      <Ionicons
+                        name={isRecommended ? 'sparkles-outline' : 'location-outline'}
+                        size={14}
+                        color={isRecommended ? colors.primary : colors.link}
+                      />
+                    </View>
+                    <View style={{ flex: 1, gap: 1 }}>
+                      <Text style={styles.locationSuggestionTitle} numberOfLines={1}>
+                        {item.title}
+                      </Text>
+                      <Text style={styles.locationSuggestionSubtitle} numberOfLines={1}>
+                        {item.subtitle}
+                      </Text>
+                    </View>
+                    <View
+                      style={[
+                        styles.locationSourceBadge,
+                        isRecommended ? styles.locationSourceRec : styles.locationSourceGoogle,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.locationSourceBadgeText,
+                          isRecommended
+                            ? styles.locationSourceRecText
+                            : styles.locationSourceGoogleText,
+                        ]}
+                      >
+                        {isRecommended ? tr('Recommended') : 'Google Maps'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+              {venueSearch.loadingGoogle ? (
+                <View style={styles.locationLoadingRow}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={styles.locationLoadingText}>{tr('Searching Google Maps…')}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+
+          {/* Fewer quick-pick venue chips */}
           <View style={styles.wrap}>
-            {popularVenues.map((v) => {
+            {popularVenues.slice(0, 3).map((v) => {
               const selected = draft.venue === v;
               return (
                 <Chip
@@ -1390,27 +1508,13 @@ export function BookingModeSelector({
                   selected={selected}
                   icon="navigate-outline"
                   label={v}
-                  onPress={() => updateDraft('venue', v)}
+                  onPress={() => {
+                    updateDraft('venue', v);
+                    setVenueSearchOpen(false);
+                  }}
                 />
               );
             })}
-          </View>
-
-          <View style={styles.venueInputRow}>
-            <Ionicons name="location-outline" size={17} color={colors.primary} />
-            <TextInput
-              value={draft.venue}
-              onChangeText={(t) => updateDraft('venue', t)}
-              maxLength={200}
-              style={styles.venueInput}
-              placeholder={tr('Search venue or enter location')}
-              placeholderTextColor={colors.textMuted}
-            />
-            {draft.venue ? (
-              <Pressable onPress={() => updateDraft('venue', '')} hitSlop={8}>
-                <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-              </Pressable>
-            ) : null}
           </View>
         </View>
       </View>
@@ -2051,8 +2155,102 @@ export function BookingModeSelector({
                     {tr('Where exactly should we deliver your print products?')}
                   </Text>
                 </View>
+                {/* Search-as-you-type is the first option */}
+                <View style={styles.venueInputRow}>
+                  <Ionicons name="search-outline" size={17} color={colors.primary} />
+                  <TextInput
+                    value={draft.printDeliveryAddress}
+                    onFocus={() => setAddressSearchOpen(true)}
+                    onChangeText={(t) => {
+                      setAddressSearchOpen(true);
+                      updateDraft('printDeliveryAddress', t);
+                    }}
+                    maxLength={220}
+                    style={styles.venueInput}
+                    placeholder={tr('e.g. Nyarutarama KG 9 Ave, House #14 (near Golf Club)')}
+                    placeholderTextColor={colors.textMuted}
+                  />
+                  {draft.printDeliveryAddress ? (
+                    <Pressable
+                      onPress={() => {
+                        updateDraft('printDeliveryAddress', '');
+                        setAddressSearchOpen(false);
+                      }}
+                      hitSlop={8}
+                    >
+                      <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+                    </Pressable>
+                  ) : null}
+                </View>
+
+                {addressSearchOpen &&
+                draft.printDeliveryAddress.trim().length > 0 &&
+                addressSearch.results.length > 0 ? (
+                  <View style={styles.locationSuggestionsBox} accessibilityRole="menu">
+                    {addressSearch.results.map((item: LocationSuggestion, index: number) => {
+                      const isRecommended = index < 3 || item.source === 'recommended';
+                      return (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => {
+                            updateDraft(
+                              'printDeliveryAddress',
+                              [item.title, item.subtitle].filter(Boolean).join(', '),
+                            );
+                            setAddressSearchOpen(false);
+                          }}
+                          style={[
+                            styles.locationSuggestionRow,
+                            index < addressSearch.results.length - 1 &&
+                              styles.locationSuggestionDivider,
+                          ]}
+                          accessibilityRole="menuitem"
+                        >
+                          <View
+                            style={[
+                              styles.locationSuggestionIcon,
+                              { backgroundColor: isRecommended ? colors.tint : colors.surfaceMuted },
+                            ]}
+                          >
+                            <Ionicons
+                              name={isRecommended ? 'sparkles-outline' : 'location-outline'}
+                              size={14}
+                              color={isRecommended ? colors.primary : colors.link}
+                            />
+                          </View>
+                          <View style={{ flex: 1, gap: 1 }}>
+                            <Text style={styles.locationSuggestionTitle} numberOfLines={1}>
+                              {item.title}
+                            </Text>
+                            <Text style={styles.locationSuggestionSubtitle} numberOfLines={1}>
+                              {item.subtitle}
+                            </Text>
+                          </View>
+                          <View
+                            style={[
+                              styles.locationSourceBadge,
+                              isRecommended ? styles.locationSourceRec : styles.locationSourceGoogle,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.locationSourceBadgeText,
+                                isRecommended
+                                  ? styles.locationSourceRecText
+                                  : styles.locationSourceGoogleText,
+                              ]}
+                            >
+                              {isRecommended ? tr('Recommended') : 'Google Maps'}
+                            </Text>
+                          </View>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : null}
+
                 <View style={styles.wrap}>
-                  {homeDeliveryAreas.map((area) => {
+                  {homeDeliveryAreas.slice(0, 3).map((area) => {
                     const selected = draft.printDeliveryAddress.includes(area);
                     return (
                       <Chip
@@ -2060,26 +2258,13 @@ export function BookingModeSelector({
                         selected={selected}
                         icon="location-outline"
                         label={area}
-                        onPress={() => updateDraft('printDeliveryAddress', `${area}, ${draft.city}`)}
+                        onPress={() => {
+                          updateDraft('printDeliveryAddress', `${area}, ${draft.city}`);
+                          setAddressSearchOpen(false);
+                        }}
                       />
                     );
                   })}
-                </View>
-                <View style={styles.venueInputRow}>
-                  <Ionicons name="navigate-outline" size={17} color={colors.primary} />
-                  <TextInput
-                    value={draft.printDeliveryAddress}
-                    onChangeText={(t) => updateDraft('printDeliveryAddress', t)}
-                    maxLength={220}
-                    style={styles.venueInput}
-                    placeholder={tr('e.g. Nyarutarama KG 9 Ave, House #14 (near Golf Club)')}
-                    placeholderTextColor={colors.textMuted}
-                  />
-                  {draft.printDeliveryAddress ? (
-                    <Pressable onPress={() => updateDraft('printDeliveryAddress', '')} hitSlop={8}>
-                      <Ionicons name="close-circle" size={16} color={colors.textMuted} />
-                    </Pressable>
-                  ) : null}
                 </View>
               </View>
             ) : null}
@@ -3663,6 +3848,74 @@ const useStyles = makeStyles((c, e) => ({
     fontSize: fontSize.sm,
     color: c.text,
     paddingVertical: 8,
+  },
+  locationSuggestionsBox: {
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    backgroundColor: c.surface,
+    overflow: 'hidden',
+  },
+  locationSuggestionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 9,
+  },
+  locationSuggestionDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.borderSoft,
+  },
+  locationSuggestionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  locationSuggestionTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  locationSuggestionSubtitle: {
+    fontSize: 11,
+    color: c.textMuted,
+  },
+  locationSourceBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  locationSourceRec: {
+    backgroundColor: c.tint,
+  },
+  locationSourceGoogle: {
+    backgroundColor: 'rgba(56, 189, 248, 0.14)',
+  },
+  locationSourceBadgeText: {
+    fontSize: 9.5,
+    fontWeight: fontWeight.extrabold,
+  },
+  locationSourceRecText: {
+    color: c.primary,
+  },
+  locationSourceGoogleText: {
+    color: c.link,
+  },
+  locationLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 7,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.borderSoft,
+  },
+  locationLoadingText: {
+    fontSize: 11,
+    color: c.textMuted,
   },
   homeAddressCard: {
     marginTop: 4,

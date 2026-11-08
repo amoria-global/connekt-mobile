@@ -76,4 +76,17 @@ describe('booking flow pages', () => {
     expect(four.all).toContain('Use recommended pricing');
     expect(four.all).toContain('4 of 5');
   });
+
+  it('step 1 puts search-as-you-type first and shows fewer venue chips', async () => {
+    const one = await open(1);
+    const input = one.r.root.find(
+      (n) => n.props.placeholder === 'Search venue or enter location',
+    );
+    expect(input).toBeTruthy();
+    // Removed extra venue chips so only 3 quick-pick chips show
+    expect(one.all).toContain('Kigali Convention Centre');
+    expect(one.all).toContain('BK Arena');
+    expect(one.all).toContain('Kigali Marriott Hotel');
+    expect(one.all).not.toContain('CanalOlympia Rebero');
+  });
 });
