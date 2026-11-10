@@ -173,6 +173,14 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-10-album-date-check",
+            "date": "2026-11-10",
+            "title": "Album date double-check",
+            "items": [
+              {"icon": "calendar-outline", "title": "Is the year right?", "body": "If you date a new album in the future, the app now asks you to confirm the year before creating it, so a typo like 2028 for 2026 doesn't slip through."}
+            ]
+          },
+          {
             "id": "2026-11-10-sheet-swipe-close",
             "date": "2026-11-10",
             "title": "Swipe down to close sheets",

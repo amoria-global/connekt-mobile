@@ -1,4 +1,4 @@
-import { farYearMessage, formatLongDay, isFarFuture } from './farFutureDate';
+import { albumYearMessage, farYearMessage, formatLongDay, isAfterToday, isFarFuture } from './farFutureDate';
 
 const today = new Date(2026, 10, 6); // 6 Nov 2026
 
@@ -18,5 +18,19 @@ describe('far-future event dates', () => {
   it('words the question with the full date', () => {
     expect(formatLongDay('2028-10-14')).toBe('14 Oct 2028');
     expect(farYearMessage('2028-10-14')).toBe('This event is on 14 Oct 2028. Is the year right?');
+  });
+});
+
+describe('album dates', () => {
+  it('asks about any date after today, never today or the past', () => {
+    expect(isAfterToday('2026-11-07', today)).toBe(true);
+    expect(isAfterToday('2028-10-14', today)).toBe(true);
+    expect(isAfterToday('2026-11-06', today)).toBe(false);
+    expect(isAfterToday('2025-01-01', today)).toBe(false);
+    expect(isAfterToday('', today)).toBe(false);
+    expect(isAfterToday('soon', today)).toBe(false);
+  });
+  it('words the question for an album', () => {
+    expect(albumYearMessage('2028-10-14')).toBe('This album is dated 14 Oct 2028. Is the year right?');
   });
 });
