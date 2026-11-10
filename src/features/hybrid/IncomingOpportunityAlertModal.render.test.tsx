@@ -27,6 +27,13 @@ jest.mock('@/utils/safeAudio', () => ({
 }));
 jest.mock('expo-image', () => ({ Image: () => null }));
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
+jest.mock('@/features/packages/api', () => ({
+  listPackages: jest.fn().mockResolvedValue([
+    { id: 'pkg-1', name: 'Silver', price: 500000, currency: 'RWF', deliveryDays: 10 },
+    { id: 'pkg-2', name: 'Gold', price: 950000, currency: 'RWF', deliveryDays: 7 },
+    { id: 'pkg-3', name: 'Platinum', price: 1500000, currency: 'RWF', deliveryDays: 5 },
+  ]),
+}));
 
 const offer = {
   candidateId: 'c1',
@@ -108,21 +115,70 @@ describe('offer details, as the photographer sees it', () => {
       r.root.findAll((n) => n.props.accessibilityLabel === label && typeof n.props.onPress === 'function')[0].props.onPress();
     });
 
-  it('answers from one sticky Accept: the delivery option chosen decides which existing handler runs', async () => {
+  it('answers from one sticky Accept: Client schedule accepts immediately, while My package delivery policy opens the pricing & package modal first', async () => {
     const onApprove = jest.fn();
     const { r } = render('details', { onApprove });
-    // The client's schedule is chosen by default.
+    // The client's schedule is chosen by default and accepts immediately.
     await act(async () => {
       r.root.findAll((n) => n.props.accessibilityLabel === 'Accept offer' && typeof n.props.onPress === 'function')[0].props.onPress();
     });
-    expect(onApprove).toHaveBeenLastCalledWith(offer, 'CLIENT');
-    // Choose the package policy, then the same button runs the package handler.
+    expect(onApprove).toHaveBeenLastCalledWith(
+      offer,
+      'CLIENT',
+      expect.objectContaining({
+        deliveryPolicy: 'CLIENT',
+        pricingMode: 'CLIENT_OFFER',
+        proposedPrice: 970000,
+      }),
+    );
+
+    // Choose the package policy, then tapping Accept offer opens the pricing selection modal first.
     pressByLabel(r, 'My package delivery policy');
     await act(async () => {
       r.root.findAll((n) => n.props.accessibilityLabel === 'Accept offer' && typeof n.props.onPress === 'function')[0].props.onPress();
     });
-    expect(onApprove).toHaveBeenLastCalledWith(offer, 'PHOTOGRAPHER_PACKAGE');
+    // Still only 1 call until the photographer confirms inside the pricing modal.
+    expect(onApprove).toHaveBeenCalledTimes(1);
+
+    // Confirming in the modal with the pre-selected nearest package ("Gold" at 950,000 is nearest to 970,000) sends the suggested package price.
+    await act(async () => {
+      r.root
+        .findAll((n) => n.props.accessibilityLabel === 'Confirm pricing and accept' && typeof n.props.onPress === 'function')[0]
+        .props.onPress();
+    });
+    expect(onApprove).toHaveBeenLastCalledWith(
+      offer,
+      'PHOTOGRAPHER_PACKAGE',
+      expect.objectContaining({
+        deliveryPolicy: 'PHOTOGRAPHER_PACKAGE',
+        pricingMode: 'PACKAGE',
+        packageId: 'pkg-2',
+        packageName: 'Gold',
+        proposedPrice: 950000,
+      }),
+    );
     expect(onApprove).toHaveBeenCalledTimes(2);
+
+    // Photographer can also choose to keep the client's offer amount in the modal.
+    await act(async () => {
+      r.root.findAll((n) => n.props.accessibilityLabel === 'Accept offer' && typeof n.props.onPress === 'function')[0].props.onPress();
+    });
+    pressByLabel(r, "Accept client's offer amount");
+    await act(async () => {
+      r.root
+        .findAll((n) => n.props.accessibilityLabel === 'Confirm pricing and accept' && typeof n.props.onPress === 'function')[0]
+        .props.onPress();
+    });
+    expect(onApprove).toHaveBeenLastCalledWith(
+      offer,
+      'PHOTOGRAPHER_PACKAGE',
+      expect.objectContaining({
+        deliveryPolicy: 'PHOTOGRAPHER_PACKAGE',
+        pricingMode: 'CLIENT_OFFER',
+        proposedPrice: 970000,
+      }),
+    );
+    expect(onApprove).toHaveBeenCalledTimes(3);
   });
 
   it('offers the delivery choice as two radios, with Reject offer separate', async () => {

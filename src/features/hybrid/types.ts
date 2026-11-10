@@ -9,6 +9,18 @@ export type LocationCoverage = 'SAME_CITY' | 'NEARBY_CITY' | 'ANY';
 export type SmartMatchTier = 'PREMIUM' | 'PREFERRED' | 'SUGGESTED' | 'ALTERNATIVE';
 export type RecommendationTier = 'HIGH' | 'MEDIUM' | 'LOW' | SmartMatchTier;
 export type OpportunityDeliveryPolicy = 'CLIENT' | 'PHOTOGRAPHER_PACKAGE';
+export type OpportunityPricingMode = 'CLIENT_OFFER' | 'PACKAGE';
+
+export type ApproveOpportunityOptions = {
+  deliveryPolicy?: OpportunityDeliveryPolicy;
+  pricingMode?: OpportunityPricingMode;
+  packageId?: string;
+  packageName?: string;
+  proposedPrice?: number;
+  currency?: string;
+  deliveryDays?: number;
+  packageDescription?: string;
+};
 
 export type PackageBenchmarkStats = {
   packageCount?: number;
@@ -250,6 +262,8 @@ export type PhotographerOpportunity = {
   matchedPackageDeliveryDays?: number;
   matchedPackageDescription?: string;
   deliveryPolicy?: OpportunityDeliveryPolicy;
+  pricingMode?: OpportunityPricingMode;
+  proposedPrice?: number;
   hasLiveStream?: boolean;
   allowWishInvites?: boolean;
   minimumPhotos?: number;
@@ -295,6 +309,9 @@ export type CandidateSummary = {
   matchedPackagePhotos?: number;
   matchedPackageVideos?: number;
   matchedPackageHours?: number;
+  pricingMode?: OpportunityPricingMode;
+  proposedPrice?: number;
+  agreedPrice?: number;
 };
 
 export type CandidatesResponse = {
@@ -330,6 +347,8 @@ export type SelectPhotographerPayload = {
   candidateId: string;
   photographerId: string;
   packageId?: string;
+  agreedPrice?: number;
+  proposedPrice?: number;
   escrowPercentage?: number;
   notes?: string;
 };
