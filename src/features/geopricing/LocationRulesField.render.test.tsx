@@ -116,7 +116,8 @@ describe('LocationRulesField', () => {
     expect(texts(r.root)).toContain('1 price');
     pressLabel(r, 'Location pricing and access, optional');
     const all = texts(r.root);
-    expect(all).toContain('Kenya, RWF 150');
+    expect(all).toContain('Kenya');
+    expect(all).toContain('RWF 150');
     expect(all).toContain('Add a location rule');
   });
 
@@ -144,7 +145,8 @@ describe('LocationRulesField', () => {
 
     expect(latest.rules[0]).toMatchObject({ scopeType: 'CONTINENT', scopeValue: 'EU', action: 'BLOCK' });
     expect(latest.rules[0].price).toBeUndefined();
-    expect(texts(r.root)).toContain('Europe, Blocked');
+    expect(texts(r.root)).toContain('Europe');
+    expect(texts(r.root)).toContain('Blocked');
   });
 
   it('will not add with no place chosen, and says why', () => {
@@ -195,6 +197,7 @@ describe('LocationRulesField', () => {
     pressText(r, 'Add a location rule');
     act(() => r.root.findByProps({ accessibilityLabel: 'Search a country or continent' }).props.onChangeText('kenya'));
     expect(r.root.findAllByType(TextInput).length).toBeGreaterThan(0);
-    expect(texts(r.root).filter((t) => t === 'Kenya')).toHaveLength(0);
+    // Kenya shows once, as the saved rule's row; it is not offered again in the search results.
+    expect(texts(r.root).filter((t) => t === 'Kenya')).toHaveLength(1);
   });
 });

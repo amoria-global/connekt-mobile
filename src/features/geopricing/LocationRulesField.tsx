@@ -16,6 +16,7 @@ import {
   PRECEDENCE_HINT,
   describeRule,
   draftProblem,
+  ruleValue,
   ruleFromDraft,
   searchLocations,
   sortRules,
@@ -168,12 +169,12 @@ export function LocationRulesField({
                     color={blocked ? colors.error : colors.primary}
                   />
                   <View style={styles.rowText}>
-                    <Text style={styles.rowTitle}>{describeRule(rule)}</Text>
+                    <Text style={styles.rowTitle}>{rule.label}</Text>
                     <Text style={styles.rowSub}>{rule.scopeType === 'COUNTRY' ? 'Country' : 'Continent'}</Text>
                   </View>
                   <View style={[styles.badge, blocked ? styles.badgeBlock : styles.badgePrice]}>
                     <Text style={[styles.badgeText, blocked ? styles.badgeTextBlock : styles.badgeTextPrice]}>
-                      {blocked ? 'Block' : 'Price'}
+                      {ruleValue(rule)}
                     </Text>
                   </View>
                 </Pressable>
@@ -336,7 +337,7 @@ const useStyles = makeStyles((c) => ({
     overflow: 'hidden',
   },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.md, minHeight: 56 },
-  headerIcon: { width: 36, height: 36, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.pendingBg },
+  headerIcon: { width: 36, height: 36, borderRadius: radii.md, alignItems: 'center', justifyContent: 'center', backgroundColor: c.tint },
   headerText: { flex: 1, gap: 2 },
   title: { color: c.text, fontSize: fontSize.md, fontFamily: fonts.semibold, fontWeight: fontWeight.semibold },
   summary: { color: c.textSoft, fontSize: fontSize.sm, fontFamily: fonts.regular },

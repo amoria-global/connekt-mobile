@@ -132,6 +132,13 @@ export function describeRule(r: LocationRule): string {
   return `${r.label}, ${r.currencyCode ? `${r.currencyCode} ` : ''}${amount}`;
 }
 
+/** What a row shows on its right: the price, or Blocked. */
+export function ruleValue(r: LocationRule): string {
+  if (r.action === 'BLOCK') return 'Blocked';
+  const amount = (r.price ?? 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return `${r.currencyCode ? `${r.currencyCode} ` : ''}${amount}`;
+}
+
 /** The collapsed field's summary line. */
 export function summarize(rules: LocationRule[]): string {
   if (rules.length === 0) return 'Same price everywhere';
