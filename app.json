@@ -173,6 +173,14 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-10-sheet-swipe-close",
+            "date": "2026-11-10",
+            "title": "Swipe down to close sheets",
+            "items": [
+              {"icon": "chevron-down-outline", "title": "Swipe down to close", "body": "Drag any bottom sheet down by its handle or title to close it. A short pull springs back, and sheets with a request running stay open."}
+            ]
+          },
+          {
             "id": "2026-11-10-incoming-call-alerts",
             "date": "2026-11-10",
             "title": "Reliable ringing, call screens and package pricing for offers",
