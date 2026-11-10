@@ -24,6 +24,32 @@ export function isFarFuture(ymd: string | null | undefined, today: Date = new Da
 
 export const farYearMessage = (ymd: string): string => `This event is on ${formatLongDay(ymd)}. Is the year right?`;
 
+/** True when the day is after today. An album records photos already taken, so a future date is unusual. */
+export function isAfterToday(ymd: string | null | undefined, today: Date = new Date()): boolean {
+  const m = DAY.exec(ymd ?? '');
+  if (!m) return false;
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).getTime() > start.getTime();
+}
+
+export const albumYearMessage = (ymd: string): string => `This album is dated ${formatLongDay(ymd)}. Is the year right?`;
+
+/** Resolves true to carry on: an album date today or earlier, or the person said a future date is right. */
+export function confirmAlbumDate(ymd: string | null | undefined, today: Date = new Date()): Promise<boolean> {
+  if (!ymd || !isAfterToday(ymd, today)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    Alert.alert(
+      'Check the date',
+      albumYearMessage(ymd),
+      [
+        { text: 'Change date', style: 'cancel', onPress: () => resolve(false) },
+        { text: 'Yes, keep it', onPress: () => resolve(true) },
+      ],
+      { cancelable: true, onDismiss: () => resolve(false) },
+    );
+  });
+}
+
 /** Resolves true to carry on: the date is near, or the person said the year is right. */
 export function confirmYear(ymd: string | null | undefined, today: Date = new Date()): Promise<boolean> {
   if (!ymd || !isFarFuture(ymd, today)) return Promise.resolve(true);
