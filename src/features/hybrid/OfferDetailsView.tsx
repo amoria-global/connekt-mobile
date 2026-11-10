@@ -11,6 +11,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, fontSize, makeStyles, radii, spacing, useTheme } from '@/theme';
 import { GhostButton, PrimaryButton } from '@/components/ui/Button';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { Segmented } from '@/components/ui/Segmented';
 import { NavGroup, NavRow } from '@/components/ui/Compact';
 import { chipColors } from '@/components/ui/StatusChip';
@@ -413,8 +414,8 @@ export function OfferDetailsView(p: Props) {
         animationType="slide"
         onRequestClose={() => setPricingModalOpen(false)}
       >
-        <View style={styles.modalBackdrop}>
-          <View style={[styles.modalSheet, { paddingBottom: Math.max(p.bottomInset, 16) + 8 }]}>
+        <GlassScrim onPress={() => setPricingModalOpen(false)} style={styles.modalBackdrop}>
+          <GlassSheetHost style={[styles.modalSheet, { paddingBottom: Math.max(p.bottomInset, 16) + 8 }]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1, gap: 2 }}>
                 <Text style={styles.modalEyebrow}>{tr('PACKAGE DELIVERY POLICY')}</Text>
@@ -550,8 +551,8 @@ export function OfferDetailsView(p: Props) {
                 accessibilityLabel={tr('Cancel pricing selection')}
               />
             </View>
-          </View>
-        </View>
+          </GlassSheetHost>
+        </GlassScrim>
       </Modal>
     </View>
   );
@@ -605,16 +606,10 @@ const useStyles = makeStyles((c) => ({
   footNote: { textAlign: 'center', fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(10, 12, 18, 0.68)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
     maxHeight: '86%',
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
-    borderTopWidth: 1,
-    borderColor: c.stroke,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.lg,
     gap: spacing.md,
