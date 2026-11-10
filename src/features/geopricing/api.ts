@@ -14,6 +14,7 @@
  */
 import { api } from '@/api/client';
 import type { ApiEnvelope } from '@/types';
+import { regionBlockFromPrice, type RegionBlock } from './regionBlock';
 
 export type EffectivePrice = {
   eventId: string;
@@ -23,6 +24,8 @@ export type EffectivePrice = {
   currencySymbol?: string;
   source?: 'COUNTRY' | 'CONTINENT' | 'DEFAULT';
   country?: string;
+  /** Set when the viewer's place is kept out of the event (or could not be confirmed): show the region screen. */
+  block?: RegionBlock | null;
 };
 
 export type GeoScope = 'COUNTRY' | 'CONTINENT';
@@ -31,11 +34,23 @@ export type GeoPriceRule = {
   id: string;
   scopeType: GeoScope;
   scopeValue: string;
+  /** PRICE sets a price for the place; BLOCK keeps viewers there out. Older servers send neither, which means PRICE. */
+  action: 'PRICE' | 'BLOCK';
   price: number;
   currencyId?: string;
   currencyAbbreviation?: string;
   currencySymbol?: string;
 };
+
+export type GeoLocationItem = {
+  scopeType: GeoScope;
+  code: string;
+  name: string;
+  continentName?: string;
+  countryCount?: number;
+};
+
+export type GeoLocationList = { continents: GeoLocationItem[]; countries: GeoLocationItem[] };
 
 export type GeoPricingConfig = {
   defaultPrice: number | null;
@@ -57,6 +72,7 @@ function toEffective(d: Raw, fallbackId: string): EffectivePrice {
     currencySymbol: str(d.currencySymbol),
     source: str(d.source) as EffectivePrice['source'],
     country: str(d.country),
+    block: regionBlockFromPrice(d),
   };
 }
 
@@ -89,6 +105,23 @@ export async function getEffectivePrices(eventIds: string[], country?: string): 
 
 // ── Owner CRUD ────────────────────────────────────────────────────────────
 
+/** The countries and continents a rule can name: one list, served by the server, the same on every client. */
+export async function getGeoLocations(): Promise<GeoLocationList> {
+  const res = await api.get<ApiEnvelope<Raw>>('/public/geo/locations', { skipAuth: true });
+  const d = (res?.data ?? {}) as Raw;
+  const read = (rows: unknown, scopeType: GeoScope): GeoLocationItem[] =>
+    (Array.isArray(rows) ? (rows as Raw[]) : [])
+      .map((r) => ({
+        scopeType,
+        code: str(r.code) ?? '',
+        name: str(r.name) ?? '',
+        continentName: str(r.continentName),
+        countryCount: num(r.countryCount) ?? undefined,
+      }))
+      .filter((x) => x.code && x.name);
+  return { continents: read(d.continents, 'CONTINENT'), countries: read(d.countries, 'COUNTRY') };
+}
+
 export async function getGeoPricing(eventId: string): Promise<GeoPricingConfig> {
   const res = await api.get<ApiEnvelope<Raw>>(`/events/${encodeURIComponent(eventId)}/geo-prices`);
   const d = (res?.data ?? {}) as Raw;
@@ -97,6 +130,7 @@ export async function getGeoPricing(eventId: string): Promise<GeoPricingConfig> 
       id: String(r.id),
       scopeType: (str(r.scopeType) as GeoScope) ?? 'COUNTRY',
       scopeValue: str(r.scopeValue) ?? '',
+      action: str(r.action) === 'BLOCK' ? 'BLOCK' : 'PRICE',
       price: num(r.price) ?? 0,
       currencyId: str(r.currencyId),
       currencyAbbreviation: str(r.currencyAbbreviation),
@@ -113,7 +147,7 @@ export async function getGeoPricing(eventId: string): Promise<GeoPricingConfig> 
 
 export async function upsertGeoPrice(
   eventId: string,
-  input: { scopeType: GeoScope; scopeValue: string; price: number; currencyId?: string },
+  input: { scopeType: GeoScope; scopeValue: string; action?: 'PRICE' | 'BLOCK'; price?: number; currencyId?: string },
 ): Promise<void> {
   const res = await api.post<ApiEnvelope<Raw>>(`/events/${encodeURIComponent(eventId)}/geo-prices`, input);
   if (res?.action !== 1) throw new Error(res?.message || 'Could not save the price.');
@@ -134,6 +168,7 @@ function parseConfig(d: Raw): GeoPricingConfig {
       id: String(r.id),
       scopeType: (str(r.scopeType) as GeoScope) ?? 'COUNTRY',
       scopeValue: str(r.scopeValue) ?? '',
+      action: str(r.action) === 'BLOCK' ? 'BLOCK' : 'PRICE',
       price: num(r.price) ?? 0,
       currencyId: str(r.currencyId),
       currencyAbbreviation: str(r.currencyAbbreviation),

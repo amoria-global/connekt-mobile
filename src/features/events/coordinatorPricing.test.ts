@@ -180,8 +180,8 @@ describe('Coordinator Event Creation & Geo-pricing Rules', () => {
 
     it('prevents duplicate rules for the same scope and location', () => {
       const existingRules: GeoPriceRule[] = [
-        { id: '1', scopeType: 'CONTINENT', scopeValue: 'AF', price: 500 },
-        { id: '2', scopeType: 'COUNTRY', scopeValue: 'US', price: 10 },
+        { id: '1', scopeType: 'CONTINENT', scopeValue: 'AF', action: 'PRICE', price: 500 },
+        { id: '2', scopeType: 'COUNTRY', scopeValue: 'US', action: 'PRICE', price: 10 },
       ];
 
       const isDuplicate = (scope: GeoScope, value: string) =>

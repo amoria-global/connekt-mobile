@@ -10,6 +10,7 @@
  * Publishing, the cover photo and going live reuse the existing event and stream endpoints.
  */
 import { api, requireOk } from '@/api/client';
+import type { GeoRulePayload } from '@/features/geopricing/locationRules';
 import { mapEvent, type RawEvent } from '@/features/events/api';
 import type { EventItem } from '@/features/events/types';
 import type { ApiEnvelope } from '@/types';
@@ -39,6 +40,8 @@ export type HostedEventInput = {
   streamFeeCurrencyId?: string;
   /** Required by the server: whether viewers may invite others to send wishes. */
   allowWishInvites: boolean;
+  /** Location rules, saved with the event in one go. Leave out for none. */
+  geoRules?: GeoRulePayload[];
 };
 
 export type EarningsPreview = {

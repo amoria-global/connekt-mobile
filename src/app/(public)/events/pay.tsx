@@ -48,6 +48,8 @@ import {
   type InitiateAnonymousPaymentPayload,
 } from '@/features/streams/api';
 import { getEffectivePrice, type EffectivePrice } from '@/features/geopricing/api';
+import { regionBlockFromError, type RegionBlock } from '@/features/geopricing/regionBlock';
+import { RegionBlockedView } from '@/features/geopricing/RegionBlockedView';
 import { useAsync } from '@/hooks/useAsync';
 import { storage } from '@/services/storage';
 import { isApiError, useAuth } from '@/store/auth';
@@ -139,17 +141,22 @@ function EventPaymentInner() {
 
   // Geo-pricing
   const [effective, setEffective] = useState<EffectivePrice | null>(null);
+  // Set when this place is kept out of the event, or could not be confirmed (then Retry asks again).
+  const [regionBlock, setRegionBlock] = useState<RegionBlock | null>(null);
+  const [priceTry, setPriceTry] = useState(0);
   useEffect(() => {
     let cancelled = false;
     getEffectivePrice(String(id))
       .then((e) => {
-        if (!cancelled) setEffective(e);
+        if (cancelled) return;
+        setEffective(e);
+        setRegionBlock(e.block ?? null);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, priceTry]);
 
   // Country & phone payment state
   const eligibility = usePaymentEligibility();
@@ -221,6 +228,11 @@ function EventPaymentInner() {
       // Paid event — transition to in-app payment selection
       setStage('payment');
     } catch (e) {
+      const blocked = regionBlockFromError(e);
+      if (blocked) {
+        setRegionBlock(blocked);
+        return;
+      }
       setError(isApiError(e) ? e.message : 'Could not proceed. Please try again.');
     } finally {
       setBusy(false);
@@ -295,6 +307,11 @@ function EventPaymentInner() {
         throw new Error(res.message || 'Payment initiation failed.');
       }
     } catch (e) {
+      const blocked = regionBlockFromError(e);
+      if (blocked) {
+        setRegionBlock(blocked);
+        return;
+      }
       setError(isApiError(e) ? e.message : 'Could not initiate payment. Please verify your phone number.');
     } finally {
       setBusy(false);
@@ -346,6 +363,24 @@ function EventPaymentInner() {
         <View style={styles.centered}>
           <Ionicons name="cloud-offline-outline" size={40} color={colors.textMuted} />
           <Text style={styles.muted}>{event.error ?? 'Could not load event details.'}</Text>
+        </View>
+      </Screen>
+    );
+  }
+
+  // Kept out of this event: no price, no pay button, no stream. Retry only when the place could not be confirmed.
+  if (regionBlock) {
+    return (
+      <Screen>
+        <View style={styles.centered}>
+          <RegionBlockedView
+            block={regionBlock}
+            onRetry={() => {
+              setRegionBlock(null);
+              setPriceTry((n) => n + 1);
+            }}
+            onBack={() => router.back()}
+          />
         </View>
       </Screen>
     );
