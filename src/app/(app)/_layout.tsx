@@ -3,6 +3,7 @@ import {
   addNotificationResponseListener,
   consumeInitialNotificationResponse,
   registerForPushNotifications,
+  startPushTokenRefreshListener,
 } from '@/features/notifications/push';
 import { notificationTarget, shouldNavigateToTarget } from '@/features/notifications/routing';
 import {
@@ -71,6 +72,7 @@ export default function AppLayout() {
       interruptionMode: 'mixWithOthers',
     });
     void registerForPushNotifications();
+    const stopTokenRefresh = startPushTokenRefreshListener();
 
     const handleNotificationOpen = async (data: Record<string, unknown>, actionIdentifier?: string) => {
       const candidateId =
@@ -118,6 +120,7 @@ export default function AppLayout() {
       // opens the full-screen incoming request instead of the event page.
       const isBookingRequestPush =
         data.kind === 'BOOKING_REQUEST' ||
+        actionIdentifier === 'ACTION_OPEN' ||
         actionIdentifier === 'VIEW_REQUEST' ||
         (isPhotographer &&
           (data.type === 'BOOKING' || data.type === 'EVENT') &&
@@ -154,6 +157,7 @@ export default function AppLayout() {
     const unsubscribe = addNotificationResponseListener(handleNotificationOpen);
     return () => {
       unsubscribe();
+      stopTokenRefresh();
     };
   }, [isPhotographer, router]);
 

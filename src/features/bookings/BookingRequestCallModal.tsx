@@ -70,14 +70,18 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
   const player = useRef<AudioPlayer | null>(null);
   const stopRinging = useCallback(() => {
     player.current?.pause();
+    if (Platform.OS !== 'web') {
+      Vibration.cancel();
+    }
   }, []);
   const ringingFor = event?.id;
   useEffect(() => {
-    if (ringingFor || !ringingFor) return;
+    if (!ringingFor || Platform.OS === 'web') return;
     let p: AudioPlayer | null = null;
     try {
       void setAudioModeAsync({
-        playsInSilentMode: false,
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
         interruptionMode: 'mixWithOthers',
       });
       p = createAudioPlayer(RINGTONE);
@@ -87,8 +91,11 @@ export function BookingRequestCallModal({ event, onAccept, onDecline, onViewDeta
     } catch {
       // No audio: the screen still shows and vibrates
     }
-    Vibration.vibrate([0, 500, 300, 500, 300, 500]);
-    const cap = setTimeout(() => p?.pause(), MAX_RING_MS);
+    Vibration.vibrate([0, 600, 350, 600, 350, 600], true);
+    const cap = setTimeout(() => {
+      p?.pause();
+      Vibration.cancel();
+    }, MAX_RING_MS);
     return () => {
       clearTimeout(cap);
       Vibration.cancel();

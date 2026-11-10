@@ -173,6 +173,15 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-10-incoming-call-alerts",
+            "date": "2026-11-10",
+            "title": "Reliable ringing and call screens for event offers",
+            "items": [
+              {"icon": "call-outline", "title": "Incoming call screen and ringtone restored", "body": "New event opportunities and direct booking requests now immediately show the full-screen incoming call screen, play your ringtone and vibrate."},
+              {"icon": "notifications-outline", "title": "Device push alerts and lock screen notifications", "body": "When a new offer or booking request arrives, your phone wakes up and posts a ringing notification on the lock screen with quick Accept and Reject actions."}
+            ]
+          },
+          {
             "id": "2026-11-08-booking-places-categories",
             "date": "2026-11-08",
             "title": "Smarter venue search and clearer event types",
