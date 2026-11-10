@@ -3,7 +3,7 @@
  * Pure functions over the parsed brief (`parseOpportunityOfferBrief`, the reader that matches `serializeOfferBrief`).
  */
 import type { ParsedOfferBrief } from './offerBrief';
-import type { PhotographerOpportunity } from './types';
+import type { CandidateSummary, PhotographerOpportunity } from './types';
 
 /** The code as the app writes it: "RF", "Rwf" and "rwf" all read RWF, and a missing code is RWF. */
 export function normalizeCurrency(code?: string | null): string {
@@ -144,4 +144,127 @@ function shortReason(reason: string, city?: string | null): string {
 export function matchChips(reasons: string[] | undefined, max = 3, city?: string | null): { chips: string[]; more: number } {
   const clean = (reasons ?? []).map((r) => r.trim()).filter(Boolean).map((r) => shortReason(r, city));
   return { chips: clean.slice(0, max), more: Math.max(0, clean.length - max) };
+}
+
+export type PricedPackageItem = {
+  id: string;
+  name: string;
+  price?: number;
+  currency?: string;
+  deliveryDays?: number;
+  durationHours?: number;
+  includedPhotos?: number;
+  includedVideos?: number;
+  description?: string;
+};
+
+/**
+ * Finds the ID of the package whose price is nearest to `budget` (falling back to `preferredPackageId` or the first
+ * priced package when `budget` is null/undefined).
+ */
+export function nearestPackageIdToBudget<T extends { id: string; price?: number }>(
+  packages: T[],
+  budget?: number | null,
+  preferredPackageId?: string | null,
+): string | null {
+  if (!packages.length) return null;
+  if (budget != null && Number.isFinite(budget) && budget > 0) {
+    let bestId: string | null = null;
+    let bestDiff = Infinity;
+    for (const pk of packages) {
+      if (typeof pk.price === 'number' && Number.isFinite(pk.price) && pk.price > 0) {
+        const diff = Math.abs(pk.price - budget);
+        if (diff < bestDiff || (diff === bestDiff && pk.id === preferredPackageId)) {
+          bestDiff = diff;
+          bestId = pk.id;
+        }
+      }
+    }
+    if (bestId) return bestId;
+  }
+  if (preferredPackageId && packages.some((p) => p.id === preferredPackageId)) {
+    return preferredPackageId;
+  }
+  return packages[0]?.id ?? null;
+}
+
+/**
+ * Sorts a photographer's packages so the suggested/preferred package (when specified) and the packages nearest to the
+ * client's budget appear first.
+ */
+export function sortPackagesByBudget<T extends { id: string; price?: number }>(
+  packages: T[],
+  budget?: number | null,
+  preferredPackageId?: string | null,
+): T[] {
+  return [...packages].sort((a, b) => {
+    if (preferredPackageId) {
+      if (a.id === preferredPackageId && b.id !== preferredPackageId) return -1;
+      if (b.id === preferredPackageId && a.id !== preferredPackageId) return 1;
+    }
+    if (budget != null && Number.isFinite(budget) && budget > 0) {
+      const da = typeof a.price === 'number' && Number.isFinite(a.price) ? Math.abs(a.price - budget) : Infinity;
+      const db = typeof b.price === 'number' && Number.isFinite(b.price) ? Math.abs(b.price - budget) : Infinity;
+      if (da !== db) return da - db;
+    }
+    return (a.price ?? 0) - (b.price ?? 0);
+  });
+}
+
+export type CandidateChargingSummary = {
+  amount: number | null;
+  currency: string;
+  label: string;
+  packageName?: string;
+  isSuggestedPackage: boolean;
+};
+
+/**
+ * Computes what price a candidate is charging for the client's event:
+ * - When the photographer accepted with `PHOTOGRAPHER_PACKAGE` and chose a package price, returns that suggested
+ *   package price and package name.
+ * - When the photographer accepted with `PHOTOGRAPHER_PACKAGE` at the client's offer amount (`pricingMode === 'CLIENT_OFFER'`),
+ *   returns the client's offer amount with package delivery policy.
+ * - When the photographer accepted with `CLIENT` policy, returns the client's offer amount.
+ */
+export function candidateChargingSummary(
+  c: CandidateSummary,
+  clientBudget?: number | null,
+  defaultCurrency = 'RWF',
+): CandidateChargingSummary {
+  const offerAmt = clientBudget != null && Number.isFinite(clientBudget) && clientBudget > 0 ? clientBudget : null;
+  if (c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE') {
+    if (c.pricingMode === 'CLIENT_OFFER') {
+      const amt = c.proposedPrice ?? offerAmt;
+      return {
+        amount: amt ?? null,
+        currency: normalizeCurrency(c.matchedPackageCurrency || defaultCurrency),
+        label: 'Offer price · Package policy',
+        isSuggestedPackage: false,
+      };
+    }
+    const pkgPrice = c.proposedPrice ?? c.matchedPackagePrice ?? null;
+    if (pkgPrice != null && pkgPrice > 0) {
+      return {
+        amount: pkgPrice,
+        currency: normalizeCurrency(c.matchedPackageCurrency || defaultCurrency),
+        label: c.matchedPackageName ? `Suggested: ${c.matchedPackageName}` : 'Suggested package price',
+        packageName: c.matchedPackageName,
+        isSuggestedPackage: true,
+      };
+    }
+    return {
+      amount: offerAmt,
+      currency: normalizeCurrency(defaultCurrency),
+      label: 'Package delivery policy',
+      isSuggestedPackage: false,
+    };
+  }
+  const amt = c.proposedPrice ?? offerAmt ?? c.matchedPackagePrice ?? null;
+  return {
+    amount: amt,
+    currency: normalizeCurrency(defaultCurrency),
+    label: "Accepted offer price",
+    isSuggestedPackage: false,
+  };
 }

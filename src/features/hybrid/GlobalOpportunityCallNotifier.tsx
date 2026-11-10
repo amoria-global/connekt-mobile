@@ -39,7 +39,7 @@ import {
   rejectOpportunity,
   serverNowMs,
 } from './api';
-import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
+import type { ApproveOpportunityOptions, OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
 import {
   IncomingOpportunityAlertModal,
   OPPORTUNITY_AVAILABILITY_WINDOW_MS,
@@ -152,10 +152,11 @@ export function GlobalOpportunityCallNotifier() {
     async (
       opp: PhotographerOpportunity,
       deliveryPolicy: OpportunityDeliveryPolicy = 'CLIENT',
+      options?: ApproveOpportunityOptions,
     ) => {
       try {
         isBusyRef.current = true;
-        await approveOpportunity(opp.candidateId, { deliveryPolicy });
+        await approveOpportunity(opp.candidateId, { deliveryPolicy, ...options });
         markDismissed(opp.candidateId);
         setActiveOpportunity(null);
         showMatchingInProgress();

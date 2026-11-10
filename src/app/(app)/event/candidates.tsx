@@ -4,7 +4,7 @@
  * order as the web dashboard. Choosing one is re-checked by the server and
  * creates the booking; payment then goes through the shared checkout.
  */
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { keepIfSame, useForegroundPolling } from '@/hooks/useForegroundPolling';
@@ -17,6 +17,13 @@ import { getPhotographer, type PhotographerPackage } from '@/features/photograph
 import { convertToDirectRescue, getHybridOptions, listEventCandidates, selectPhotographer, syncServerClock } from '@/features/hybrid/api';
 import type { CandidateSummary, CandidatesResponse } from '@/features/hybrid/types';
 import { budgetLabel, CountdownText, hhmm, MODE_META, SMART_TIER_ORDER, smartTierOf, TIER_META } from '@/features/hybrid/hybridUi';
+import {
+  candidateChargingSummary,
+  formatMoney,
+  nearestPackageIdToBudget,
+  sortPackagesByBudget,
+  type PricedPackageItem,
+} from '@/features/hybrid/offerPresentation';
 import { BookingModeSelector } from '@/features/booking/BookingModeSelector';
 import { isMatchBooked } from '@/features/hybrid/status';
 import { HandoffCheckoutSheet } from '@/features/payments/HandoffCheckoutSheet';
@@ -44,13 +51,16 @@ export default function EventCandidatesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [choosing, setChoosing] = useState<CandidateSummary | null>(null);
+  const [selectedPackageChoice, setSelectedPackageChoice] = useState<'CLIENT_OFFER' | string>('CLIENT_OFFER');
   const [escrow, setEscrow] = useState(50);
   const [escrowOptions, setEscrowOptions] = useState<number[]>([50, 70, 100]);
   const [detailPick, setDetail] = useState<CandidateSummary | null>(null);
   const [packagesFor, setPackagesFor] = useState<CandidateSummary | null>(null);
   const [loadedPackages, setLoadedPackages] = useState<{ id: string; list: PhotographerPackage[] } | null>(null);
-  const packagesLoading = !!packagesFor && loadedPackages?.id !== packagesFor.photographerId;
-  const packages = loadedPackages && packagesFor && loadedPackages.id === packagesFor.photographerId ? loadedPackages.list : [];
+  const activePackagePhotographerId = choosing?.photographerId || packagesFor?.photographerId || null;
+  const packagesLoading = !!activePackagePhotographerId && loadedPackages?.id !== activePackagePhotographerId;
+  const packages =
+    loadedPackages && packagesFor && loadedPackages.id === packagesFor.photographerId ? loadedPackages.list : [];
   const { width: screenW } = useWindowDimensions();
   // Four across when the screen is wide enough; on a phone the row of four scrolls sideways.
   const rowW = Math.min(screenW, 720) - spacing.lg * 2;
@@ -87,15 +97,129 @@ export default function EventCandidatesScreen() {
   }, [load]);
 
   const active = (data?.matchStatus || '').toUpperCase() === 'ACTIVE';
+  const eventBudget = data?.maxBudget ?? data?.minBudget ?? null;
+
   useEffect(() => {
-    if (!packagesFor) return;
+    if (!activePackagePhotographerId) return;
+    if (loadedPackages?.id === activePackagePhotographerId) return;
     let live = true;
-    const id = packagesFor.photographerId;
+    const id = activePackagePhotographerId;
     getPhotographer(id)
       .then((d) => { if (live) setLoadedPackages({ id, list: d.packages }); })
       .catch(() => { if (live) setLoadedPackages({ id, list: [] }); });
     return () => { live = false; };
-  }, [packagesFor]);
+  }, [activePackagePhotographerId, loadedPackages?.id]);
+
+  const choosingPackages = useMemo<PricedPackageItem[]>(() => {
+    if (!choosing) return [];
+    const fetched =
+      loadedPackages && loadedPackages.id === choosing.photographerId
+        ? loadedPackages.list.map((pk) => ({
+            id: String(pk.id),
+            name: pk.name,
+            price: pk.price,
+            currency: pk.currency || 'RWF',
+            deliveryDays: pk.deliveryDays,
+            durationHours: pk.durationHours,
+            includedPhotos: pk.includedPhotos,
+            includedVideos: pk.includedVideos,
+            description: pk.description,
+          }))
+        : [];
+    const suggestedPrice = choosing.proposedPrice ?? choosing.matchedPackagePrice;
+    const suggestedId = choosing.matchedPackageId || '__suggested_pkg__';
+    if (
+      (choosing.matchedPackageName || (suggestedPrice != null && suggestedPrice > 0)) &&
+      choosing.pricingMode !== 'CLIENT_OFFER'
+    ) {
+      const exists = fetched.some(
+        (p) =>
+          p.id === suggestedId ||
+          (choosing.matchedPackageName &&
+            p.name.toLowerCase() === choosing.matchedPackageName.toLowerCase() &&
+            p.price === suggestedPrice),
+      );
+      if (!exists) {
+        fetched.unshift({
+          id: suggestedId,
+          name: choosing.matchedPackageName || 'Suggested package',
+          price: suggestedPrice,
+          currency: choosing.matchedPackageCurrency || 'RWF',
+          deliveryDays: choosing.packageDeliveryDays,
+          durationHours: choosing.matchedPackageHours,
+          includedPhotos: choosing.matchedPackagePhotos,
+          includedVideos: choosing.matchedPackageVideos,
+          description: choosing.packageDeliveryDescription,
+        });
+      }
+    }
+    return sortPackagesByBudget(fetched, eventBudget, choosing.matchedPackageId || suggestedId);
+  }, [choosing, loadedPackages, eventBudget]);
+
+  const nearestChoosingPkgId = useMemo(
+    () => nearestPackageIdToBudget(choosingPackages, eventBudget, choosing?.matchedPackageId),
+    [choosingPackages, eventBudget, choosing?.matchedPackageId],
+  );
+
+  useEffect(() => {
+    if (!choosing) return;
+    if (
+      choosing.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' &&
+      choosing.pricingMode !== 'CLIENT_OFFER' &&
+      selectedPackageChoice === '__suggested_pkg__' &&
+      choosingPackages.length > 0 &&
+      !choosingPackages.some((p) => p.id === '__suggested_pkg__')
+    ) {
+      setSelectedPackageChoice(nearestChoosingPkgId ?? choosingPackages[0].id);
+    }
+  }, [choosing, choosingPackages, nearestChoosingPkgId, selectedPackageChoice]);
+
+  const openChoosingModal = useCallback(
+    (cand: CandidateSummary, explicitPackageId?: string) => {
+      setEscrow(50);
+      if (explicitPackageId) {
+        setSelectedPackageChoice(explicitPackageId);
+      } else if (
+        cand.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' &&
+        cand.pricingMode !== 'CLIENT_OFFER' &&
+        (cand.matchedPackageId || cand.matchedPackagePrice != null || cand.proposedPrice != null)
+      ) {
+        setSelectedPackageChoice(cand.matchedPackageId || '__suggested_pkg__');
+      } else if (eventBudget != null && eventBudget > 0) {
+        setSelectedPackageChoice('CLIENT_OFFER');
+      } else if (cand.matchedPackageId) {
+        setSelectedPackageChoice(cand.matchedPackageId);
+      } else {
+        setSelectedPackageChoice('CLIENT_OFFER');
+      }
+      setChoosing(cand);
+    },
+    [eventBudget],
+  );
+
+  const selectedChoosingPkg = useMemo(
+    () =>
+      selectedPackageChoice === 'CLIENT_OFFER'
+        ? null
+        : choosingPackages.find((p) => p.id === selectedPackageChoice) ?? null,
+    [selectedPackageChoice, choosingPackages],
+  );
+
+  const agreedPrice = useMemo(() => {
+    if (selectedChoosingPkg && selectedChoosingPkg.price != null) {
+      return selectedChoosingPkg.price;
+    }
+    if (selectedPackageChoice === 'CLIENT_OFFER') {
+      return eventBudget ?? choosing?.proposedPrice ?? choosing?.matchedPackagePrice ?? null;
+    }
+    return choosing?.proposedPrice ?? choosing?.matchedPackagePrice ?? eventBudget ?? null;
+  }, [selectedChoosingPkg, selectedPackageChoice, eventBudget, choosing]);
+
+  const agreedCurrency = selectedChoosingPkg?.currency || choosing?.matchedPackageCurrency || 'RWF';
+  const expectedDeposit =
+    agreedPrice != null && Number.isFinite(agreedPrice) && agreedPrice > 0
+      ? Math.round((agreedPrice * escrow) / 100)
+      : undefined;
 
   const settled = !!data && !active && (data.candidates.length > 0 || isMatchBooked(data));
   useForegroundPolling(load, 12000, !settled);
@@ -104,12 +228,26 @@ export default function EventCandidatesScreen() {
     if (!choosing) return;
     setSubmitting(true);
     try {
+      const realPackageId =
+        selectedPackageChoice !== 'CLIENT_OFFER' && !selectedPackageChoice.startsWith('__')
+          ? selectedPackageChoice
+          : choosing.matchedPackageId && selectedPackageChoice !== 'CLIENT_OFFER'
+            ? choosing.matchedPackageId
+            : undefined;
       const res = await selectPhotographer(eventId, {
         candidateId: choosing.candidateId,
         photographerId: choosing.photographerId,
+        packageId: realPackageId,
+        agreedPrice: agreedPrice ?? undefined,
+        proposedPrice: agreedPrice ?? undefined,
         escrowPercentage: escrow,
       });
-      setPayHandoff({ declarationId: res.declarationId, depositAmount: res.depositAmount, currency: res.currency, name: choosing.name });
+      setPayHandoff({
+        declarationId: res.declarationId,
+        depositAmount: res.depositAmount ?? expectedDeposit,
+        currency: res.currency || agreedCurrency,
+        name: selectedChoosingPkg ? `${choosing.name} · ${selectedChoosingPkg.name}` : choosing.name,
+      });
       setChoosing(null);
       if (res.declarationId) setCheckoutOpen(true);
       else router.replace(`/event/${eventId}` as never);
@@ -174,11 +312,11 @@ export default function EventCandidatesScreen() {
               </View>
               {open ? (
                 <View style={styles.bandGrid}>
-                  {inTier.map((c) => <CandidateCard key={c.candidateId} candidate={c} width={cardWidth} onOpen={setDetail} />)}
+                  {inTier.map((c) => <CandidateCard key={c.candidateId} candidate={c} width={cardWidth} clientBudget={eventBudget} onOpen={setDetail} />)}
                 </View>
               ) : (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.bandRow}>
-                  {inTier.slice(0, TIER_ROW).map((c) => <CandidateCard key={c.candidateId} candidate={c} width={cardWidth} onOpen={setDetail} />)}
+                  {inTier.slice(0, TIER_ROW).map((c) => <CandidateCard key={c.candidateId} candidate={c} width={cardWidth} clientBudget={eventBudget} onOpen={setDetail} />)}
                 </ScrollView>
               )}
             </View>
@@ -297,46 +435,57 @@ export default function EventCandidatesScreen() {
         subtitle={detail ? [detail.primarySpecialty, `${TIER_META[smartTierOf(detail)].label}${detail.matchScore != null ? ` · Score ${detail.matchScore}` : ''}`].filter(Boolean).join(' · ') : undefined}
         onClose={() => setDetail(null)}
       >
-        {detail ? (
-          <View style={{ gap: spacing.md }}>
-            <View style={styles.detailBox}>
-              <Text style={styles.hint}>
-                {[detail.photographerType === 'STUDIO' ? 'Company / Studio' : 'Freelancer', detail.distanceLabel || detail.city].filter(Boolean).join(' · ')}
-              </Text>
-              <Text style={styles.hint}>
-                {detail.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
-                  ? `Delivery${detail.packageDeliveryDays ? ` in ${detail.packageDeliveryDays} days` : ' by their package'}`
-                  : 'Delivery as you requested'}
-              </Text>
+        {detail ? (() => {
+          const charging = candidateChargingSummary(detail, eventBudget);
+          return (
+            <View style={{ gap: spacing.md }}>
+              <View style={styles.detailBox}>
+                <Text style={styles.hint}>
+                  {[detail.photographerType === 'STUDIO' ? 'Company / Studio' : 'Freelancer', detail.distanceLabel || detail.city].filter(Boolean).join(' · ')}
+                </Text>
+                {charging.amount != null ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+                    <Text style={styles.detailTitle}>{charging.label}</Text>
+                    <Text style={[styles.detailTitle, { color: charging.isSuggestedPackage ? colors.accent : colors.primary }]}>
+                      {formatMoney(charging.amount, charging.currency)}
+                    </Text>
+                  </View>
+                ) : null}
+                <Text style={styles.hint}>
+                  {detail.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+                    ? `Delivery${detail.packageDeliveryDays ? ` in ${detail.packageDeliveryDays} days` : ' by their package'}`
+                    : 'Delivery as you requested'}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => { const cand = detail; setDetail(null); openChoosingModal(cand); }}
+                style={styles.sheetPrimary}
+                accessibilityRole="button"
+                accessibilityLabel={`Confirm ${detail.name} and pay`}
+              >
+                <Text style={styles.primaryText}>Confirm and Pay</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { const id = detail.photographerId; setDetail(null); router.push(`/photographer/${id}?tab=Portfolio` as never); }}
+                style={styles.detailAction}
+                accessibilityRole="button"
+              >
+                <Ionicons name="images-outline" size={18} color={colors.primary} />
+                <Text style={styles.detailActionText}>View portfolio</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
+              <Pressable
+                onPress={() => { setPackagesFor(detail); setDetail(null); }}
+                style={styles.detailAction}
+                accessibilityRole="button"
+              >
+                <Ionicons name="cube-outline" size={18} color={colors.primary} />
+                <Text style={styles.detailActionText}>Packages and delivery</Text>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </Pressable>
             </View>
-            <Pressable
-              onPress={() => { const cand = detail; setDetail(null); setEscrow(50); setChoosing(cand); }}
-              style={styles.sheetPrimary}
-              accessibilityRole="button"
-              accessibilityLabel={`Confirm ${detail.name} and pay`}
-            >
-              <Text style={styles.primaryText}>Confirm and Pay</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => { const id = detail.photographerId; setDetail(null); router.push(`/photographer/${id}?tab=Portfolio` as never); }}
-              style={styles.detailAction}
-              accessibilityRole="button"
-            >
-              <Ionicons name="images-outline" size={18} color={colors.primary} />
-              <Text style={styles.detailActionText}>View portfolio</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </Pressable>
-            <Pressable
-              onPress={() => { setPackagesFor(detail); setDetail(null); }}
-              style={styles.detailAction}
-              accessibilityRole="button"
-            >
-              <Ionicons name="cube-outline" size={18} color={colors.primary} />
-              <Text style={styles.detailActionText}>Packages and delivery</Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </Pressable>
-          </View>
-        ) : null}
+          );
+        })() : null}
       </Sheet>
 
       <Sheet
@@ -345,7 +494,7 @@ export default function EventCandidatesScreen() {
         onClose={() => setPackagesFor(null)}
         footer={packagesFor ? (
           <Pressable
-            onPress={() => { const cand = packagesFor; setPackagesFor(null); setEscrow(50); setChoosing(cand); }}
+            onPress={() => { const cand = packagesFor; setPackagesFor(null); openChoosingModal(cand); }}
             style={styles.sheetPrimary}
             accessibilityRole="button"
           >
@@ -368,11 +517,15 @@ export default function EventCandidatesScreen() {
             </View>
             {packagesFor.matchedPackageName ? (
               <View style={styles.detailBox}>
-                <Text style={styles.tierTitle}>SUITED TO YOUR EVENT</Text>
+                <Text style={styles.tierTitle}>
+                  {packagesFor.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'SUGGESTED BY PHOTOGRAPHER' : 'SUITED TO YOUR EVENT'}
+                </Text>
                 <Text style={styles.detailTitle}>{packagesFor.matchedPackageName}</Text>
                 <Text style={styles.hint}>
                   {[
-                    packagesFor.matchedPackagePrice != null ? formatPrice(packagesFor.matchedPackagePrice, packagesFor.matchedPackageCurrency) : null,
+                    (packagesFor.proposedPrice ?? packagesFor.matchedPackagePrice) != null
+                      ? formatPrice((packagesFor.proposedPrice ?? packagesFor.matchedPackagePrice)!, packagesFor.matchedPackageCurrency)
+                      : null,
                     packagesFor.matchedPackageHours ? `${packagesFor.matchedPackageHours}h coverage` : null,
                     packagesFor.matchedPackagePhotos ? `${packagesFor.matchedPackagePhotos} photos` : null,
                     packagesFor.matchedPackageVideos ? `${packagesFor.matchedPackageVideos} videos` : null,
@@ -380,15 +533,34 @@ export default function EventCandidatesScreen() {
                 </Text>
               </View>
             ) : null}
-            <Text style={styles.tierTitle}>ALL PACKAGES</Text>
+            <Text style={styles.tierTitle}>ALL PACKAGES (TAP TO SELECT & CONFIRM)</Text>
             {packagesLoading ? <ActivityIndicator color={colors.primary} /> : null}
             {!packagesLoading && packages.length === 0 ? <Text style={styles.hint}>No other packages are listed yet.</Text> : null}
-            {packages.map((pk) => (
-              <View key={String(pk.id)} style={[styles.detailAction, pk.id === packagesFor.matchedPackageId && { borderColor: colors.primary }]}>
-                <Text style={styles.detailActionText}>{pk.name}</Text>
-                {pk.price != null ? <Text style={styles.hint}>{formatPrice(pk.price, pk.currency)}</Text> : null}
-              </View>
-            ))}
+            {sortPackagesByBudget(packages, eventBudget, packagesFor.matchedPackageId).map((pk) => {
+              const nearestId = nearestPackageIdToBudget(packages, eventBudget, packagesFor.matchedPackageId);
+              const isNearest = String(pk.id) === nearestId;
+              const isMatched = String(pk.id) === packagesFor.matchedPackageId;
+              return (
+                <Pressable
+                  key={String(pk.id)}
+                  onPress={() => {
+                    const cand = packagesFor;
+                    setPackagesFor(null);
+                    openChoosingModal(cand, String(pk.id));
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${pk.name}`}
+                  style={[styles.detailAction, (isMatched || isNearest) && { borderColor: colors.primary }]}
+                >
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.detailActionText}>{pk.name}</Text>
+                    {isNearest ? <Text style={[styles.hint, { color: colors.accent }]}>Nearest to your budget</Text> : null}
+                  </View>
+                  {pk.price != null ? <Text style={styles.detailTitle}>{formatPrice(pk.price, pk.currency)}</Text> : null}
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </Pressable>
+              );
+            })}
             <Pressable
               onPress={() => { const id = packagesFor.photographerId; setPackagesFor(null); router.push(`/photographer/${id}` as never); }}
               style={styles.detailAction}
@@ -404,31 +576,163 @@ export default function EventCandidatesScreen() {
 
       <Modal visible={!!choosing} transparent animationType="fade" onRequestClose={() => !submitting && setChoosing(null)}>
         <GlassScrim style={styles.scrim} onPress={() => !submitting && setChoosing(null)}>
-          <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+          <GlassSheetHost style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg, maxHeight: '88%' }]}>
             <Text style={styles.sheetTitle}>{t('b3_cand_book_name', { name: choosing?.name ?? '' })}</Text>
             <Text style={styles.body}>{t('b3_cand_book_body')}</Text>
             {choosing?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? (
               <View style={styles.policyNoticeBox}>
                 <Ionicons name="cube-outline" size={16} color={colors.info} />
                 <Text style={styles.policyNoticeText}>
-                  Delivery with their package{choosing.packageDeliveryDays ? ` in ${choosing.packageDeliveryDays} days` : ''}.
+                  {choosing.pricingMode === 'CLIENT_OFFER'
+                    ? `Accepted at your offer amount with their package delivery policy${choosing.packageDeliveryDays ? ` (${choosing.packageDeliveryDays} days)` : ''}.`
+                    : `${choosing.name} suggested a package price (${choosing.packageDeliveryDays ? `${choosing.packageDeliveryDays} days delivery` : 'package delivery'}). Choose a package below (sorted nearest to your budget) to confirm the agreed price.`}
                 </Text>
               </View>
             ) : null}
+
+            <View style={{ gap: spacing.xs }}>
+              <Text style={styles.tierTitle}>SELECT PACKAGE & AGREED PRICE</Text>
+              <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={{ gap: spacing.xs }} showsVerticalScrollIndicator={false}>
+                {packagesLoading && choosingPackages.length === 0 ? (
+                  <View style={{ paddingVertical: spacing.sm, alignItems: 'center' }}>
+                    <ActivityIndicator color={colors.primary} />
+                  </View>
+                ) : null}
+                {choosingPackages.map((pk) => {
+                  const selected = selectedPackageChoice === pk.id;
+                  const isSuggested =
+                    choosing?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' &&
+                    choosing?.pricingMode !== 'CLIENT_OFFER' &&
+                    (pk.id === choosing.matchedPackageId || pk.id === '__suggested_pkg__');
+                  const isNearest = pk.id === nearestChoosingPkgId;
+                  const inclusions = [
+                    pk.durationHours ? `${pk.durationHours}h` : null,
+                    pk.includedPhotos ? `${pk.includedPhotos} photos` : null,
+                    pk.includedVideos ? `${pk.includedVideos} videos` : null,
+                    pk.deliveryDays ? `${pk.deliveryDays}d delivery` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ');
+
+                  return (
+                    <Pressable
+                      key={pk.id}
+                      onPress={() => setSelectedPackageChoice(pk.id)}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`Package ${pk.name}`}
+                      accessibilityState={{ checked: selected }}
+                      style={[
+                        styles.pkgOptionCard,
+                        selected && { borderColor: colors.primary, backgroundColor: colors.tint },
+                      ]}
+                    >
+                      <Ionicons
+                        name={selected ? 'radio-button-on' : 'radio-button-off'}
+                        size={18}
+                        color={selected ? colors.primary : colors.textMuted}
+                      />
+                      <View style={{ flex: 1, gap: 2 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                          <Text style={styles.detailActionText}>{pk.name}</Text>
+                          {pk.price != null ? (
+                            <Text style={styles.detailTitle}>{formatMoney(pk.price, pk.currency)}</Text>
+                          ) : null}
+                        </View>
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                          {isSuggested ? (
+                            <View style={[styles.pkgBadge, { backgroundColor: colors.tintAccent }]}>
+                              <Text style={[styles.pkgBadgeText, { color: colors.accent }]}>Suggested by photographer</Text>
+                            </View>
+                          ) : null}
+                          {isNearest ? (
+                            <View style={[styles.pkgBadge, { backgroundColor: colors.surfaceMuted }]}>
+                              <Text style={[styles.pkgBadgeText, { color: colors.primary }]}>Nearest to budget</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                        {inclusions ? <Text style={styles.hint}>{inclusions}</Text> : null}
+                      </View>
+                    </Pressable>
+                  );
+                })}
+
+                {eventBudget != null && eventBudget > 0 ? (
+                  <Pressable
+                    onPress={() => setSelectedPackageChoice('CLIENT_OFFER')}
+                    accessibilityRole="radio"
+                    accessibilityLabel="Event offer amount"
+                    accessibilityState={{ checked: selectedPackageChoice === 'CLIENT_OFFER' }}
+                    style={[
+                      styles.pkgOptionCard,
+                      selectedPackageChoice === 'CLIENT_OFFER' && {
+                        borderColor: colors.primary,
+                        backgroundColor: colors.tint,
+                      },
+                    ]}
+                  >
+                    <Ionicons
+                      name={selectedPackageChoice === 'CLIENT_OFFER' ? 'radio-button-on' : 'radio-button-off'}
+                      size={18}
+                      color={selectedPackageChoice === 'CLIENT_OFFER' ? colors.primary : colors.textMuted}
+                    />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                        <Text style={styles.detailActionText}>Your event offer amount</Text>
+                        <Text style={styles.detailTitle}>{formatMoney(eventBudget, 'RWF')}</Text>
+                      </View>
+                      <Text style={styles.hint}>
+                        {choosing?.deliveryPolicy === 'CLIENT' || choosing?.pricingMode === 'CLIENT_OFFER'
+                          ? 'Accepted by photographer'
+                          : 'Original published event offer'}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ) : null}
+              </ScrollView>
+            </View>
+
+            {agreedPrice != null ? (
+              <View style={styles.agreedSummaryRow}>
+                <Text style={styles.hint}>
+                  Agreed price ({selectedChoosingPkg ? selectedChoosingPkg.name : 'Event offer'})
+                </Text>
+                <Text style={styles.detailTitle}>{formatMoney(agreedPrice, agreedCurrency)}</Text>
+              </View>
+            ) : null}
+
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              {escrowOptions.map((p) => (
-                <Pressable key={p} onPress={() => setEscrow(p)} accessibilityRole="radio" accessibilityState={{ checked: escrow === p }}
-                  style={[styles.escrow, escrow === p && { borderColor: colors.primary, backgroundColor: colors.tint }]}>
-                  <Text style={styles.escrowPct}>{p}%</Text>
-                  <Text style={styles.hint}>{p === 100 ? t('b3_cand_pay_full') : t('b3_cand_now_rest_later')}</Text>
-                </Pressable>
-              ))}
+              {escrowOptions.map((p) => {
+                const pctAmount =
+                  agreedPrice != null && Number.isFinite(agreedPrice) && agreedPrice > 0
+                    ? Math.round((agreedPrice * p) / 100)
+                    : null;
+                return (
+                  <Pressable key={p} onPress={() => setEscrow(p)} accessibilityRole="radio" accessibilityState={{ checked: escrow === p }}
+                    style={[styles.escrow, escrow === p && { borderColor: colors.primary, backgroundColor: colors.tint }]}>
+                    <Text style={styles.escrowPct}>{p}%</Text>
+                    {pctAmount != null ? (
+                      <Text style={[styles.hint, { fontWeight: fontWeight.bold, color: colors.text }]} numberOfLines={1}>
+                        {formatMoney(pctAmount, agreedCurrency)}
+                      </Text>
+                    ) : null}
+                    <Text style={styles.hint}>{p === 100 ? t('b3_cand_pay_full') : t('b3_cand_now_rest_later')}</Text>
+                  </Pressable>
+                );
+              })}
             </View>
             <Text style={styles.hint}><Ionicons name="shield-checkmark" size={12} color={colors.success} /> {t('b3_cand_escrow_note')}</Text>
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <Pressable onPress={() => setChoosing(null)} disabled={submitting} style={styles.secondary} accessibilityRole="button"><Text style={styles.secondaryText}>{t('b3_conv_cancel')}</Text></Pressable>
               <Pressable onPress={confirmChoice} disabled={submitting} style={styles.primary} accessibilityRole="button">
-                {submitting ? <ActivityIndicator color={onFill} /> : <Text style={styles.primaryText}>{t('b3_cand_book_and_pay_pct', { pct: escrow })}</Text>}
+                {submitting ? (
+                  <ActivityIndicator color={onFill} />
+                ) : (
+                  <Text style={styles.primaryText}>
+                    {expectedDeposit != null
+                      ? `${t('b3_cand_book_and_pay_pct', { pct: escrow })} · ${formatMoney(expectedDeposit, agreedCurrency)}`
+                      : t('b3_cand_book_and_pay_pct', { pct: escrow })}
+                  </Text>
+                )}
               </Pressable>
             </View>
           </GlassSheetHost>
@@ -512,6 +816,36 @@ const useStyles = makeStyles((c) => ({
     fontSize: 12,
     lineHeight: 17,
     color: c.textSoft,
+  },
+  pkgOptionCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: c.border,
+    backgroundColor: c.surfaceMuted,
+  },
+  pkgBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  pkgBadgeText: {
+    fontSize: 10.5,
+    fontWeight: fontWeight.bold,
+  },
+  agreedSummaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: c.surfaceMuted,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
   },
   escrow: { flex: 1, alignItems: 'center', paddingVertical: spacing.md, borderRadius: radii.md, borderWidth: 2, borderColor: c.border },
   escrowPct: { fontSize: fontSize.lg, fontWeight: fontWeight.extrabold, color: c.text },
