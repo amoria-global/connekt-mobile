@@ -4,20 +4,55 @@
  *
  * The server sends offers to Android builds that report the incoming-call capability as a high-priority data push.
  * expo-notifications hands that push to this task, which posts the full-screen call notification through the
- * native IncomingCall module. Imported first in `index.js` so the task is defined when the bundle loads headless.
+ * native IncomingCall module, plays the looping ringtone and vibrates even while backgrounded or locked, and
+ * launches the app UI over the lock screen / other apps (`Linking.openURL`) so the call screen opens immediately
+ * without requiring the app to be open or focused.
  *
  * Guarded so builds without the native TaskManager or call module (2.2.2, 2.3.0, iOS) never throw at startup.
- * The phone's push-token listener is NOT involved here: the loop that caused timeouts lived in push.ts.
  */
-import { AppState, Platform } from 'react-native';
+import { AppState, Linking, Platform, Vibration } from 'react-native';
 import { requireOptionalNativeModule } from 'expo';
 import * as Notifications from 'expo-notifications';
-import { isIncomingCallAvailable, showIncomingCall } from './incomingCall';
+import { createAudioPlayer, setAudioModeAsync } from '@/utils/safeAudio';
+import { canDrawOverOtherApps, isIncomingCallAvailable, showIncomingCall } from './incomingCall';
 
 export const OFFER_CALL_TASK = 'OFFER_INCOMING_CALL';
 
 /** Loud channel used when the call screen cannot be shown (created by the app at start-up). */
 const FALLBACK_CHANNEL = 'urgent_alerts_v3';
+
+const RINGTONE = require('../../../assets/sounds/connekyt_ringtone.wav');
+const HEADLESS_RING_MS = 47_000;
+
+function ringInBackground(): void {
+  if (Platform.OS === 'web') return;
+  try {
+    void setAudioModeAsync({
+      playsInSilentMode: true,
+      shouldPlayInBackground: true,
+      interruptionMode: 'mixWithOthers',
+    });
+    const player = createAudioPlayer(RINGTONE);
+    player.loop = true;
+    player.play();
+    Vibration.vibrate([0, 600, 350, 600, 350, 600], true);
+    setTimeout(() => {
+      try {
+        player.pause();
+        player.remove();
+      } catch {
+        // Best effort.
+      }
+      Vibration.cancel();
+    }, HEADLESS_RING_MS);
+  } catch {
+    try {
+      Vibration.vibrate([0, 600, 350, 600, 350, 600]);
+    } catch {
+      // Best effort.
+    }
+  }
+}
 
 function tryParseJson(raw: unknown): Record<string, unknown> | null {
   if (typeof raw !== 'string' || !raw.trim().startsWith('{')) return null;
@@ -100,9 +135,30 @@ if (hasNativeTaskManager()) {
       const title = String(payload.title ?? 'New event offer');
       const body = String(payload.body ?? 'A client posted an event for you. Tap to review and respond.');
 
-      if (showIncomingCall(id, title, body)) {
+      // 1. Wake the display and post the insistent ringing notification via native IncomingCallModule.
+      const showedNativeCall = showIncomingCall(id, title, body);
+
+      // 2. Start audio ringtone + vibration in background/headless JS so it rings even if the OS notification
+      // channel is muted or throttled while the app is not focused.
+      ringInBackground();
+
+      // 3. If "Display over other apps" (SYSTEM_ALERT_WINDOW) is granted, launch the app to the foreground
+      // immediately so the full-screen calling UI overrides the current screen / lock screen like WhatsApp.
+      if (canDrawOverOtherApps() === true) {
+        const deepLink =
+          kind === 'BOOKING_REQUEST'
+            ? `connekt://bookings/${encodeURIComponent(id)}`
+            : id !== 'offer'
+              ? `connekt://offers/${encodeURIComponent(id)}?ring=1`
+              : 'connekt://bookings?tab=opportunities';
+        Linking.openURL(deepLink).catch(() => {
+          // If the OS blocks background activity launch, the insistent notification + ringtone still run.
+        });
+      }
+
+      if (showedNativeCall) {
         // The push already put an ordinary notification in the tray (native, no app code needed); the call
-        // screen replaces it so the offer is not alerted twice.
+        // notification replaces it so the offer is not duplicated.
         try {
           for (const n of await Notifications.getPresentedNotificationsAsync()) {
             const d = (n.request.content.data ?? {}) as Record<string, unknown>;
@@ -113,10 +169,10 @@ if (hasNativeTaskManager()) {
         } catch {
           // Best effort.
         }
-        return;
       }
 
-      // The call screen could not be posted: fall back to a loud ordinary notification so the offer is never lost.
+      // 4. Also post the interactive notification on urgent_alerts_v3 with Accept / Reject action buttons
+      // so the user can see and answer directly on the lock screen even if they haven't unlocked yet.
       try {
         await Notifications.scheduleNotificationAsync({
           content: {
