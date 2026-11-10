@@ -1,18 +1,13 @@
 /**
- * Grants permissions for waking the display and vibrating when a device notification arrives on Android.
- * Does NOT set showWhenLocked or turnScreenOn on MainActivity so the app UI never opens over the lock screen.
+ * Lets an offer ring like a call on Android: the full-screen-intent permission, a wake lock for the screen, and
+ * a main activity that may show over the lock screen and turn the screen on. Without these Android only shows
+ * a heads-up notification on a locked phone.
  */
 const { withAndroidManifest } = require('expo/config-plugins');
 
-// PLAY-REJECTION-DISABLED (2026-11-04): Google Play refused the 2.3.2 release submission with HTTP 403, "You must let us
-// know whether your app uses any full-screen intent permissions". USE_FULL_SCREEN_INTENT is switched off so the release
-// can ship. Nothing else was deleted. To bring the lock-screen ring back: answer the Full-screen intent declaration in
-// Play Console (Policy and programs, App content), set FULL_SCREEN_INTENT_ENABLED to true here and in
-// src/features/hybrid/useCallReadiness.ts, then ship a new store build. Native config only reaches phones via a store build.
-const FULL_SCREEN_INTENT_ENABLED = false;
+const FULL_SCREEN_INTENT_ENABLED = true;
 
 const PERMISSIONS = [
-  // Held back by FULL_SCREEN_INTENT_ENABLED above.
   ...(FULL_SCREEN_INTENT_ENABLED ? ['android.permission.USE_FULL_SCREEN_INTENT'] : []),
   'android.permission.WAKE_LOCK',
   'android.permission.VIBRATE',
@@ -29,9 +24,9 @@ module.exports = function withIncomingCall(config) {
     }
     const app = manifest.application && manifest.application[0];
     const main = app && (app.activity || []).find((a) => a.$ && a.$['android:name'] === '.MainActivity');
-    if (main && main.$) {
-      delete main.$['android:showWhenLocked'];
-      delete main.$['android:turnScreenOn'];
+    if (main) {
+      main.$['android:showWhenLocked'] = 'true';
+      main.$['android:turnScreenOn'] = 'true';
     }
     return cfg;
   });
