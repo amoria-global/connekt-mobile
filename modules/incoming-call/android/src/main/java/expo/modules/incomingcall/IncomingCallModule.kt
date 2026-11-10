@@ -241,15 +241,24 @@ class IncomingCallModule : Module() {
         .setStyle(Notification.BigTextStyle().bigText(body))
         .setCategory(Notification.CATEGORY_CALL)
         .setVisibility(Notification.VISIBILITY_PUBLIC)
-        .setOngoing(false)
+        .setOngoing(true)
         .setAutoCancel(true)
         .setContentIntent(pending)
+        .setFullScreenIntent(pending, true)
       if (Build.VERSION.SDK_INT >= 26) builder.setTimeoutAfter(RING_MS)
 
       val notification = builder.build()
       notification.flags = notification.flags or Notification.FLAG_INSISTENT
       val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
       nm.notify(id, NOTIFICATION_ID, notification)
+
+      if (Settings.canDrawOverlays(context)) {
+        try {
+          context.startActivity(launch)
+        } catch (_: Exception) {
+          // The notification above is still there to tap.
+        }
+      }
     }
 
     fun showChimeNotification(

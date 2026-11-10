@@ -11,11 +11,17 @@
  *      the latest offer state from the server and handles or displays it.
  */
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { AppState, Platform, type AppStateStatus } from 'react-native';
+import {
+  AppState,
+  Linking,
+  Platform,
+  type AppStateStatus,
+} from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { Alert } from '@/components/ui/dialog';
 import { showMatchingInProgress } from './MatchingInProgress';
 import {
+  canDrawOverOtherApps,
   cancelAllIncomingCalls,
   cancelIncomingCall,
   showIncomingCall,
@@ -203,6 +209,12 @@ export function GlobalOpportunityCallNotifier() {
 
     // Wake up the locked Android display and show the ringing notification
     showIncomingCall(opp.candidateId, title, body);
+
+    // If the app is in the background or screen is off and overlay permission is granted,
+    // bring the app to the front immediately so the full-screen incoming call UI shows.
+    if (Platform.OS === 'android' && AppState.currentState !== 'active' && canDrawOverOtherApps() === true) {
+      Linking.openURL(`connekt://offers/${encodeURIComponent(opp.candidateId)}?ring=1`).catch(() => {});
+    }
 
     try {
       await Notifications.scheduleNotificationAsync({

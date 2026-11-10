@@ -38,6 +38,7 @@ import {
   clearOfferNotifications,
   showIncomingOpportunity,
 } from '@/features/hybrid/GlobalOpportunityCallNotifier';
+import { showIncomingRequest } from '@/features/bookings/incomingRequests';
 import { isPhotographerType } from '@/features/auth/role';
 import { takePendingInviteHref } from '@/features/workspace/pendingInvite';
 import { useCurrency } from '@/store/currency';
@@ -261,8 +262,15 @@ function useProtectedRoute() {
         const candMatch = mapped.match(/[?&]candidate=([^&#]+)/);
         if (candMatch?.[1]) {
           const cid = decodeURIComponent(candMatch[1]);
-          void clearOfferNotifications(cid);
-          showIncomingOpportunity(cid, 'details');
+          const wantsRing = /[?&]ring=1(?:&|$)/.test(pathAndQuery);
+          if (!wantsRing) {
+            void clearOfferNotifications(cid);
+          }
+          showIncomingOpportunity(cid, wantsRing ? 'ringing' : 'details');
+        }
+        const bookingMatch = pathAndQuery.match(/^\/bookings\/([^/?#]+)/i);
+        if (bookingMatch?.[1]) {
+          showIncomingRequest(decodeURIComponent(bookingMatch[1]));
         }
       } else {
         void setPendingDestination(mapped);
