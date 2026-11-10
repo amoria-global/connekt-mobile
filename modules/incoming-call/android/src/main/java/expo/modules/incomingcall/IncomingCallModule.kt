@@ -1,5 +1,6 @@
 package expo.modules.incomingcall
 
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -11,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
+import android.view.WindowManager
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
@@ -31,7 +33,12 @@ class IncomingCallModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("IncomingCall")
 
+    OnActivityEntersForeground {
+      enableLockScreenOnCurrentActivity()
+    }
+
     Function("show") { id: String, title: String, body: String ->
+      enableLockScreenOnCurrentActivity()
       showNotification(context, id, title, body, null)
     }
 
@@ -94,6 +101,29 @@ class IncomingCallModule : Module() {
 
     Function("setKeepReady") { enabled: Boolean ->
       KeepAlive.set(context, enabled)
+    }
+  }
+
+  private fun enableLockScreenOnCurrentActivity() {
+    val activity = appContext.currentActivity ?: return
+    activity.runOnUiThread {
+      try {
+        if (Build.VERSION.SDK_INT >= 27) {
+          activity.setShowWhenLocked(true)
+          activity.setTurnScreenOn(true)
+          val km = activity.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
+          km?.requestDismissKeyguard(activity, null)
+        } else {
+          @Suppress("DEPRECATION")
+          activity.window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+              WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+              WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
+              WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD,
+          )
+        }
+      } catch (_: Exception) {
+      }
     }
   }
 
