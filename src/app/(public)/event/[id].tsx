@@ -40,6 +40,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Screen } from '@/components/ui/Screen';
+import { RegionBlockedView } from '@/features/geopricing/RegionBlockedView';
 import { getPublicEventDetailed } from '@/features/events/api';
 import { canBuyEventTicket, canShowDigitalPrice, isInPersonEvent } from '@/features/payments/policy';
 import type { PublicEvent } from '@/features/events/types';
@@ -549,6 +550,18 @@ export default function PublicEventDetailScreen() {
     );
   }
   if (!data) return null;
+
+  // Kept out of this event (or the place could not be confirmed): no stream, no price, no pay button.
+  if (data.regionBlock) {
+    return (
+      <Screen>
+        <View style={{ flex: 1, justifyContent: 'center', padding: 16 }}>
+          <RegionBlockedView block={data.regionBlock} onRetry={() => void refresh()} onBack={() => router.back()} />
+        </View>
+      </Screen>
+    );
+  }
+
 
   const status = deriveStatus(data);
   const baseCta = buildCta(data, status, hasPurchasedAccess, viewerId, t);

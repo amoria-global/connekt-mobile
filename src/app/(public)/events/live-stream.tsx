@@ -88,6 +88,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PhoneInput, type PhoneValue } from '@/components/ui/PhoneInput';
 import { Screen } from '@/components/ui/Screen';
+import { RegionBlockedView } from '@/features/geopricing/RegionBlockedView';
 import { getPublicEventDetailed } from '@/features/events/api';
 import {
   checkAnonymousAccessStatus,
@@ -1641,6 +1642,17 @@ export default function PublicLiveStreamScreen() {
       </View>
     </>
   );
+
+  // Kept out of this event (or the place could not be confirmed): no stream, no price, no pay button.
+  if (event.data?.regionBlock) {
+    return (
+      <Screen>
+        <View style={{ flex: 1, justifyContent: 'center', padding: 16 }}>
+          <RegionBlockedView block={event.data?.regionBlock} onRetry={() => void event.refresh()} onBack={() => router.back()} />
+        </View>
+      </Screen>
+    );
+  }
 
   return (
     <>

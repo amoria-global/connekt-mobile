@@ -1,5 +1,7 @@
 import type { ID } from '@/types';
 import { getEventStatus } from './eventStatus';
+import type { GeoRulePayload } from '@/features/geopricing/locationRules';
+import type { RegionBlock } from '@/features/geopricing/regionBlock';
 
 export type EventStatus = string;
 /** How guests attend: a physical event (ticket consumed outside the app) or stream only. */
@@ -42,6 +44,11 @@ export type CreateEventInput = {
   allowWishInvites?: boolean;
   /** Whether live streaming is requested for the event. */
   hasLiveStream?: boolean;
+  /**
+   * The event's location rules, saved in the same transaction as the event. Leave it out to keep the saved rules
+   * as they are (an edit whose rules were not loaded); send [] to remove them all.
+   */
+  geoRules?: GeoRulePayload[];
   /** Minimum edited photos requested for the event. */
   minimumPhotos?: number;
   /** Optional booking context when created from a photographer's package. */
@@ -158,6 +165,8 @@ export type PublicEventCategory = {
 export type PublicEvent = {
   id: ID;
   title: string;
+  /** Set when the viewer's place is kept out of this event (or could not be confirmed): show the region screen. */
+  regionBlock?: RegionBlock | null;
   description?: string;
   eventDate?: string;
   startTime?: string;

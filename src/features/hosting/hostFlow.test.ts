@@ -32,6 +32,21 @@ describe('runHostFlow', () => {
     expect(d.publish).not.toHaveBeenCalled();
   });
 
+  it('a refused location rule keeps the field the server named, and nothing else runs', async () => {
+    const refused = { status: 400, message: 'The minimum is RWF 100.', body: { field: 'geoRules[1].price' } };
+    const d = deps({ create: jest.fn().mockRejectedValue(refused) });
+    const r = await runHostFlow(d, { ...input, geoRules: [{ scopeType: 'COUNTRY', scopeValue: 'KE', action: 'BLOCK' }] }, cover);
+    expect(r).toMatchObject({ status: 'failed', step: 'create', message: 'The minimum is RWF 100.', field: 'geoRules[1].price' });
+    expect(d.uploadCover).not.toHaveBeenCalled();
+  });
+
+  it('sends the location rules to create exactly as given', async () => {
+    const rules = [{ scopeType: 'COUNTRY' as const, scopeValue: 'FR', action: 'BLOCK' as const }];
+    const d = deps();
+    await runHostFlow(d, { ...input, geoRules: rules }, cover);
+    expect(d.create).toHaveBeenCalledWith(expect.objectContaining({ geoRules: rules }));
+  });
+
   it('a failed cover keeps the event, and the retry does not create a second one', async () => {
     const d = deps({ uploadCover: jest.fn().mockRejectedValueOnce({ message: 'Too large' }).mockResolvedValue(undefined) });
     const first = await runHostFlow(d, input, cover);
