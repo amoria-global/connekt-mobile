@@ -9,14 +9,14 @@
  * rest of the session; it stays on the Events tab with Accept / Decline.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Platform } from 'react-native';
+import { AppState, Linking, Platform } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { useRole } from '@/features/auth/role';
 import { acceptEventBooking, declineEventBooking, listPhotographerEvents } from '@/features/events/api';
 import { acceptBooking, listBookings, rejectBooking } from '@/features/bookings/api';
-import { showIncomingCall } from '@/features/hybrid/incomingCall';
+import { canDrawOverOtherApps, showIncomingCall } from '@/features/hybrid/incomingCall';
 import { RINGING_CHANNEL } from '@/features/notifications/push';
 import type { EventItem } from '@/features/events/types';
 import { BookingRequestCallModal } from './BookingRequestCallModal';
@@ -49,6 +49,10 @@ export function BookingRequestCallNotifier() {
     const body = `${client} requested to book you${ev.eventDate ? ` on ${ev.eventDate}` : ''}. Tap to respond.`;
 
     showIncomingCall(id, title, body);
+
+    if (Platform.OS === 'android' && AppState.currentState !== 'active' && canDrawOverOtherApps() === true) {
+      Linking.openURL(`connekt://bookings/${encodeURIComponent(id)}`).catch(() => {});
+    }
 
     try {
       await Notifications.scheduleNotificationAsync({
