@@ -47,6 +47,8 @@ type Props = {
   message?: string | null;
   /** A server error for a rule, by its index in `rules` (the order the form sent them). */
   ruleErrors?: Record<number, string>;
+  /** False where the thing being priced cannot block a place (a photographer package): prices only. Default true. */
+  allowBlock?: boolean;
   testID?: string;
 };
 
@@ -64,6 +66,7 @@ export function LocationRulesField({
   defaultCurrencyId,
   message,
   ruleErrors,
+  allowBlock = true,
   testID = 'geo-rules',
 }: Props) {
   const styles = useStyles();
@@ -149,7 +152,9 @@ export function LocationRulesField({
       {expanded ? (
         <View style={styles.body}>
           <Text style={styles.hint}>
-            Charge a different price in some places, or keep a place from watching at all. {PRECEDENCE_HINT}
+            {allowBlock
+              ? `Charge a different price in some places, or keep a place from watching at all. ${PRECEDENCE_HINT}`
+              : 'Charge a different price in some places. A country price wins over its continent, and a continent over the default price.'}
           </Text>
 
           {ordered.length === 0 && !draft ? (
@@ -264,6 +269,7 @@ export function LocationRulesField({
                 </View>
               )}
 
+              {allowBlock ? (
               <View style={styles.gap}>
                 <Segmented<RuleAction>
                   value={draft.action}
@@ -274,8 +280,9 @@ export function LocationRulesField({
                   ]}
                 />
               </View>
+              ) : null}
 
-              {draft.action === 'PRICE' ? (
+              {draft.action === 'PRICE' || !allowBlock ? (
                 <MoneyInput
                   label={draft.location ? `Price for ${draft.location.name}` : 'Price'}
                   value={draft.priceText}

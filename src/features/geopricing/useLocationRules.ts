@@ -3,7 +3,7 @@
  * open, the server's list of places, and the messages. The screen sends `payload` with the event, calls `blockSave` before
  * saving (a half-typed rule would be lost), and `showServerError` when the save is refused.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getGeoLocations } from './api';
 import type { LocationsStatus } from './LocationRulesField';
 import {
@@ -16,32 +16,50 @@ import {
   type RuleDraft,
 } from './locationRules';
 
-export function useLocationRules() {
-  const [rules, setRulesState] = useState<LocationRule[]>([]);
+export function useLocationRules(options: { initiallyOpen?: boolean } = {}) {
+  const [stored, setStored] = useState<LocationRule[]>([]);
   const [draft, setDraft] = useState<RuleDraft | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(options.initiallyOpen ?? false);
   const [message, setMessage] = useState<string | null>(null);
   const [ruleErrors, setRuleErrors] = useState<Record<number, string>>({});
   const [locations, setLocations] = useState<GeoLocation[]>([]);
   const [status, setStatus] = useState<LocationsStatus>('loading');
 
-  const load = useCallback(() => {
-    setStatus('loading');
+  // The list of places is fetched once, when the field is first opened. A retry sets 'loading' again, which fetches again.
+  useEffect(() => {
+    if (!expanded || status !== 'loading' || locations.length > 0) return;
+    let live = true;
     getGeoLocations()
       .then((list) => {
+        if (!live) return;
         setLocations([...list.countries, ...list.continents]);
         setStatus('ready');
       })
-      .catch(() => setStatus('error'));
-  }, []);
+      .catch(() => {
+        if (live) setStatus('error');
+      });
+    return () => {
+      live = false;
+    };
+  }, [expanded, status, locations.length]);
 
-  // The list is only fetched once the field is opened.
-  useEffect(() => {
-    if (expanded && status === 'loading' && locations.length === 0) load();
-  }, [expanded, status, locations.length, load]);
+  // A saved rule only knows its code; its name comes from the list of places once that is here.
+  const rules = useMemo(
+    () =>
+      locations.length === 0
+        ? stored
+        : stored.map((r) => {
+            const hit = locations.find((l) => l.scopeType === r.scopeType && l.code === r.scopeValue);
+            return hit && hit.name !== r.label ? { ...r, label: hit.name } : r;
+          }),
+    [stored, locations],
+  );
+
+  /** Puts the saved rules into the field, without the "edited" side effects of a user change. */
+  const hydrate = useCallback((saved: LocationRule[]) => setStored(saved), []);
 
   const setRules = useCallback((next: LocationRule[]) => {
-    setRulesState(next);
+    setStored(next);
     setMessage(null);
     setRuleErrors({});
   }, []);
@@ -70,6 +88,7 @@ export function useLocationRules() {
   return {
     rules,
     setRules,
+    hydrate,
     draft,
     onDraftChange,
     expanded,
@@ -78,7 +97,7 @@ export function useLocationRules() {
     ruleErrors,
     locations,
     status,
-    retry: load,
+    retry: () => setStatus('loading'),
     payload: () => toPayload(rules),
     blockSave,
     showServerError,
