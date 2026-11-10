@@ -46,7 +46,7 @@ import {
   convertToHybridRescue,
   serverNowMs,
 } from '@/features/hybrid/api';
-import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from '@/features/hybrid/types';
+import type { ApproveOpportunityOptions, OpportunityDeliveryPolicy, PhotographerOpportunity } from '@/features/hybrid/types';
 import { OpportunityCard } from '@/features/hybrid/OpportunityCard';
 import { showMatchingInProgress } from '@/features/hybrid/MatchingInProgress';
 import { opportunityFilterFor } from '@/features/hybrid/status';
@@ -210,10 +210,11 @@ export default function BookingsScreen() {
   const onApproveOpp = async (
     opp: PhotographerOpportunity,
     deliveryPolicy: OpportunityDeliveryPolicy = 'CLIENT',
+    options?: ApproveOpportunityOptions,
   ) => {
     setOppBusyId(opp.candidateId);
     try {
-      await approveOpportunity(opp.candidateId, { deliveryPolicy });
+      await approveOpportunity(opp.candidateId, { deliveryPolicy, ...options });
       showMatchingInProgress();
       fetchOpportunities();
     } catch (e) {
@@ -529,9 +530,9 @@ export default function BookingsScreen() {
         opportunity={fullscreenOpp}
         visible={fullscreenOpp !== null}
         initialStage="details"
-        onApprove={async (opp, deliveryPolicy) => {
+        onApprove={async (opp, deliveryPolicy, options) => {
           setFullscreenOpp(null);
-          await onApproveOpp(opp, deliveryPolicy);
+          await onApproveOpp(opp, deliveryPolicy, options);
         }}
         onReject={async (opp) => {
           setFullscreenOpp(null);

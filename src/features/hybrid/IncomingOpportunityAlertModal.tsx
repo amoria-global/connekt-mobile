@@ -32,7 +32,7 @@ import { serverNowMs } from './api';
 import { parseOpportunityOfferBrief } from './offerBrief';
 import { OfferDetailsView } from './OfferDetailsView';
 import { timeLeft } from './countdown';
-import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
+import type { ApproveOpportunityOptions, OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
 import { useSharedT } from '@/i18n/sharedStrings';
 
 const RINGTONE = require('../../../assets/sounds/connekyt_ringtone.wav');
@@ -62,6 +62,7 @@ interface Props {
   onApprove: (
     opp: PhotographerOpportunity,
     deliveryPolicy?: OpportunityDeliveryPolicy,
+    options?: ApproveOpportunityOptions,
   ) => Promise<void> | void;
   onReject: (opp: PhotographerOpportunity) => Promise<void> | void;
   onDismiss: () => void;
@@ -251,23 +252,23 @@ export function IncomingOpportunityAlertModal({
     onOpenOfferPage?.(opportunity);
   };
 
-  const handleAcceptClientPolicy = async () => {
+  const handleAcceptClientPolicy = async (options?: ApproveOpportunityOptions) => {
     if (busyAction) return;
     stopRinging();
     setBusyAction('accept_client');
     try {
-      await onApprove(opportunity, 'CLIENT');
+      await onApprove(opportunity, 'CLIENT', options);
     } finally {
       setBusyAction(null);
     }
   };
 
-  const handleAcceptPackagePolicy = async () => {
+  const handleAcceptPackagePolicy = async (options?: ApproveOpportunityOptions) => {
     if (busyAction) return;
     stopRinging();
     setBusyAction('accept_package');
     try {
-      await onApprove(opportunity, 'PHOTOGRAPHER_PACKAGE');
+      await onApprove(opportunity, 'PHOTOGRAPHER_PACKAGE', options);
     } finally {
       setBusyAction(null);
     }
@@ -385,7 +386,11 @@ export function IncomingOpportunityAlertModal({
           bottomInset={insets.bottom}
           tr={tr}
           onBack={onDismiss}
-          onAccept={(choice) => void (choice === 'CLIENT' ? handleAcceptClientPolicy() : handleAcceptPackagePolicy())}
+          onAccept={(choice, options) =>
+            void (choice === 'CLIENT'
+              ? handleAcceptClientPolicy(options)
+              : handleAcceptPackagePolicy(options))
+          }
           onReject={() => void handleRejectOffer()}
         />
       )}
