@@ -186,3 +186,42 @@ export function ruleErrorIndex(field: string | undefined): { index: number; part
   const m = /^geoRules\[(\d+)\]\.(\w+)$/.exec(field ?? '');
   return m ? { index: Number(m[1]), part: m[2] } : null;
 }
+
+/** A saved rule from the server, as the form holds it. The label is the code until the place list arrives. */
+export function ruleFromServer(r: {
+  id: string;
+  scopeType: GeoScope;
+  scopeValue: string;
+  action?: RuleAction;
+  price?: number;
+  currencyId?: string;
+  currencyAbbreviation?: string;
+}): LocationRule {
+  const block = r.action === 'BLOCK';
+  return {
+    key: ruleKey(r.scopeType, r.scopeValue),
+    id: r.id,
+    scopeType: r.scopeType,
+    scopeValue: r.scopeValue,
+    label: r.scopeValue,
+    action: block ? 'BLOCK' : 'PRICE',
+    price: block ? undefined : r.price,
+    currencyId: r.currencyId,
+    currencyCode: r.currencyAbbreviation,
+  };
+}
+
+/**
+ * What saving a manager screen has to do, one rule at a time: rules that are new or changed are upserted, and a saved rule
+ * that is no longer in the form is deleted. (The event form does not need this; it sends the whole list with the event.)
+ */
+export function diffRules(saved: LocationRule[], next: LocationRule[]): { upserts: LocationRule[]; deletes: LocationRule[] } {
+  const before = new Map(saved.map((r) => [r.key, r]));
+  const after = new Set(next.map((r) => r.key));
+  const upserts = next.filter((r) => {
+    const old = before.get(r.key);
+    return !old || old.action !== r.action || old.price !== r.price || (r.action === 'PRICE' && old.currencyId !== r.currencyId);
+  });
+  const deletes = saved.filter((r) => !after.has(r.key) && r.id);
+  return { upserts, deletes };
+}

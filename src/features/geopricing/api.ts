@@ -147,7 +147,7 @@ export async function getGeoPricing(eventId: string): Promise<GeoPricingConfig> 
 
 export async function upsertGeoPrice(
   eventId: string,
-  input: { scopeType: GeoScope; scopeValue: string; price: number; currencyId?: string },
+  input: { scopeType: GeoScope; scopeValue: string; action?: 'PRICE' | 'BLOCK'; price?: number; currencyId?: string },
 ): Promise<void> {
   const res = await api.post<ApiEnvelope<Raw>>(`/events/${encodeURIComponent(eventId)}/geo-prices`, input);
   if (res?.action !== 1) throw new Error(res?.message || 'Could not save the price.');

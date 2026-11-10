@@ -1,6 +1,8 @@
 import {
   EMPTY_DRAFT,
   describeRule,
+  diffRules,
+  ruleFromServer,
   draftProblem,
   hasOpenDraft,
   parsePrice,
@@ -140,5 +142,36 @@ describe('location rules', () => {
     expect(ruleErrorIndex('geoRules[0].scopeValue')).toEqual({ index: 0, part: 'scopeValue' });
     expect(ruleErrorIndex('title')).toBeNull();
     expect(ruleErrorIndex(undefined)).toBeNull();
+  });
+});
+
+describe('saving a manager screen', () => {
+  const saved = [{ ...priceRule(KE, 150), id: 'a' }, { ...blockRule(FR), id: 'b' }, { ...priceRule(EU, 900), id: 'c' }];
+
+  it('does nothing when nothing changed', () => {
+    expect(diffRules(saved, saved)).toEqual({ upserts: [], deletes: [] });
+  });
+
+  it('upserts what is new or changed and deletes what was removed', () => {
+    const next = [{ ...priceRule(KE, 200), id: 'a' }, { ...blockRule(FR), id: 'b' }, priceRule(NA_CONT, 50)];
+    const d = diffRules(saved, next);
+    expect(d.upserts.map((r) => r.key)).toEqual(['COUNTRY:KE', 'CONTINENT:NA']);
+    expect(d.deletes.map((r) => r.id)).toEqual(['c']);
+  });
+
+  it('a price turned into a block, or back, is an upsert', () => {
+    const next = [blockRule(KE), priceRule(FR, 10), saved[2]];
+    expect(diffRules(saved, next).upserts.map((r) => r.key)).toEqual(['COUNTRY:KE', 'COUNTRY:FR']);
+  });
+
+  it('reads a saved rule back with its code as the label, and no price for a block', () => {
+    const r = ruleFromServer({ id: '9', scopeType: 'COUNTRY', scopeValue: 'FR', action: 'BLOCK', price: 0 });
+    expect(r).toMatchObject({ key: 'COUNTRY:FR', id: '9', label: 'FR', action: 'BLOCK' });
+    expect(r.price).toBeUndefined();
+    expect(ruleFromServer({ id: '1', scopeType: 'COUNTRY', scopeValue: 'KE', price: 150, currencyAbbreviation: 'RWF' })).toMatchObject({
+      action: 'PRICE',
+      price: 150,
+      currencyCode: 'RWF',
+    });
   });
 });

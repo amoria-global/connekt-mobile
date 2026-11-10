@@ -41,7 +41,7 @@ const CURRENCIES = [{ id: 'rwf', code: 'RWF', name: 'Rwandan franc' }];
 const texts = (node: ReactTestInstance): string[] =>
   node.findAllByType(Text).map((t) => (Array.isArray(t.props.children) ? t.props.children.join('') : String(t.props.children ?? '')));
 
-let latest: { rules: LocationRule[] } = { rules: [] };
+const latest: { rules: LocationRule[] } = { rules: [] };
 
 function Harness(props: {
   initialRules?: LocationRule[];
@@ -51,9 +51,12 @@ function Harness(props: {
   message?: string | null;
 }) {
   const [open, setOpen] = useState(props.startOpen ?? true);
-  const [rules, setRules] = useState<LocationRule[]>(props.initialRules ?? []);
+  const [rules, setRulesState] = useState<LocationRule[]>(props.initialRules ?? []);
   const [draft, setDraft] = useState<RuleDraft | null>(null);
-  latest = { rules };
+  const setRules = (next: LocationRule[]) => {
+    latest.rules = next;
+    setRulesState(next);
+  };
   return (
     <LocationRulesField
       expanded={open}
@@ -103,6 +106,10 @@ const priceRule: LocationRule = {
 };
 
 describe('LocationRulesField', () => {
+  beforeEach(() => {
+    latest.rules = [];
+  });
+
   it('collapsed it is one row with the summary and nothing else', () => {
     const r = render({ startOpen: false });
     const all = texts(r.root);
