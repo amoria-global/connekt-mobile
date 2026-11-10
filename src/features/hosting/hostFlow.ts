@@ -21,11 +21,17 @@ export type HostDeps = {
 
 export type HostResult =
   | { status: 'done'; eventId: string; progress: HostProgress }
-  | { status: 'failed'; step: 'create' | 'cover' | 'publish'; message: string; progress: HostProgress };
+  | { status: 'failed'; step: 'create' | 'cover' | 'publish'; message: string; field?: string; progress: HostProgress };
 
 function messageOf(e: unknown, fallback: string): string {
   const m = (e as { message?: unknown } | null)?.message;
   return typeof m === 'string' && m.length > 0 ? m : fallback;
+}
+
+/** The form field the server named in its refusal (a location rule: geoRules[1].price), if it named one. */
+function fieldOf(e: unknown): string | undefined {
+  const f = (e as { body?: { field?: unknown } } | null)?.body?.field;
+  return typeof f === 'string' ? f : undefined;
 }
 
 export async function runHostFlow(
@@ -40,7 +46,7 @@ export async function runHostFlow(
     try {
       progress.eventId = (await deps.create(input)).id;
     } catch (e) {
-      return { status: 'failed', step: 'create', message: messageOf(e, 'Could not create the event.'), progress };
+      return { status: 'failed', step: 'create', message: messageOf(e, 'Could not create the event.'), field: fieldOf(e), progress };
     }
   }
 

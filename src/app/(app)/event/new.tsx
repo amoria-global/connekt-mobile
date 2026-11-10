@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { MoneyInput } from '@/components/ui/MoneyInput';
 import { priceError, sanitizePriceInput, usePaymentLimit } from '@/features/payments/paymentLimits';
 import { Image } from 'expo-image';
@@ -56,22 +56,18 @@ import { useRole } from '@/features/auth/role';
 import { showCoverageChoice, showSelfStreamLink } from '@/features/events/coverage';
 import { SelfStreamLink } from '@/features/hosting/SelfStreamLink';
 import { listCurrencies, type Currency } from '@/features/reference/api';
+import { getGeoLocations, getGeoPricing } from '@/features/geopricing/api';
+import { LocationRulesField, type LocationsStatus } from '@/features/geopricing/LocationRulesField';
 import {
-  deleteGeoPrice,
-  getGeoPricing,
-  upsertGeoPrice,
-  type GeoPriceRule,
-  type GeoScope,
-} from '@/features/geopricing/api';
-import {
-  CONTINENTS,
-  COUNTRIES,
-  ALL_REGIONS,
-  continentLabel,
-  countryLabel,
-  regionLabel,
-  type GeoRegionItem,
-} from '@/features/geopricing/regions';
+  OPEN_RULE_HINT,
+  hasOpenDraft,
+  ruleErrorIndex,
+  ruleKey,
+  toPayload,
+  type GeoLocation,
+  type LocationRule,
+  type RuleDraft,
+} from '@/features/geopricing/locationRules';
 import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { useCurrency } from '@/store/currency';
@@ -154,24 +150,16 @@ export default function NewEventScreen() {
   // The minimum fee is per currency and comes from the backend, so a USD 4 fee is judged as USD.
   const feeLimit = usePaymentLimit(selectedCurrency);
 
-  type FormGeoRule = {
-    id?: string;
-    scopeType: GeoScope;
-    scopeValue: string;
-    price: number;
-    currencyId?: string;
-    currencyCode?: string;
-  };
-  const [geoRules, setGeoRules] = useState<FormGeoRule[]>([]);
-  const [deletedGeoRuleIds, setDeletedGeoRuleIds] = useState<string[]>([]);
-  type GeoFilterTab = 'ALL' | 'CONTINENT' | 'COUNTRY';
-  const [geoFilterTab, setGeoFilterTab] = useState<GeoFilterTab>('ALL');
-  const [geoSearchQuery, setGeoSearchQuery] = useState<string>('');
-  const [selectedGeoLocations, setSelectedGeoLocations] = useState<GeoRegionItem[]>([]);
-  const [geoPriceInput, setGeoPriceInput] = useState<string>('');
-  const [geoCurrencyId, setGeoCurrencyId] = useState<string>('');
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [showGeoPricing, setShowGeoPricing] = useState<boolean>(true);
+  // Location rules travel with the event and are saved with it. `rulesLoaded` is false on an edit until the saved
+  // rules have been read, so a failed read never wipes them (the payload then leaves them untouched).
+  const [geoRules, setGeoRules] = useState<LocationRule[]>([]);
+  const [rulesLoaded, setRulesLoaded] = useState<boolean>(!params.editId);
+  const [geoDraft, setGeoDraft] = useState<RuleDraft | null>(null);
+  const [showGeoPricing, setShowGeoPricing] = useState<boolean>(false);
+  const [geoMessage, setGeoMessage] = useState<string | null>(null);
+  const [geoRuleErrors, setGeoRuleErrors] = useState<Record<number, string>>({});
+  const [geoLocations, setGeoLocations] = useState<GeoLocation[]>([]);
+  const [geoLocationsStatus, setGeoLocationsStatus] = useState<LocationsStatus>('loading');
 
   // In-form photographer + package assignment (skipped when arriving via a booking link)
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -281,24 +269,29 @@ export default function NewEventScreen() {
           setShowMore(true);
         }
 
-        // Fetch existing geo-pricing rules if coordinator
-        if (isCoordinator && params.editId) {
+        // The event's saved location rules, read into the field. A failed read leaves them unloaded and unsent.
+        if (params.editId) {
           try {
             const geoConfig = await getGeoPricing(params.editId);
-            if (active && geoConfig?.rules) {
+            if (active) {
               setGeoRules(
-                geoConfig.rules.map((r) => ({
+                (geoConfig?.rules ?? []).map((r) => ({
+                  key: ruleKey(r.scopeType, r.scopeValue),
                   id: r.id,
                   scopeType: r.scopeType,
                   scopeValue: r.scopeValue,
-                  price: r.price,
+                  label: r.scopeValue,
+                  action: r.action,
+                  price: r.action === 'BLOCK' ? undefined : r.price,
                   currencyId: r.currencyId,
                   currencyCode: r.currencyAbbreviation,
                 })),
               );
+              setRulesLoaded(true);
+              if ((geoConfig?.rules?.length ?? 0) > 0) setShowGeoPricing(true);
             }
           } catch {
-            // Non-fatal, geo pricing might not be configured
+            // rulesLoaded stays false: the save leaves the saved rules as they are
           }
         }
       } catch {
@@ -347,6 +340,8 @@ export default function NewEventScreen() {
   };
 
   const hasPackage = !!params.packageId || !!selPackage;
+  // Location rules apply to a streamed event: a coordinator's, or one the host streams themselves.
+  const geoEnabled = isCoordinator || visibility === 'PRIVATE';
 
   const currenciesList: { id: string; code: string; name?: string }[] =
     currencies.data && currencies.data.length > 0
@@ -366,133 +361,35 @@ export default function NewEventScreen() {
     setCurrencyId(c.id);
   };
 
-  const toggleGeoLocation = (item: GeoRegionItem) => {
-    setGeoError(null);
-    setSelectedGeoLocations((prev) => {
-      const exists = prev.some((x) => x.scopeType === item.scopeType && x.code === item.code);
-      if (exists) {
-        return prev.filter((x) => !(x.scopeType === item.scopeType && x.code === item.code));
-      }
-      return [...prev, item];
-    });
-  };
+  // The countries and continents come from the server, the one list every client uses.
+  const loadGeoLocations = useCallback(() => {
+    setGeoLocationsStatus('loading');
+    getGeoLocations()
+      .then((list) => {
+        setGeoLocations([...list.countries, ...list.continents]);
+        setGeoLocationsStatus('ready');
+      })
+      .catch(() => setGeoLocationsStatus('error'));
+  }, []);
+  useEffect(() => {
+    if (showGeoPricing && geoLocationsStatus === 'loading' && geoLocations.length === 0) loadGeoLocations();
+  }, [showGeoPricing, geoLocationsStatus, geoLocations.length, loadGeoLocations]);
 
-  const removeSelectedGeoLocation = (item: GeoRegionItem) => {
-    setSelectedGeoLocations((prev) =>
-      prev.filter((x) => !(x.scopeType === item.scopeType && x.code === item.code)),
+  // A saved rule only knows its code; show the place's name once the list is here.
+  useEffect(() => {
+    if (geoLocations.length === 0) return;
+    setGeoRules((prev) =>
+      prev.map((r) => {
+        const hit = geoLocations.find((l) => l.scopeType === r.scopeType && l.code === r.scopeValue);
+        return hit && hit.name !== r.label ? { ...r, label: hit.name } : r;
+      }),
     );
-  };
+  }, [geoLocations]);
 
-  const clearSelectedGeoLocations = () => {
-    setSelectedGeoLocations([]);
-    setGeoError(null);
-  };
-
-  const filteredGeoRegions: GeoRegionItem[] = useMemo(() => {
-    const q = geoSearchQuery.trim().toLowerCase();
-    let list: GeoRegionItem[] = [];
-    if (geoFilterTab === 'CONTINENT') {
-      list = CONTINENTS.map((c) => ({ scopeType: 'CONTINENT' as const, code: c.code, label: c.label }));
-    } else if (geoFilterTab === 'COUNTRY') {
-      list = COUNTRIES.map((c) => ({ scopeType: 'COUNTRY' as const, code: c.code, label: c.label }));
-    } else {
-      list = ALL_REGIONS;
-    }
-    if (!q) return list;
-    return list.filter(
-      (item) =>
-        item.label.toLowerCase().includes(q) ||
-        item.code.toLowerCase().includes(q) ||
-        (item.scopeType === 'CONTINENT' ? 'continent' : 'country').includes(q),
-    );
-  }, [geoFilterTab, geoSearchQuery]);
-
-  const selectAllMatching = () => {
-    setSelectedGeoLocations((prev) => {
-      const merged = [...prev];
-      for (const item of filteredGeoRegions) {
-        if (!merged.some((m) => m.scopeType === item.scopeType && m.code === item.code)) {
-          merged.push(item);
-        }
-      }
-      return merged;
-    });
-  };
-
-  const addGeoRules = () => {
-    setGeoError(null);
-    if (selectedGeoLocations.length === 0) {
-      setGeoError('Please select at least one continent or country.');
-      return;
-    }
-    const p = parseFloat(geoPriceInput);
-    if (!geoPriceInput || Number.isNaN(p) || p < 0) {
-      setGeoError('Please enter a valid price (0 or greater).');
-      return;
-    }
-
-    const cur = currenciesList.find((c) => (geoCurrencyId ? c.id === geoCurrencyId : c.code === selectedCurrency));
-    const effectiveCurrencyCode = cur?.code || selectedCurrency;
-    const effectiveCurrencyId = cur?.id;
-
-    setGeoRules((prev) => {
-      const next = [...prev];
-      for (const loc of selectedGeoLocations) {
-        const existingIdx = next.findIndex(
-          (r) => r.scopeType === loc.scopeType && r.scopeValue === loc.code,
-        );
-        if (existingIdx >= 0) {
-          next[existingIdx] = {
-            ...next[existingIdx],
-            price: p,
-            currencyId: effectiveCurrencyId,
-            currencyCode: effectiveCurrencyCode,
-          };
-        } else {
-          next.push({
-            scopeType: loc.scopeType,
-            scopeValue: loc.code,
-            price: p,
-            currencyId: effectiveCurrencyId,
-            currencyCode: effectiveCurrencyCode,
-          });
-        }
-      }
-      return next;
-    });
-
-    setSelectedGeoLocations([]);
-    setGeoPriceInput('');
-    setGeoSearchQuery('');
-  };
-
-  const removeGeoRule = (index: number) => {
-    const rule = geoRules[index];
-    if (rule?.id) {
-      setDeletedGeoRuleIds((prev) => [...prev, rule.id!]);
-    }
-    setGeoRules((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const clearAllGeoRules = () => {
-    Alert.alert(
-      tr('b3_evnew_geo_clear_title'),
-      'Are you sure you want to remove all custom location prices? Viewers will pay the default stream price.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove all',
-          style: 'destructive',
-          onPress: () => {
-            const existingWithId = geoRules.filter((r) => r.id).map((r) => r.id!);
-            if (existingWithId.length) {
-              setDeletedGeoRuleIds((prev) => [...prev, ...existingWithId]);
-            }
-            setGeoRules([]);
-          },
-        },
-      ],
-    );
+  const changeGeoRules = (next: LocationRule[]) => {
+    setGeoRules(next);
+    setGeoMessage(null);
+    setGeoRuleErrors({});
   };
 
   const live = watch();
@@ -576,6 +473,13 @@ export default function NewEventScreen() {
       country: values.country ?? '',
     });
 
+    // A rule typed into the new-rule row but not added would be lost on save, so ask for it to be finished first.
+    if (geoEnabled && hasOpenDraft(geoDraft)) {
+      setShowGeoPricing(true);
+      setGeoMessage(OPEN_RULE_HINT);
+      return;
+    }
+
     const photographerId = params.photographerId ?? selPhotog?.id;
     const packageId = params.packageId ?? selPackage?.id;
 
@@ -603,6 +507,9 @@ export default function NewEventScreen() {
       photographerId,
       packageId,
       escrowPercentage: packageId ? Number(escrow) : undefined,
+      // Rules save with the event, in one go. Left out when the field is not shown, or on an edit whose saved rules were
+      // not read, so the saved ones stay as they are.
+      geoRules: geoEnabled && rulesLoaded ? toPayload(geoRules) : undefined,
     };
 
     try {
@@ -616,49 +523,12 @@ export default function NewEventScreen() {
             // non-fatal
           }
         }
-        if (isCoordinator) {
-          for (const rule of geoRules) {
-            try {
-              await upsertGeoPrice(params.editId, {
-                scopeType: rule.scopeType,
-                scopeValue: rule.scopeValue,
-                price: rule.price,
-                currencyId: rule.currencyId,
-              });
-            } catch (err) {
-              console.warn('Could not save geo price rule:', err);
-            }
-          }
-          for (const ruleId of deletedGeoRuleIds) {
-            try {
-              await deleteGeoPrice(params.editId, ruleId);
-            } catch (err) {
-              console.warn('Could not delete geo price rule:', err);
-            }
-          }
-        }
         router.replace(`/event/${params.editId}`);
         return;
       }
 
       // --- Create / book path -------------------------------------------
       const event = await createEvent(input, isCoordinator);
-
-      // Persist coordinator geo-pricing rules if configured
-      if (isCoordinator && event.id) {
-        for (const rule of geoRules) {
-          try {
-            await upsertGeoPrice(event.id, {
-              scopeType: rule.scopeType,
-              scopeValue: rule.scopeValue,
-              price: rule.price,
-              currencyId: rule.currencyId,
-            });
-          } catch (err) {
-            console.warn('Could not save geo price rule:', err);
-          }
-        }
-      }
 
       // The event exists at this point, so a failed cover isn't fatal — but it
       // must be said out loud. An event without a cover cannot be published,
@@ -689,7 +559,15 @@ export default function NewEventScreen() {
 
       router.replace(`/event/${event.id}`);
     } catch (err) {
-      const errMsg = isApiError(err) ? err.message : 'Something went wrong. Please try again.'; setServerError(errMsg); Alert.alert('Could not save event', errMsg);
+      const errMsg = isApiError(err) ? err.message : 'Something went wrong. Please try again.';
+      // A rule the server refused names its row (geoRules[2].price): show it there, with the field open.
+      const bad = isApiError(err) ? ruleErrorIndex(typeof err.body?.field === 'string' ? err.body.field : undefined) : null;
+      if (bad) {
+        setShowGeoPricing(true);
+        setGeoRuleErrors({ [bad.index]: errMsg });
+      }
+      setServerError(errMsg);
+      Alert.alert('Could not save event', errMsg);
     }
   };
 
@@ -917,311 +795,27 @@ export default function NewEventScreen() {
               />
             ) : null}
 
-            {/* Coordinator: Geo-pricing Rules */}
-            {isCoordinator ? (
-              <View style={styles.coordinatorSection}>
-                <Pressable
-                  style={styles.sectionHeaderRow}
-                  onPress={() => setShowGeoPricing((v) => !v)}
-                >
-                  <View style={styles.sectionIconBadge}>
-                    <Ionicons name="earth" size={18} color={colors.primary} />
-                  </View>
-                  <View style={styles.flex}>
-                    <Text style={styles.sectionHeading}>{tr('b3_evnew_geo_heading')}</Text>
-                    <Text style={styles.sectionSubheading}>
-                      {tr('b3_evnew_geo_sub')}
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={showGeoPricing ? 'chevron-up' : 'chevron-down'}
-                    size={20}
-                    color={colors.primary}
-                  />
-                </Pressable>
-
-                {showGeoPricing ? (
-                  <View style={styles.geoBody}>
-                    <Text style={styles.geoIntroText}>
-                      {tr('b3_evnew_geo_intro')}
-                    </Text>
-
-                    {/* Filter Tabs & Search */}
-                    <View style={styles.fieldGroup}>
-                      <View style={styles.geoFilterHeader}>
-                        <Text style={styles.fieldLabel}>{tr('b3_evnew_select_locations')}</Text>
-                        <View style={styles.geoTabsRow}>
-                          {(['ALL', 'CONTINENT', 'COUNTRY'] as const).map((tab) => (
-                            <Pressable
-                              key={tab}
-                              onPress={() => setGeoFilterTab(tab)}
-                              style={[
-                                styles.geoFilterTab,
-                                geoFilterTab === tab && styles.geoFilterTabActive,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.geoFilterTabText,
-                                  geoFilterTab === tab && styles.geoFilterTabTextActive,
-                                ]}
-                              >
-                                {tab === 'ALL'
-                                  ? 'All'
-                                  : tab === 'CONTINENT'
-                                    ? 'Continents'
-                                    : 'Countries'}
-                              </Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      </View>
-
-                      {/* Search Bar */}
-                      <Input
-                        placeholder={tr('b3_evnew_geo_search_ph')}
-                        value={geoSearchQuery}
-                        onChangeText={setGeoSearchQuery}
-                        leftElement={
-                          <Ionicons
-                            name="search-outline"
-                            size={18}
-                            color={colors.textMuted}
-                            style={{ marginLeft: spacing.sm, marginRight: spacing.xs }}
-                          />
-                        }
-                      />
-
-                      {/* Selected Locations Tray */}
-                      {selectedGeoLocations.length > 0 ? (
-                        <View style={styles.selectedLocationsTray}>
-                          <View style={styles.selectedLocationsHeader}>
-                            <Text style={styles.selectedLocationsCount}>
-                              Selected ({selectedGeoLocations.length}):
-                            </Text>
-                            <Pressable onPress={clearSelectedGeoLocations} hitSlop={6}>
-                              <Text style={styles.clearSelectionLink}>{tr('b3_evnew_clear_all')}</Text>
-                            </Pressable>
-                          </View>
-                          <ScrollView
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
-                            contentContainerStyle={styles.selectedChipsScroll}
-                          >
-                            {selectedGeoLocations.map((item) => (
-                              <Pressable
-                                key={`${item.scopeType}-${item.code}`}
-                                onPress={() => removeSelectedGeoLocation(item)}
-                                style={styles.selectedTrayChip}
-                              >
-                                <Ionicons
-                                  name={
-                                    item.scopeType === 'CONTINENT'
-                                      ? 'globe-outline'
-                                      : 'flag-outline'
-                                  }
-                                  size={13}
-                                  color={colors.primary}
-                                />
-                                <Text style={styles.selectedTrayChipText}>
-                                  {item.label} ({item.scopeType === 'CONTINENT' ? 'Continent' : 'Country'})
-                                </Text>
-                                <Ionicons
-                                  name="close-circle"
-                                  size={15}
-                                  color={colors.textMuted}
-                                />
-                              </Pressable>
-                            ))}
-                          </ScrollView>
-                        </View>
-                      ) : null}
-
-                      {/* Locations Options */}
-                      <View style={styles.locationsListContainer}>
-                        <View style={styles.locationsListHeaderRow}>
-                          <Text style={styles.locationsAvailableText}>
-                            {filteredGeoRegions.length} available
-                          </Text>
-                          {filteredGeoRegions.length > 1 && filteredGeoRegions.length <= 15 ? (
-                            <Pressable onPress={selectAllMatching} hitSlop={6}>
-                              <Text style={styles.selectAllLink}>{tr('b3_evnew_select_all_shown')}</Text>
-                            </Pressable>
-                          ) : null}
-                        </View>
-
-                        <ScrollView
-                          style={styles.locationsScrollArea}
-                          contentContainerStyle={styles.locationsWrap}
-                          nestedScrollEnabled
-                          keyboardShouldPersistTaps="handled"
-                        >
-                          {filteredGeoRegions.map((item) => {
-                            const isSelected = selectedGeoLocations.some(
-                              (x) => x.scopeType === item.scopeType && x.code === item.code,
-                            );
-                            const hasExistingRule = geoRules.some(
-                              (r) => r.scopeType === item.scopeType && r.scopeValue === item.code,
-                            );
-                            return (
-                              <Pressable
-                                key={`${item.scopeType}-${item.code}`}
-                                onPress={() => toggleGeoLocation(item)}
-                                style={[
-                                  styles.geoItemChip,
-                                  isSelected && styles.geoItemChipSelected,
-                                  hasExistingRule && !isSelected && styles.geoItemChipHasRule,
-                                ]}
-                              >
-                                <Ionicons
-                                  name={
-                                    isSelected
-                                      ? 'checkmark-circle'
-                                      : item.scopeType === 'CONTINENT'
-                                        ? 'globe-outline'
-                                        : 'flag-outline'
-                                  }
-                                  size={14}
-                                  color={
-                                    isSelected
-                                      ? colors.textOnPrimary
-                                      : hasExistingRule
-                                        ? colors.primary
-                                        : colors.textMuted
-                                  }
-                                />
-                                <Text
-                                  style={[
-                                    styles.geoItemChipText,
-                                    isSelected && styles.geoItemChipTextSelected,
-                                  ]}
-                                >
-                                  {item.label}
-                                </Text>
-                                {geoFilterTab === 'ALL' ? (
-                                  <Text
-                                    style={[
-                                      styles.geoItemScopeBadge,
-                                      isSelected && styles.geoItemScopeBadgeSelected,
-                                    ]}
-                                  >
-                                    {item.scopeType === 'CONTINENT' ? 'Cont' : 'Ctry'}
-                                  </Text>
-                                ) : null}
-                              </Pressable>
-                            );
-                          })}
-                          {filteredGeoRegions.length === 0 ? (
-                            <Text style={styles.noMatchText}>
-                              No regions match &quot;{geoSearchQuery}&quot;.
-                            </Text>
-                          ) : null}
-                        </ScrollView>
-                      </View>
-                    </View>
-
-                    {/* Price and currency for this region, one field */}
-                    <MoneyInput
-                      label={
-                        selectedGeoLocations.length > 1
-                          ? `Price for ${selectedGeoLocations.length} locations`
-                          : selectedGeoLocations.length === 1
-                            ? `Price for ${selectedGeoLocations[0].label}`
-                            : 'Regional Price'
-                      }
-                      value={geoPriceInput}
-                      onChangeText={setGeoPriceInput}
-                      currencyId={geoCurrencyId || selectedMoneyId}
-                      onCurrencyChange={setGeoCurrencyId}
-                      currencies={moneyCurrencies}
-                      placeholder="0.00"
-                      testID="event-geo-price"
-                    />
-
-                    {geoError ? <Text style={styles.errText}>{geoError}</Text> : null}
-
-                    <Button
-                      title={
-                        selectedGeoLocations.length > 1
-                          ? `Apply Price (${geoPriceInput || '0'} ${currenciesList.find((c) => (geoCurrencyId ? c.id === geoCurrencyId : c.code === selectedCurrency))?.code || selectedCurrency}) to ${selectedGeoLocations.length} Locations`
-                          : selectedGeoLocations.length === 1
-                            ? `Add Price for ${selectedGeoLocations[0].label}`
-                            : 'Add Location Price'
-                      }
-                      variant="outline"
-                      onPress={addGeoRules}
-                    />
-
-                    {/* Active Rules List */}
-                    {geoRules.length > 0 ? (
-                      <View style={styles.rulesList}>
-                        <View style={styles.rulesListHeaderRow}>
-                          <Text style={styles.rulesListHeader}>
-                            Active Location Prices ({geoRules.length})
-                          </Text>
-                          <Pressable onPress={clearAllGeoRules} hitSlop={6}>
-                            <Text style={styles.clearAllRulesText}>{tr('b3_evnew_remove_all')}</Text>
-                          </Pressable>
-                        </View>
-                        {geoRules.map((rule, idx) => (
-                          <View
-                            key={`${rule.scopeType}-${rule.scopeValue}-${idx}`}
-                            style={styles.ruleItem}
-                          >
-                            <View style={styles.ruleBadge}>
-                              <Ionicons
-                                name={
-                                  rule.scopeType === 'CONTINENT'
-                                    ? 'globe-outline'
-                                    : 'flag-outline'
-                                }
-                                size={14}
-                                color={colors.primary}
-                              />
-                            </View>
-                            <View style={styles.flex}>
-                              <Text style={styles.ruleLocationText}>
-                                {regionLabel(rule.scopeType, rule.scopeValue)}
-                              </Text>
-                              <Text style={styles.ruleScopeText}>
-                                {rule.scopeType === 'CONTINENT' ? 'Continent' : 'Country'}
-                              </Text>
-                            </View>
-                            <Text style={styles.rulePriceText}>
-                              {formatPrice(Number(rule.price), rule.currencyCode || selectedCurrency)}
-                            </Text>
-                            <Pressable
-                              onPress={() => removeGeoRule(idx)}
-                              hitSlop={8}
-                              style={styles.ruleDeleteBtn}
-                            >
-                              <Ionicons name="trash-outline" size={18} color={colors.error} />
-                            </Pressable>
-                          </View>
-                        ))}
-                      </View>
-                    ) : (
-                      <Text style={styles.noRulesText}>
-                        {tr('b3_evnew_no_geo_rules')}
-                      </Text>
-                    )}
-
-                    {isEditing && params.editId ? (
-                      <Pressable
-                        style={styles.openDedicatedGeoBtn}
-                        onPress={() =>
-                          router.push(`/event/geo-pricing?eventId=${params.editId}` as never)
-                        }
-                      >
-                        <Ionicons name="open-outline" size={16} color={colors.primary} />
-                        <Text style={styles.openDedicatedGeoText}>
-                          {tr('b3_evnew_open_geo_mgr')}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                ) : null}
-              </View>
+            {/* Location pricing & access: inline, collapsible, saved with the event */}
+            {geoEnabled ? (
+              <LocationRulesField
+                expanded={showGeoPricing}
+                onToggle={() => setShowGeoPricing((v) => !v)}
+                rules={geoRules}
+                onRulesChange={changeGeoRules}
+                draft={geoDraft}
+                onDraftChange={(d) => {
+                  setGeoDraft(d);
+                  if (d == null || !hasOpenDraft(d)) setGeoMessage(null);
+                }}
+                locations={geoLocations}
+                locationsStatus={geoLocationsStatus}
+                onRetryLocations={loadGeoLocations}
+                currencies={moneyCurrencies}
+                defaultCurrencyId={selectedMoneyId}
+                message={geoMessage}
+                ruleErrors={geoRuleErrors}
+                testID="event-geo-rules"
+              />
             ) : null}
 
             {/* The wizard is for an event a photographer covers. Streaming it yourself is Go live (Host an event), so the

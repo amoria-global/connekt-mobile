@@ -181,6 +181,16 @@
             ]
           },
           {
+            "id": "2026-11-10-location-pricing-access",
+            "date": "2026-11-10",
+            "title": "Location pricing and access when you create an event",
+            "items": [
+              {"icon": "earth-outline", "title": "Price or block places while you create an event", "body": "Open Location pricing and access on the event form to give a country or continent its own price, or keep a place from watching at all. The rules save together with the event."},
+              {"icon": "ban-outline", "title": "A clear screen when a stream is not available where you are", "body": "If a host has blocked your region, or we cannot confirm where you are, you now see a plain message with a Retry button instead of a price or a pay button."},
+              {"icon": "list-outline", "title": "One list of places on the app, the dashboard and the website", "body": "The same countries and continents appear everywhere, so a rule you set in one place shows up in all of them, and the old price manager now uses the same simple field."}
+            ]
+          },
+          {
             "id": "2026-11-10-incoming-call-alerts",
             "date": "2026-11-10",
             "title": "Reliable ringing, call screens and package pricing for offers",
