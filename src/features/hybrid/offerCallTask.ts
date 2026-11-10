@@ -133,7 +133,11 @@ if (hasNativeTaskManager()) {
               link: payload.link ?? (id !== 'offer' ? `/opportunities/${id}` : '/opportunities'),
             },
           },
-          trigger: { channelId: FALLBACK_CHANNEL },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+            seconds: 1,
+            channelId: FALLBACK_CHANNEL,
+          },
         });
       } catch {
         // Nothing more to try from a background task.

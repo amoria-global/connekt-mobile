@@ -260,7 +260,9 @@ function useProtectedRoute() {
         }
         const candMatch = mapped.match(/[?&]candidate=([^&#]+)/);
         if (candMatch?.[1]) {
-          void clearOfferNotifications(decodeURIComponent(candMatch[1]));
+          const cid = decodeURIComponent(candMatch[1]);
+          void clearOfferNotifications(cid);
+          showIncomingOpportunity(cid, 'details');
         }
       } else {
         void setPendingDestination(mapped);
@@ -315,7 +317,9 @@ function useProtectedRoute() {
               router.replace(href as Href);
               const candMatch = href.match(/[?&]candidate=([^&#]+)/);
               if (candMatch?.[1]) {
-                void clearOfferNotifications(decodeURIComponent(candMatch[1]));
+                const cid = decodeURIComponent(candMatch[1]);
+                void clearOfferNotifications(cid);
+                showIncomingOpportunity(cid, 'details');
               }
               return;
             }
