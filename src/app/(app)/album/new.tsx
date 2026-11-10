@@ -117,6 +117,7 @@ const ALB_MAP: Record<string, { fr: string; es: string }> = {
 };
 import { translateSharedRw } from '@/i18n/kinyarwanda';
 import { translateSharedSw } from '@/i18n/swahili';
+import { confirmAlbumDate } from '@/features/events/farFutureDate';
 const trAlb = (s: string) => {
   const lang = useLanguage.getState().language;
   if (lang === 'en') return s;
@@ -255,6 +256,9 @@ export default function NewAlbumScreen() {
         return showFieldError('recipientEmail', 'Enter a valid email address for the recipient.');
       }
     }
+
+    // Only the personal albums send a date; an event album takes the event's own.
+    if (mode !== 'event' && !(await confirmAlbumDate(date.trim()))) return;
 
     setSubmitting(true);
     setUploadStatus(
