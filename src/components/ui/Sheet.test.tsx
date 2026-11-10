@@ -2,7 +2,7 @@ import React from 'react';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
 import { KeyboardAvoidingView, Modal, Text } from 'react-native';
 
-import { Sheet } from './Sheet';
+import { Sheet, shouldSwipeClose, SWIPE_CLOSE_DISTANCE } from './Sheet';
 
 import '@/test/autoUnmount';
 
@@ -69,5 +69,27 @@ describe('Sheet keyboard handling', () => {
     );
     const kav = r.root.findByType(KeyboardAvoidingView);
     expect(kav.props.behavior).toBe('padding');
+  });
+});
+
+describe('Sheet swipe to close', () => {
+  it('closes on a long drag or a quick flick, and springs back on a short slow one', () => {
+    expect(shouldSwipeClose(SWIPE_CLOSE_DISTANCE + 1, 0)).toBe(true);
+    expect(shouldSwipeClose(40, 1.2)).toBe(true);
+    expect(shouldSwipeClose(40, 0.2)).toBe(false);
+    expect(shouldSwipeClose(10, 2)).toBe(false);
+    expect(shouldSwipeClose(-200, -2)).toBe(false);
+  });
+
+  it('puts the drag handlers on the handle and title area, not on the scrolling body', () => {
+    const r = mount(
+      <Sheet title="T" onClose={() => {}}>
+        <Text>x</Text>
+      </Sheet>,
+    );
+    const zone = r.root.findByProps({ testID: 'sheet-drag-zone' });
+    expect(typeof zone.props.onMoveShouldSetResponder).toBe('function');
+    // A plain tap must not start a drag, so the close button keeps working.
+    expect(zone.props.onStartShouldSetResponder()).toBe(false);
   });
 });
