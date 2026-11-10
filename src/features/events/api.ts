@@ -8,6 +8,7 @@ import { api, requireOk } from '@/api/client';
 import type { PickedImage } from '@/services/imagePicker';
 import { appendFile } from '@/utils/upload';
 import type { ApiError, ApiEnvelope } from '@/types';
+import { regionBlockFromEvent } from '@/features/geopricing/regionBlock';
 import {
   parseAttendanceMode,
   type CreateEventInput,
@@ -65,6 +66,10 @@ function buildEventPayload(input: CreateEventInput): Record<string, unknown> {
   }
   if (typeof input.hasLiveStream === 'boolean') {
     payload.hasLiveStream = input.hasLiveStream;
+  }
+  // Location rules ride with the event so they save in the same transaction; [] clears them, undefined leaves them.
+  if (Array.isArray(input.geoRules)) {
+    payload.geoRules = input.geoRules;
   }
   if (typeof input.minimumPhotos === 'number' && Number.isFinite(input.minimumPhotos)) {
     payload.minimumPhotos = input.minimumPhotos;
@@ -416,7 +421,8 @@ export async function getPublicEventDetailed(id: string): Promise<PublicEvent> {
   const res = await api.get<ApiEnvelope<RawEvent>>(`/public/events/${encodeURIComponent(id)}`, {
     skipAuth: true,
   });
-  return mapPublicEvent((res?.data ?? {}) as RawEvent);
+  // The region flags sit beside the event on the envelope, not inside it.
+  return { ...mapPublicEvent((res?.data ?? {}) as RawEvent), regionBlock: regionBlockFromEvent(res) };
 }
 
 /**

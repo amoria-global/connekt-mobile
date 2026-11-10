@@ -29,6 +29,8 @@ import { pickFromLibrary, type PickedImage } from '@/services/imagePicker';
 import { isApiError } from '@/store/auth';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { WishInvitesField } from '@/features/wishes/WishInvitesField';
+import { LocationRulesField } from '@/features/geopricing/LocationRulesField';
+import { useLocationRules } from '@/features/geopricing/useLocationRules';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
 import {
   createHostedEvent,
@@ -76,6 +78,8 @@ export default function HostEventScreen() {
   const [currencyCode, setCurrencyCode] = useState('RWF');
   const [cover, setCover] = useState<PickedImage | null>(null);
   const [wishInvites, setWishInvites] = useState<boolean | null>(null);
+  // Location pricing & access: rules ride with the event, so they save in the same transaction.
+  const geo = useLocationRules();
   const scrollRef = useRef<ScrollView>(null);
   const wishInvitesY = useRef(0);
 
@@ -140,6 +144,9 @@ export default function HostEventScreen() {
       return;
     }
 
+    // A rule typed into the new-rule row but not added would be lost on save: finish or cancel it first.
+    if (geo.blockSave()) return;
+
     // A far-future date is confirmed first; the guard holds while the question is open so a second tap cannot start another.
     if (isFarFuture(date)) {
       inFlight.current = true;
@@ -163,6 +170,7 @@ export default function HostEventScreen() {
         streamFee: paid ? Number(price) : undefined,
         streamFeeCurrencyId: paid ? currencyId : undefined,
         allowWishInvites: wishInvites === true,
+        geoRules: geo.payload(),
       };
       const result = await runHostFlow(
         {
@@ -177,6 +185,7 @@ export default function HostEventScreen() {
       progress.current = result.progress;
       setSaved(!!result.progress.eventId);
       if (result.status === 'failed') {
+        if (result.step === 'create' && result.field) geo.showServerError(result.field, result.message);
         setFailure(
           result.step === 'create'
             ? result.message
@@ -320,6 +329,23 @@ export default function HostEventScreen() {
             setWishInvites(v);
             setErrors((x) => ({ ...x, wishInvites: undefined }));
           }}
+        />
+
+        <LocationRulesField
+          expanded={geo.expanded}
+          onToggle={geo.toggle}
+          rules={geo.rules}
+          onRulesChange={geo.setRules}
+          draft={geo.draft}
+          onDraftChange={geo.onDraftChange}
+          locations={geo.locations}
+          locationsStatus={geo.status}
+          onRetryLocations={geo.retry}
+          currencies={currencies.data ?? []}
+          defaultCurrencyId={currencies.data?.find((c) => c.code === currencyCode)?.id}
+          message={geo.message}
+          ruleErrors={geo.ruleErrors}
+          testID="host-geo-rules"
         />
 
         <DateField label="Date *" value={date} onChange={setDate} error={errors.date} minimumDate={new Date()} />
