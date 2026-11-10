@@ -10,6 +10,7 @@
 import { api } from '@/api/client';
 import type { ApiEnvelope, ApiError } from '@/types';
 import type {
+  ApproveOpportunityOptions,
   CandidateSummary,
   CandidatesResponse,
   ConvertToHybridRescueResult,
@@ -22,12 +23,15 @@ import type {
   MatchRequestPayload,
   MatchRequestResult,
   OpportunityDeliveryPolicy,
+  OpportunityPricingMode,
   PhotographerOpportunity,
   RecommendationTier,
   SmartMatchTier,
   SelectPhotographerPayload,
   SelectPhotographerResult,
 } from './types';
+
+const candidatePricingOverrides = new Map<string, ApproveOpportunityOptions>();
 
 type Raw = Record<string, unknown>;
 
@@ -195,8 +199,32 @@ export async function deleteHybridDraft(eventId: string): Promise<void> {
 }
 
 function mapCandidate(c: any): CandidateSummary {
+  const cid = String(c.candidateId ?? '');
+  const override = candidatePricingOverrides.get(cid);
+  const deliveryPolicy: OpportunityDeliveryPolicy =
+    c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' || override?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+      ? 'PHOTOGRAPHER_PACKAGE'
+      : 'CLIENT';
+  const rawPricingMode = c.pricingMode ?? override?.pricingMode;
+  const pricingMode: OpportunityPricingMode | undefined =
+    rawPricingMode === 'PACKAGE' || rawPricingMode === 'CLIENT_OFFER'
+      ? rawPricingMode
+      : deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' && (num(c.proposedPrice) != null || num(c.matchedPackagePrice) != null || override?.proposedPrice != null)
+        ? 'PACKAGE'
+        : undefined;
+  const matchedPackagePrice =
+    (override?.pricingMode === 'PACKAGE' && override?.proposedPrice != null ? override.proposedPrice : undefined) ??
+    num(c.matchedPackagePrice) ??
+    num(c.proposedPrice);
+  const proposedPrice =
+    num(c.proposedPrice) ??
+    num(c.suggestedPrice) ??
+    num(c.agreedPrice) ??
+    override?.proposedPrice ??
+    (deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' && pricingMode !== 'CLIENT_OFFER' ? matchedPackagePrice : undefined);
+
   return {
-    candidateId: String(c.candidateId ?? ''),
+    candidateId: cid,
     photographerId: String(c.photographerId ?? ''),
     name: str(c.name) ?? 'Photographer',
     avatar: str(c.avatar),
@@ -218,16 +246,19 @@ function mapCandidate(c: any): CandidateSummary {
     slug: str(c.slug),
     about: str(c.about),
     specialties: Array.isArray(c.specialties) ? c.specialties : [],
-    deliveryPolicy: c.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'PHOTOGRAPHER_PACKAGE' : 'CLIENT',
-    packageDeliveryDays: num(c.packageDeliveryDays),
-    packageDeliveryDescription: str(c.packageDeliveryDescription),
-    matchedPackageId: str(c.matchedPackageId),
-    matchedPackageName: str(c.matchedPackageName),
-    matchedPackagePrice: num(c.matchedPackagePrice),
-    matchedPackageCurrency: str(c.matchedPackageCurrency),
+    deliveryPolicy,
+    packageDeliveryDays: override?.deliveryDays ?? num(c.packageDeliveryDays),
+    packageDeliveryDescription: override?.packageDescription ?? str(c.packageDeliveryDescription),
+    matchedPackageId: override?.packageId ?? str(c.matchedPackageId) ?? str(c.packageId),
+    matchedPackageName: override?.packageName ?? str(c.matchedPackageName) ?? str(c.packageName),
+    matchedPackagePrice,
+    matchedPackageCurrency: override?.currency ?? str(c.matchedPackageCurrency) ?? str(c.currency),
     matchedPackagePhotos: num(c.matchedPackagePhotos),
     matchedPackageVideos: num(c.matchedPackageVideos),
     matchedPackageHours: num(c.matchedPackageHours),
+    pricingMode,
+    proposedPrice,
+    agreedPrice: num(c.agreedPrice) ?? proposedPrice,
   };
 }
 
@@ -282,6 +313,7 @@ export async function selectPhotographer(eventId: string, payload: SelectPhotogr
         candidateId: payload.candidateId,
         photographerId: payload.photographerId,
         packageId: payload.packageId,
+        ...(payload.agreedPrice != null ? { agreedPrice: payload.agreedPrice, proposedPrice: payload.proposedPrice ?? payload.agreedPrice } : {}),
         escrowPercentage: payload.escrowPercentage ?? 50,
         notes: payload.notes,
       },
@@ -323,8 +355,18 @@ export async function convertToDirectRescue(eventId: string): Promise<Raw | unde
 // ───────────────────────── photographer side ─────────────────────────
 
 function mapOpportunity(raw: any): PhotographerOpportunity {
+  const cid = String(raw?.candidateId ?? '');
+  const override = candidatePricingOverrides.get(cid);
+  const deliveryPolicy: OpportunityDeliveryPolicy =
+    raw?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' || override?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
+      ? 'PHOTOGRAPHER_PACKAGE'
+      : 'CLIENT';
+  const rawPricingMode = raw?.pricingMode ?? override?.pricingMode;
+  const pricingMode: OpportunityPricingMode | undefined =
+    rawPricingMode === 'PACKAGE' || rawPricingMode === 'CLIENT_OFFER' ? rawPricingMode : undefined;
+
   return {
-    candidateId: String(raw?.candidateId ?? ''),
+    candidateId: cid,
     matchRequestId: String(raw?.matchRequestId ?? ''),
     eventId: String(raw?.eventId ?? ''),
     eventTitle: str(raw?.eventTitle) ?? 'Event',
@@ -355,13 +397,17 @@ function mapOpportunity(raw: any): PhotographerOpportunity {
     candidateExpiresAt: str(raw?.candidateExpiresAt) ?? str(raw?.responseDeadlineAt),
     serverNow: str(raw?.serverNow),
     status: raw?.status ?? 'INVITED',
-    matchedPackageId: str(raw?.matchedPackageId),
-    matchedPackageName: str(raw?.matchedPackageName),
-    matchedPackagePrice: num(raw?.matchedPackagePrice),
-    matchedPackageCurrency: str(raw?.matchedPackageCurrency),
-    matchedPackageDeliveryDays: num(raw?.matchedPackageDeliveryDays),
-    matchedPackageDescription: str(raw?.matchedPackageDescription),
-    deliveryPolicy: raw?.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE' ? 'PHOTOGRAPHER_PACKAGE' : 'CLIENT',
+    matchedPackageId: override?.packageId ?? str(raw?.matchedPackageId),
+    matchedPackageName: override?.packageName ?? str(raw?.matchedPackageName),
+    matchedPackagePrice:
+      (override?.pricingMode === 'PACKAGE' && override?.proposedPrice != null ? override.proposedPrice : undefined) ??
+      num(raw?.matchedPackagePrice),
+    matchedPackageCurrency: override?.currency ?? str(raw?.matchedPackageCurrency),
+    matchedPackageDeliveryDays: override?.deliveryDays ?? num(raw?.matchedPackageDeliveryDays),
+    matchedPackageDescription: override?.packageDescription ?? str(raw?.matchedPackageDescription),
+    deliveryPolicy,
+    pricingMode,
+    proposedPrice: num(raw?.proposedPrice) ?? override?.proposedPrice,
     hasLiveStream: typeof raw?.hasLiveStream === 'boolean' ? raw.hasLiveStream : undefined,
     allowWishInvites: typeof raw?.allowWishInvites === 'boolean' ? raw.allowWishInvites : undefined,
     minimumPhotos: num(raw?.minimumPhotos),
@@ -397,12 +443,43 @@ export async function getOpportunityCounts(): Promise<{ pending: number; awaitin
 /** "I'm available". Throws 409 once the invite has closed or the calendar now overlaps. */
 export async function approveOpportunity(
   candidateId: string,
-  options?: { deliveryPolicy?: OpportunityDeliveryPolicy },
+  options?: ApproveOpportunityOptions,
 ): Promise<void> {
-  const res = options?.deliveryPolicy
+  if (options) {
+    candidatePricingOverrides.set(candidateId, options);
+  }
+  const body: Record<string, unknown> = {};
+  if (options?.deliveryPolicy) body.deliveryPolicy = options.deliveryPolicy;
+  if (options?.pricingMode) body.pricingMode = options.pricingMode;
+  if (options?.packageId) {
+    body.packageId = options.packageId;
+    body.matchedPackageId = options.packageId;
+  }
+  if (options?.packageName) {
+    body.packageName = options.packageName;
+    body.matchedPackageName = options.packageName;
+  }
+  if (options?.proposedPrice != null) {
+    body.proposedPrice = options.proposedPrice;
+    body.suggestedPrice = options.proposedPrice;
+    body.matchedPackagePrice = options.proposedPrice;
+  }
+  if (options?.currency) {
+    body.currency = options.currency;
+    body.matchedPackageCurrency = options.currency;
+  }
+  if (options?.deliveryDays != null) {
+    body.packageDeliveryDays = options.deliveryDays;
+    body.deliveryDays = options.deliveryDays;
+  }
+  if (options?.packageDescription) {
+    body.packageDeliveryDescription = options.packageDescription;
+  }
+  const hasBody = Object.keys(body).length > 0;
+  const res = hasBody
     ? await api.post<{ action?: number; message?: string }>(
         `/opportunities/${encodeURIComponent(candidateId)}/approve`,
-        { deliveryPolicy: options.deliveryPolicy },
+        body,
       )
     : await api.post<{ action?: number; message?: string }>(
         `/opportunities/${encodeURIComponent(candidateId)}/approve`,

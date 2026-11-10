@@ -29,6 +29,11 @@ export type PhotographerPackage = {
   name: string;
   price?: number;
   currency?: string;
+  description?: string;
+  durationHours?: number;
+  includedPhotos?: number;
+  includedVideos?: number;
+  deliveryDays?: number;
 };
 
 export type PhotographerDetail = Photographer & {
@@ -118,11 +123,22 @@ function mapPhotographer(r: Raw): Photographer {
 }
 
 function mapPackage(r: Raw): PhotographerPackage {
+  const currencyObj = (r.currency && typeof r.currency === 'object' ? r.currency : {}) as Raw;
   return {
     id: String(r.id ?? ''),
     name: str(r.name) ?? str(r.packageName) ?? 'Package',
     price: num(r.price),
-    currency: str(r.currency) ?? str(r.currencyCode) ?? str(r.currencyAbbreviation),
+    currency:
+      str(r.currency) ??
+      str(r.currencyCode) ??
+      str(r.currencyAbbreviation) ??
+      str(currencyObj.abbreviation) ??
+      str(currencyObj.code),
+    description: str(r.description),
+    durationHours: num(r.durationHours),
+    includedPhotos: num(r.includedPhotos),
+    includedVideos: num(r.includedVideos),
+    deliveryDays: num(r.deliveryDays),
   };
 }
 
@@ -178,7 +194,12 @@ export async function getPhotographer(id: string): Promise<PhotographerDetail> {
 
   const d = (res?.data ?? {}) as Raw;
   const base = mapPhotographer(d);
-  const rawPackages = Array.isArray(packagesRes?.data) ? packagesRes.data : [];
+  const rawPackages =
+    Array.isArray(packagesRes?.data) && packagesRes.data.length > 0
+      ? packagesRes.data
+      : Array.isArray(d.packages)
+        ? (d.packages as Raw[])
+        : [];
 
   return {
     ...base,

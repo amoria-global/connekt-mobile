@@ -5,18 +5,28 @@
  * Presentation only: accepting and rejecting go through the handlers the screen already has, with the same two delivery
  * policies as before (the client's schedule, or the photographer's package policy).
  */
-import React, { useState } from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { fonts, fontSize, makeStyles, radii, spacing, useTheme } from '@/theme';
-import { PrimaryButton } from '@/components/ui/Button';
+import { GhostButton, PrimaryButton } from '@/components/ui/Button';
 import { Segmented } from '@/components/ui/Segmented';
 import { NavGroup, NavRow } from '@/components/ui/Compact';
 import { chipColors } from '@/components/ui/StatusChip';
+import { listPackages } from '@/features/packages/api';
 import type { ParsedOfferBrief } from './offerBrief';
-import type { PhotographerOpportunity } from './types';
-import { deliverableRows, deliveryRows, formatMoney, packageDifference, type LabelValue } from './offerPresentation';
+import type { ApproveOpportunityOptions, PhotographerOpportunity } from './types';
+import {
+  deliverableRows,
+  deliveryRows,
+  formatMoney,
+  nearestPackageIdToBudget,
+  packageDifference,
+  sortPackagesByBudget,
+  type LabelValue,
+  type PricedPackageItem,
+} from './offerPresentation';
 
 export type OfferDeliveryChoice = 'CLIENT' | 'PHOTOGRAPHER_PACKAGE';
 type Section = 'venue' | 'availability' | 'policies' | 'coordinator';
@@ -38,12 +48,13 @@ type Props = {
   offer: number | null;
   currency: string;
   pkg: { name: string; price: number; currency: string; days?: number | null } | null;
+  ownPackages?: PricedPackageItem[];
   busyAction: 'accept_client' | 'accept_package' | 'reject' | null;
   topInset: number;
   bottomInset: number;
   tr: Tr;
   onBack: () => void;
-  onAccept: (choice: OfferDeliveryChoice) => void;
+  onAccept: (choice: OfferDeliveryChoice, options?: ApproveOpportunityOptions) => void;
   onReject: () => void;
 };
 
@@ -55,6 +66,126 @@ export function OfferDetailsView(p: Props) {
   const [viewingAs, setViewingAs] = useState<'photographer' | 'coordinator'>('photographer');
   const [open, setOpen] = useState<Section | null>(null);
   const [choice, setChoice] = useState<OfferDeliveryChoice>('CLIENT');
+  const [pricingModalOpen, setPricingModalOpen] = useState(false);
+  const [fetchedPackages, setFetchedPackages] = useState<PricedPackageItem[]>([]);
+  const [loadingPackages, setLoadingPackages] = useState(false);
+  const [pricingSelection, setPricingSelection] = useState<'CLIENT_OFFER' | string>('CLIENT_OFFER');
+
+  useEffect(() => {
+    if (p.ownPackages || (choice !== 'PHOTOGRAPHER_PACKAGE' && !pricingModalOpen)) return;
+    let mounted = true;
+    setLoadingPackages(true);
+    listPackages()
+      .then((items) => {
+        if (!mounted) return;
+        const mapped = items.map((it) => ({
+          id: String(it.id),
+          name: it.name,
+          price: it.price,
+          currency: it.currency,
+          deliveryDays: it.deliveryDays,
+          durationHours: it.durationHours,
+          includedPhotos: it.includedPhotos,
+          includedVideos: it.includedVideos,
+          description: it.description,
+        }));
+        setFetchedPackages(mapped);
+        const bestId = nearestPackageIdToBudget(mapped, p.offer, opportunity.matchedPackageId);
+        if (bestId) {
+          setPricingSelection((prev) => (prev === '__matched_pkg__' || prev === 'CLIENT_OFFER' ? bestId : prev));
+        }
+      })
+      .catch(() => {
+        // Fallback to matched package on opportunity if package list fetch fails
+      })
+      .finally(() => {
+        if (mounted) setLoadingPackages(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [p.ownPackages, choice, pricingModalOpen, opportunity.candidateId, opportunity.matchedPackageId, p.offer]);
+
+  const availablePackages = useMemo<PricedPackageItem[]>(() => {
+    const base = p.ownPackages ? [...p.ownPackages] : [...fetchedPackages];
+    if (pkg && pkg.price > 0) {
+      const matchedId = opportunity.matchedPackageId || '__matched_pkg__';
+      const exists = base.some(
+        (b) => b.id === matchedId || (b.name.toLowerCase() === pkg.name.toLowerCase() && b.price === pkg.price),
+      );
+      if (!exists) {
+        base.unshift({
+          id: matchedId,
+          name: pkg.name,
+          price: pkg.price,
+          currency: pkg.currency || p.currency,
+          deliveryDays: pkg.days ?? opportunity.matchedPackageDeliveryDays,
+          description: opportunity.matchedPackageDescription,
+        });
+      }
+    }
+    return sortPackagesByBudget(base, p.offer, opportunity.matchedPackageId);
+  }, [p.ownPackages, fetchedPackages, pkg, opportunity, p.currency, p.offer]);
+
+  const nearestPkgId = useMemo(
+    () => nearestPackageIdToBudget(availablePackages, p.offer, opportunity.matchedPackageId),
+    [availablePackages, p.offer, opportunity.matchedPackageId],
+  );
+
+  const selectedPackageObj = useMemo(
+    () =>
+      pricingSelection === 'CLIENT_OFFER'
+        ? null
+        : availablePackages.find((item) => item.id === pricingSelection) ?? null,
+    [pricingSelection, availablePackages],
+  );
+
+  const openPricingModal = () => {
+    const defaultPick = nearestPkgId ?? (availablePackages[0]?.id || 'CLIENT_OFFER');
+    setPricingSelection(defaultPick);
+    setPricingModalOpen(true);
+  };
+
+  const handlePrimaryAcceptPress = () => {
+    if (choice === 'CLIENT') {
+      p.onAccept('CLIENT', {
+        deliveryPolicy: 'CLIENT',
+        pricingMode: 'CLIENT_OFFER',
+        proposedPrice: p.offer ?? undefined,
+        currency: p.currency,
+      });
+      return;
+    }
+    openPricingModal();
+  };
+
+  const handleConfirmPackagePricing = () => {
+    setPricingModalOpen(false);
+    if (pricingSelection === 'CLIENT_OFFER' || !selectedPackageObj) {
+      p.onAccept('PHOTOGRAPHER_PACKAGE', {
+        deliveryPolicy: 'PHOTOGRAPHER_PACKAGE',
+        pricingMode: 'CLIENT_OFFER',
+        proposedPrice: p.offer ?? undefined,
+        currency: p.currency,
+        deliveryDays: pkg?.days ?? opportunity.matchedPackageDeliveryDays,
+        packageDescription: opportunity.matchedPackageDescription,
+      });
+      return;
+    }
+    const realPkgId = selectedPackageObj.id.startsWith('__')
+      ? opportunity.matchedPackageId
+      : selectedPackageObj.id;
+    p.onAccept('PHOTOGRAPHER_PACKAGE', {
+      deliveryPolicy: 'PHOTOGRAPHER_PACKAGE',
+      pricingMode: 'PACKAGE',
+      packageId: realPkgId,
+      packageName: selectedPackageObj.name,
+      proposedPrice: selectedPackageObj.price,
+      currency: selectedPackageObj.currency || p.currency,
+      deliveryDays: selectedPackageObj.deliveryDays ?? pkg?.days ?? opportunity.matchedPackageDeliveryDays,
+      packageDescription: selectedPackageObj.description ?? opportunity.matchedPackageDescription,
+    });
+  };
 
   const locked = p.busyAction !== null || p.expired;
   const diff = packageDifference(p.offer, pkg ? pkg.price : null, pkg?.currency ?? p.currency);
@@ -253,13 +384,17 @@ export function OfferDetailsView(p: Props) {
         <View style={styles.card} accessibilityRole="radiogroup" accessibilityLabel={tr('How do you want to deliver?')}>
           <Text style={styles.cardEyebrow}>{tr('HOW DO YOU WANT TO DELIVER?')}</Text>
           {renderRadio('CLIENT', tr("Client's delivery schedule"), tr('Book immediately when the client pays.'))}
-          {renderRadio('PHOTOGRAPHER_PACKAGE', tr('My package delivery policy'), tr('The client must agree before booking.'))}
-          <Text style={styles.caption}>{tr("Both options keep the client's price and scope.")}</Text>
+          {renderRadio('PHOTOGRAPHER_PACKAGE', tr('My package delivery policy'), tr('Choose client offer amount or suggest a price from your own packages.'))}
+          <Text style={styles.caption}>
+            {choice === 'PHOTOGRAPHER_PACKAGE'
+              ? tr("Next, choose to keep the client's offer amount or select one of your own packages to send as your suggested price.")
+              : tr("Keeps the client's price and requested delivery schedule.")}
+          </Text>
         </View>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: Math.max(p.bottomInset, 10) + 4 }]}>
-        <PrimaryButton title={acceptLabel} onPress={() => p.onAccept(choice)} disabled={locked} accessibilityLabel={tr('Accept offer')} />
+        <PrimaryButton title={acceptLabel} onPress={handlePrimaryAcceptPress} disabled={locked} accessibilityLabel={tr('Accept offer')} />
         <Pressable
           onPress={p.onReject}
           disabled={p.busyAction !== null}
@@ -271,6 +406,153 @@ export function OfferDetailsView(p: Props) {
         </Pressable>
         <Text style={styles.footNote}>{tr('Booking confirms once the client pays.')}</Text>
       </View>
+
+      <Modal
+        visible={pricingModalOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPricingModalOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={[styles.modalSheet, { paddingBottom: Math.max(p.bottomInset, 16) + 8 }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.modalEyebrow}>{tr('PACKAGE DELIVERY POLICY')}</Text>
+                <Text style={styles.modalTitle} accessibilityRole="header">
+                  {tr('Choose your pricing')}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => setPricingModalOpen(false)}
+                style={styles.modalCloseBtn}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={tr('Close pricing modal')}
+              >
+                <Ionicons name="close" size={20} color={colors.text} />
+              </Pressable>
+            </View>
+
+            <View style={styles.modalInfoBanner}>
+              <Ionicons name="information-circle-outline" size={18} color={colors.primary} style={{ marginTop: 1 }} />
+              <Text style={styles.modalInfoText}>
+                {tr(
+                  "Choose whether to accept the client's offer amount or select from your own packages to send back as your suggested price. This only applies to your response and does not change the event price for other photographers.",
+                )}
+              </Text>
+            </View>
+
+            <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={styles.cardEyebrow}>{tr("OPTION 1: CLIENT'S OFFER AMOUNT")}</Text>
+              <Pressable
+                onPress={() => setPricingSelection('CLIENT_OFFER')}
+                accessibilityRole="radio"
+                accessibilityLabel={tr("Accept client's offer amount")}
+                accessibilityState={{ checked: pricingSelection === 'CLIENT_OFFER' }}
+                style={[styles.radio, pricingSelection === 'CLIENT_OFFER' && styles.radioOn]}
+              >
+                <View style={[styles.dot, pricingSelection === 'CLIENT_OFFER' && styles.dotOn]}>
+                  {pricingSelection === 'CLIENT_OFFER' ? <View style={styles.dotCore} /> : null}
+                </View>
+                <View style={styles.radioText}>
+                  <View style={styles.pkgRowTop}>
+                    <Text style={styles.radioTitle}>{tr("Client's offer amount")}</Text>
+                    <Text style={styles.pkgPriceText}>
+                      {p.offer != null ? formatMoney(p.offer, p.currency) : tr('Flexible budget')}
+                    </Text>
+                  </View>
+                  <Text style={styles.radioCaption}>
+                    {tr("Keep the client's offered price while delivering on your package schedule.")}
+                  </Text>
+                </View>
+              </Pressable>
+
+              <Text style={[styles.cardEyebrow, { marginTop: spacing.xs }]}>
+                {tr('OPTION 2: SELECT FROM YOUR PACKAGES (SUGGESTED PRICE)')}
+              </Text>
+
+              {loadingPackages && availablePackages.length === 0 ? (
+                <View style={styles.pkgLoadingWrap}>
+                  <ActivityIndicator color={colors.primary} />
+                  <Text style={styles.caption}>{tr('Loading your packages...')}</Text>
+                </View>
+              ) : availablePackages.length === 0 ? (
+                <View style={styles.pkgEmptyBox}>
+                  <Text style={styles.caption}>
+                    {tr("You don't have any packages configured yet. You can accept with the client's offer amount above.")}
+                  </Text>
+                </View>
+              ) : (
+                availablePackages.map((item) => {
+                  const selected = pricingSelection === item.id;
+                  const isNearest = item.id === nearestPkgId;
+                  const pkgDiff = packageDifference(p.offer, item.price ?? null, item.currency || p.currency);
+                  const detailsLine = [
+                    item.durationHours ? `${item.durationHours}h coverage` : null,
+                    item.includedPhotos ? `${item.includedPhotos} photos` : null,
+                    item.includedVideos ? `${item.includedVideos} videos` : null,
+                    item.deliveryDays ? `${item.deliveryDays}d delivery` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ');
+
+                  return (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => setPricingSelection(item.id)}
+                      accessibilityRole="radio"
+                      accessibilityLabel={`Select package ${item.name}`}
+                      accessibilityState={{ checked: selected }}
+                      style={[styles.radio, selected && styles.radioOn]}
+                    >
+                      <View style={[styles.dot, selected && styles.dotOn]}>
+                        {selected ? <View style={styles.dotCore} /> : null}
+                      </View>
+                      <View style={styles.radioText}>
+                        <View style={styles.pkgRowTop}>
+                          <Text style={styles.radioTitle}>{item.name}</Text>
+                          {item.price != null ? (
+                            <Text style={styles.pkgPriceText}>{formatMoney(item.price, item.currency || p.currency)}</Text>
+                          ) : null}
+                        </View>
+                        {isNearest ? (
+                          <View style={styles.nearestBadge}>
+                            <Ionicons name="sparkles" size={11} color={colors.accent} />
+                            <Text style={styles.nearestBadgeText}>{tr('Nearest to budget')}</Text>
+                          </View>
+                        ) : null}
+                        {detailsLine ? <Text style={styles.radioCaption}>{detailsLine}</Text> : null}
+                        {pkgDiff ? <Text style={styles.pkgDiffCaption}>{pkgDiff.text}</Text> : null}
+                      </View>
+                    </Pressable>
+                  );
+                })
+              )}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <PrimaryButton
+                title={
+                  pricingSelection === 'CLIENT_OFFER' || !selectedPackageObj
+                    ? p.offer != null
+                      ? `${tr('Accept with offer amount')} · ${formatMoney(p.offer, p.currency)}`
+                      : tr('Accept with offer amount')
+                    : selectedPackageObj.price != null
+                      ? `${tr('Send suggested price')} · ${formatMoney(selectedPackageObj.price, selectedPackageObj.currency || p.currency)}`
+                      : `${tr('Send suggested package')} · ${selectedPackageObj.name}`
+                }
+                onPress={handleConfirmPackagePricing}
+                accessibilityLabel={tr('Confirm pricing and accept')}
+              />
+              <GhostButton
+                title={tr('Cancel')}
+                onPress={() => setPricingModalOpen(false)}
+                accessibilityLabel={tr('Cancel pricing selection')}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -321,4 +603,120 @@ const useStyles = makeStyles((c) => ({
   reject: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: radii.full, borderWidth: 1, borderColor: c.error },
   rejectText: { fontFamily: fonts.bold, fontSize: fontSize.md, color: c.error },
   footNote: { textAlign: 'center', fontFamily: fonts.regular, fontSize: fontSize.xs, color: c.textMuted },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(10, 12, 18, 0.68)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    maxHeight: '86%',
+    backgroundColor: c.surface,
+    borderTopLeftRadius: radii.xl,
+    borderTopRightRadius: radii.xl,
+    borderTopWidth: 1,
+    borderColor: c.stroke,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    gap: spacing.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  modalEyebrow: {
+    fontFamily: fonts.semibold,
+    fontSize: fontSize.xs,
+    letterSpacing: 0.8,
+    color: c.accent,
+  },
+  modalTitle: {
+    fontFamily: fonts.display,
+    fontSize: fontSize.xl,
+    color: c.text,
+  },
+  modalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.well,
+    borderWidth: 1,
+    borderColor: c.stroke,
+  },
+  modalInfoBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: c.well,
+    borderWidth: 1,
+    borderColor: c.stroke,
+  },
+  modalInfoText: {
+    flex: 1,
+    fontFamily: fonts.regular,
+    fontSize: fontSize.xs,
+    lineHeight: 18,
+    color: c.textSoft,
+  },
+  modalScroll: {
+    maxHeight: 340,
+  },
+  modalScrollContent: {
+    gap: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  pkgRowTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  pkgPriceText: {
+    fontFamily: fonts.display,
+    fontSize: fontSize.md,
+    color: c.text,
+  },
+  nearestBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    backgroundColor: c.tintAccent,
+    marginVertical: 2,
+  },
+  nearestBadgeText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    color: c.accent,
+  },
+  pkgDiffCaption: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.xs,
+    lineHeight: 17,
+    color: c.primary,
+  },
+  pkgLoadingWrap: {
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  pkgEmptyBox: {
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: c.well,
+    borderWidth: 1,
+    borderColor: c.stroke,
+  },
+  modalFooter: {
+    gap: spacing.sm,
+    paddingTop: spacing.xs,
+  },
 }));

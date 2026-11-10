@@ -1,6 +1,18 @@
 import { parseOpportunityOfferBrief } from './offerBrief';
-import { cardLines, deliverableRows, deliveryRows, formatMoney, matchChips, normalizeCurrency, packageDifference, titleCasePlace } from './offerPresentation';
-import type { PhotographerOpportunity } from './types';
+import {
+  candidateChargingSummary,
+  cardLines,
+  deliverableRows,
+  deliveryRows,
+  formatMoney,
+  matchChips,
+  nearestPackageIdToBudget,
+  normalizeCurrency,
+  packageDifference,
+  sortPackagesByBudget,
+  titleCasePlace,
+} from './offerPresentation';
+import type { CandidateSummary, PhotographerOpportunity } from './types';
 
 // The exact line serializeOfferBrief writes: pipe-delimited, Photos not EditedPhotos.
 const scope =
@@ -75,5 +87,67 @@ describe('card', () => {
   it('shows up to three match chips and counts the rest', () => {
     expect(matchChips(['a', 'b', 'c', 'd', 'e'])).toEqual({ chips: ['a', 'b', 'c'], more: 2 });
     expect(matchChips(undefined)).toEqual({ chips: [], more: 0 });
+  });
+});
+
+describe('package negotiation & budget matching helpers', () => {
+  const pkgs = [
+    { id: 'p-basic', name: 'Basic', price: 400000 },
+    { id: 'p-gold', name: 'Gold', price: 920000 },
+    { id: 'p-royal', name: 'Royal', price: 1600000 },
+  ];
+
+  it('picks the package nearest to the client budget and sorts packages by closeness to budget', () => {
+    expect(nearestPackageIdToBudget(pkgs, 970000)).toBe('p-gold');
+    const sorted = sortPackagesByBudget(pkgs, 970000);
+    expect(sorted.map((p) => p.id)).toEqual(['p-gold', 'p-basic', 'p-royal']);
+  });
+
+  it('summarises what each accepted photographer is charging the client', () => {
+    const suggestedCand = {
+      candidateId: 'c1',
+      photographerId: 'ph1',
+      name: 'Alice Studio',
+      recommendationTier: 'HIGH',
+      specialties: [],
+      deliveryPolicy: 'PHOTOGRAPHER_PACKAGE',
+      pricingMode: 'PACKAGE',
+      matchedPackageId: 'p-gold',
+      matchedPackageName: 'Gold',
+      matchedPackagePrice: 920000,
+      proposedPrice: 920000,
+    } as CandidateSummary;
+    expect(candidateChargingSummary(suggestedCand, 970000)).toEqual({
+      amount: 920000,
+      currency: 'RWF',
+      label: 'Suggested: Gold',
+      packageName: 'Gold',
+      isSuggestedPackage: true,
+    });
+
+    const offerPolicyCand = {
+      ...suggestedCand,
+      pricingMode: 'CLIENT_OFFER',
+      proposedPrice: 970000,
+    } as CandidateSummary;
+    expect(candidateChargingSummary(offerPolicyCand, 970000)).toEqual({
+      amount: 970000,
+      currency: 'RWF',
+      label: 'Offer price · Package policy',
+      isSuggestedPackage: false,
+    });
+
+    const clientScheduleCand = {
+      ...suggestedCand,
+      deliveryPolicy: 'CLIENT',
+      pricingMode: undefined,
+      proposedPrice: undefined,
+    } as CandidateSummary;
+    expect(candidateChargingSummary(clientScheduleCand, 970000)).toEqual({
+      amount: 970000,
+      currency: 'RWF',
+      label: 'Accepted offer price',
+      isSuggestedPackage: false,
+    });
   });
 });

@@ -13,14 +13,18 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { GhostButton, PrimaryButton } from '@/components/ui/Button';
 import { IconTile } from '@/components/ui/IconTile';
 import { chipColors } from '@/components/ui/StatusChip';
-import type { OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
+import type { ApproveOpportunityOptions, OpportunityDeliveryPolicy, PhotographerOpportunity } from './types';
 import { countdownString, EventStartClock, useCountdown } from './hybridUi';
 import { parseOpportunityOfferBrief } from './offerBrief';
 import { cardLines, formatMoney, matchChips, titleCasePlace } from './offerPresentation';
 
 type Props = {
   opportunity: PhotographerOpportunity;
-  onApprove: (item: PhotographerOpportunity, deliveryPolicy?: OpportunityDeliveryPolicy) => void;
+  onApprove: (
+    item: PhotographerOpportunity,
+    deliveryPolicy?: OpportunityDeliveryPolicy,
+    options?: ApproveOpportunityOptions,
+  ) => void;
   onReject: (item: PhotographerOpportunity) => void;
   onPress?: (item: PhotographerOpportunity) => void;
   busy?: boolean;
@@ -140,7 +144,9 @@ export function OpportunityCard({ opportunity: o, onApprove, onReject, onPress, 
             />
             <Text style={styles.policyPillText}>
               {o.deliveryPolicy === 'PHOTOGRAPHER_PACKAGE'
-                ? 'Accepted with your package delivery policy'
+                ? (o.proposedPrice ?? o.matchedPackagePrice) != null && o.pricingMode !== 'CLIENT_OFFER'
+                  ? `Accepted with package policy · ${o.matchedPackageName ? `${o.matchedPackageName} (${formatMoney(o.proposedPrice ?? o.matchedPackagePrice!, o.matchedPackageCurrency || o.currency)})` : formatMoney(o.proposedPrice ?? o.matchedPackagePrice!, o.matchedPackageCurrency || o.currency)}`
+                  : 'Accepted with your package delivery policy'
                 : "Accepted with client's delivery schedule"}
             </Text>
           </View>
