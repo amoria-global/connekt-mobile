@@ -13,6 +13,9 @@ import { listClients } from '@/features/clients/api';
 import { storage, StorageKeys } from '@/services/storage';
 import { useAuth } from '@/store/auth';
 import type { ApiEnvelope, ApiError, ID } from '@/types';
+import { normalizeImageUrl } from '@/features/gallery/api';
+import { useLanguage } from '@/store/language';
+import { albumSharePreview, mapShareable, type ShareableAlbum } from './albumShare';
 
 export type Conversation = {
   id: ID;
@@ -22,6 +25,8 @@ export type Conversation = {
   partnerId: ID;
   name: string;
   lastMessage?: string;
+  /** "album_share" and "removed" are shown as a short preview, never as the stored text. */
+  lastMessageType?: string;
   unreadCount: number;
   avatar?: string;
   timestamp?: string;
@@ -155,7 +160,17 @@ function mapConversation(r: Raw, selfId?: string): Conversation {
     '';
 
   const last = (r.lastMessage ?? {}) as Raw;
+  const lastType = str(last.type);
+  const tr = useLanguage.getState().t;
+  const preview =
+    lastType === 'removed'
+      ? tr('chat_removed')
+      : albumSharePreview(lastType, str(last.content), {
+          one: (title) => tr('chat_shared_album_preview', { title }),
+          many: (n) => tr('chat_shared_albums_preview', { n }),
+        });
   const lastMessage =
+    preview ??
     str(last.content) ??
     str(r.lastMessageContent) ??
     str(r.lastMessageText) ??
@@ -192,6 +207,7 @@ function mapConversation(r: Raw, selfId?: string): Conversation {
     partnerId,
     name: rawName,
     lastMessage,
+    lastMessageType: lastType,
     unreadCount: num(r.unreadCount),
     avatar,
     timestamp,
@@ -223,8 +239,28 @@ export async function listConversations(): Promise<Conversation[]> {
     );
 }
 
+export type AlbumShareRef = { albumIds: string[]; note?: string };
+
+/** What GET /chat/albums/{id}/card answers. An unavailable album carries only id and available:false. */
+export type AlbumCardData =
+  | { id: string; available: false }
+  | {
+      id: string;
+      available: true;
+      title: string;
+      photoCount: number;
+      badge: 'PAID' | 'PRIVATE' | 'FREE';
+      coverImage?: string;
+      photographerName?: string;
+      shareSlug?: string;
+      thumbnails: string[];
+    };
+
 export type Message = {
   id: ID;
+  /** "text" | "album_share" | "removed" (server-hidden by moderation). */
+  type: 'text' | 'album_share' | 'removed';
+  albumShare?: AlbumShareRef;
   text: string;
   senderId?: string;
   /** True when the signed-in user wrote it — drives left/right bubble. */
@@ -239,8 +275,14 @@ function mapMessage(r: Raw, selfId?: string): Message {
   const cleanSenderId = senderId ? senderId.toLowerCase().trim() : undefined;
   const isMine = !!cleanSelfId && !!cleanSenderId && cleanSenderId === cleanSelfId;
 
+  const rawType = str(r.type);
+  const type: Message['type'] = rawType === 'album_share' || rawType === 'removed' ? rawType : 'text';
+  const share = (r.albumShare ?? null) as Raw | null;
+  const albumIds = share && Array.isArray(share.albumIds) ? (share.albumIds as unknown[]).map(String) : [];
   return {
     id: String(r.id ?? r.messageId ?? ''),
+    type,
+    albumShare: type === 'album_share' && albumIds.length ? { albumIds, note: str(share?.note) } : undefined,
     text: str(r.content) ?? str(r.text) ?? str(r.body) ?? '',
     senderId,
     isMine,
@@ -290,6 +332,46 @@ export async function sendMessage(partnerId: string, text: string): Promise<Raw 
     } satisfies ApiError;
   }
   return res?.data ?? null;
+}
+
+/** Sends up to five of the photographer's own albums as cards (POST /chat/send-albums). */
+export async function sendAlbums(partnerId: string, albumIds: string[], note?: string): Promise<Raw | null> {
+  const res = await api.post<{ action?: number; message?: string; data?: Raw }>('/chat/send-albums', {
+    recipientId: partnerId,
+    albumIds,
+    note: note?.trim() || undefined,
+  });
+  if (res && typeof res.action === 'number' && res.action !== 1) {
+    throw { status: 400, message: res.message || 'Albums not sent. Please try again.' } satisfies ApiError;
+  }
+  return res?.data ?? null;
+}
+
+/** The live card for one shared album. Fetched whenever the card shows, never copied into the message. */
+export async function getAlbumCard(albumId: string): Promise<AlbumCardData> {
+  const res = requireOk(await api.get<ApiEnvelope<Raw>>(`/chat/albums/${encodeURIComponent(albumId)}/card`));
+  const d = (res?.data ?? {}) as Raw;
+  if (d.available !== true) return { id: albumId, available: false };
+  return {
+    id: albumId,
+    available: true,
+    title: str(d.title) ?? 'Album',
+    photoCount: num(d.photoCount),
+    badge: d.badge === 'PAID' || d.badge === 'PRIVATE' ? d.badge : 'FREE',
+    coverImage: normalizeImageUrl(str(d.coverImage)),
+    photographerName: str(d.photographerName),
+    shareSlug: str(d.shareSlug),
+    thumbnails: Array.isArray(d.thumbnails)
+      ? (d.thumbnails as unknown[]).map((u) => normalizeImageUrl(String(u))).filter((u): u is string => !!u)
+      : [],
+  };
+}
+
+/** The signed-in photographer's albums as picker rows. The list is small, so search and tabs run on the phone. */
+export async function listShareableAlbums(): Promise<ShareableAlbum[]> {
+  const res = requireOk(await api.get<ApiEnvelope<Raw[]>>('/photographer/albums'));
+  const data = Array.isArray(res?.data) ? res.data : [];
+  return data.map((r) => mapShareable(r, normalizeImageUrl)).filter((a): a is ShareableAlbum => !!a);
 }
 
 /** Mark all messages from a partner as read. */
