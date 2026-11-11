@@ -32,7 +32,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { Button, PrimaryButton } from '@/components/ui/Button';
-import { SELL_PHOTOS_HREF } from '@/features/gallery/sellPhotos';
+import { useSellChooser } from '@/features/gallery/SellChooserSheet';
 import { ActionRow, ActionTile, CountBadge, StatStrip, TileRow } from '@/components/ui/Compact';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { IconTile as GlowTile } from '@/components/ui/IconTile';
@@ -311,10 +311,12 @@ export function PhotographerHome() {
   };
 
   const open = (path: string) => router.push(path as never);
+  const sell = useSellChooser();
   const privacyLabel = hidden ? 'Show amounts' : 'Hide amounts';
 
   return (
     <Screen padded={false} edges={[]}>
+      {sell.chooser}
       <ScrollView
         contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
@@ -450,7 +452,7 @@ export function PhotographerHome() {
               the album form preset to a PAID album that lands on Find my photos. */}
           <PrimaryButton
             title="Sell photos"
-            onPress={() => open(SELL_PHOTOS_HREF)}
+            onPress={sell.open}
             icon={<Ionicons name="pricetag" size={19} color={colors.textOnPrimary} />}
           />
         </View>
