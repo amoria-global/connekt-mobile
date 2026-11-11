@@ -20,13 +20,14 @@ import {
   Keyboard,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SELL_CONTENT_HREF } from '@/features/gallery/sellPhotos';
+import { FadedChipRow } from '@/components/ui/FadedChipRow';
 import { CreateFab, FAB_SPACE, useFabCollapse } from '@/features/events/CreateFab';
 import { useCanCreate } from '@/features/events/useCanCreate';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
@@ -201,15 +202,11 @@ export default function ContentAlbumsScreen() {
       </View>
 
       {/* Filter Segment Row */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-      >
+      <FadedChipRow contentContainerStyle={styles.filterRow}>
         {FILTERS.map((f) => (
           <Chip key={f.key} label={f.label} count={counts[f.key]} selected={filter === f.key} onPress={() => setFilter(f.key)} />
         ))}
-      </ScrollView>
+      </FadedChipRow>
 
       {/* Integrated Search Bar */}
       <View style={styles.searchBar}>
@@ -334,7 +331,7 @@ export default function ContentAlbumsScreen() {
         }
       />
 
-      {canCreate ? <CreateFab label="New post" collapsed={fab.collapsed} onPress={() => router.push('/content-album/new' as Href)} /> : null}
+      {canCreate ? <CreateFab label="New post" collapsed={fab.collapsed} onPress={() => router.push(SELL_CONTENT_HREF as Href)} /> : null}
     </Screen>
   );
 }
