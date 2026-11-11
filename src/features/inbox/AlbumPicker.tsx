@@ -175,7 +175,13 @@ function AlbumPickerBody({
         />
       ) : null}
       <PrimaryButton
-        title={selected.length <= 1 ? t('chat_send_albums_one') : t('chat_send_albums_many', { n: selected.length })}
+        title={
+          selected.length === 0
+            ? t('chat_send_albums_none')
+            : selected.length === 1
+              ? t('chat_send_albums_one')
+              : t('chat_send_albums_many', { n: selected.length })
+        }
         onPress={send}
         disabled={!selected.length}
         loading={sending}
