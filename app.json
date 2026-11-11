@@ -173,6 +173,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-13-sell-chooser",
+            "date": "2026-11-13",
+            "title": "Sell photos asks what you are selling",
+            "items": [
+              {
+                "icon": "pricetag-outline",
+                "title": "Event photos or Stock & content",
+                "body": "Sell photos now opens a choice: event photos that buyers find with face search, or stock and content albums that are reviewed before going live."
+              },
+              {
+                "icon": "checkmark-circle-outline",
+                "title": "Submit for review or save as draft",
+                "body": "Stock albums can be submitted straight away or saved as a draft, and an album with no photos can no longer be submitted."
+              },
+              {
+                "icon": "images-outline",
+                "title": "Content Albums shows the right photo count",
+                "body": "Photo counts on your Content Albums are now correct, and the status chips scroll with a fade instead of being cut off."
+              }
+            ]
+          },
+          {
             "id": "2026-11-12-large-albums",
             "date": "2026-11-12",
             "title": "Big albums publish without waiting",

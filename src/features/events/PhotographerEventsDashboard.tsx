@@ -20,7 +20,7 @@
  * schedule. Cards on photographs keep fixed light-on-dark text (`onMedia`), and colour means
  * what it means everywhere: blue action, magenta attention, cyan live, amber pending.
  */
-import { SELL_PHOTOS_HREF } from '@/features/gallery/sellPhotos';
+import { useSellChooser } from '@/features/gallery/SellChooserSheet';
 import { useMemo, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -104,10 +104,9 @@ const session: { layout: EventsLayout; calMode: CalendarMode } = { layout: 'list
 
 type Row = { kind: 'section'; key: string; title: string; count: number } | { kind: 'event'; key: string; event: EventItem; status: StatusKey };
 
-const GET_STARTED_ROUTE: Record<GetStartedKey, string> = {
+const GET_STARTED_ROUTE: Partial<Record<GetStartedKey, string>> = {
   'create-event': '/host/new',
   'go-live': '/host/new',
-  'new-album': SELL_PHOTOS_HREF,
   photobook: '/photobook/new',
 };
 
@@ -119,6 +118,7 @@ export function PhotographerEventsDashboard({ topInset = 0, reopenGetStarted }: 
   const router = useRouter();
   const { data, loading, error, refresh } = useAsync(listPhotographerEvents);
   const fab = useFabCollapse();
+  const sell = useSellChooser();
   const canCreate = useCanCreate();
   const getStarted = useGetStarted({ listLoaded: !!data, hasItems: (data?.length ?? 0) > 0, reopenKey: reopenGetStarted });
 
@@ -369,6 +369,8 @@ export function PhotographerEventsDashboard({ topInset = 0, reopenGetStarted }: 
 
       {canCreate ? <CreateFab label={CREATE_LABEL.host} collapsed={fab.collapsed} onPress={() => router.push('/host/new' as Href)} /> : null}
 
+      {sell.chooser}
+
       {getStarted.open ? (
         <GetStartedSheet
           actions={getStarted.actions}
@@ -378,7 +380,9 @@ export function PhotographerEventsDashboard({ topInset = 0, reopenGetStarted }: 
           onDismissChange={getStarted.setForever}
           onPick={(key) => {
             getStarted.close();
-            router.push(GET_STARTED_ROUTE[key] as Href);
+            // Sell photos asks what is being sold before any form opens.
+            if (key === 'new-album') sell.open();
+            else router.push(GET_STARTED_ROUTE[key] as Href);
           }}
         />
       ) : null}

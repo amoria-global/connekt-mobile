@@ -46,6 +46,17 @@ jest.mock('@/features/hybrid/MatchingProfile', () => ({ MatchingProfilePrompt: (
 jest.mock('@/features/hybrid/IncomingOpportunityAlertModal', () => ({ IncomingOpportunityAlertModal: () => null }));
 jest.mock('@/config/env', () => ({ env: { hybridBookingEnabled: false, webBaseUrl: 'https://connekyt.com' } }));
 jest.mock('expo-image', () => ({ Image: () => null }));
+jest.mock('@/components/ui/Sheet', () => ({
+  Sheet: ({ visible = true, title, children }: { visible?: boolean; title: string; children: React.ReactNode }) => {
+    const { Text: T, View } = require('react-native');
+    return visible ? (
+      <View>
+        <T>{title}</T>
+        {children}
+      </View>
+    ) : null;
+  },
+}));
 jest.mock('@/store/auth', () => {
   const state = () => ({ user: { firstName: 'Joseph', customerId: 'p1', customerType: 'PHOTOGRAPHER' }, status: 'authenticated' });
   return {
@@ -151,13 +162,19 @@ describe('photographer home as rendered', () => {
     expect(shown).not.toMatch(/NaN|undefined/);
   });
 
-  it('the raised button is Sell photos, not Create event, and it opens the album form preset to sell', async () => {
+  it('the raised button is Sell photos, not Create event, and it opens the chooser before any form', async () => {
     serve({ events: ok([]) });
     const r = await mount();
     const text = flat(r.root);
     expect(text).toContain('Sell photos');
     expect(text).not.toContain('Create event');
     await pressText(r, 'Sell photos');
+    // It asks what is being sold first: no form opens straight from the button.
+    expect(mockPush).not.toHaveBeenCalledWith('/album/new?sell=1');
+    expect(flat(r.root)).toContain('What do you want to sell?');
+    await act(async () => {
+      r.root.findAll((n) => n.props?.testID === 'sell-choice-event' && typeof n.props.onPress === 'function')[0].props.onPress();
+    });
     expect(mockPush).toHaveBeenLastCalledWith('/album/new?sell=1');
     expect(mockPush).not.toHaveBeenCalledWith('/host/new');
   });
