@@ -173,6 +173,14 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-12-topbar-appearance",
+            "date": "2026-11-12",
+            "title": "Light and dark from the top bar",
+            "items": [
+              {"icon": "moon-outline", "title": "Switch appearance anywhere", "body": "The top bar now has a sun and moon button beside the currency and language, so you can switch between light and dark from any screen instead of only from Profile."}
+            ]
+          },
+          {
             "id": "2026-11-12-large-albums",
             "date": "2026-11-12",
             "title": "Big albums publish without waiting",
