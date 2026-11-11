@@ -117,7 +117,8 @@ function mapGallery(r: Raw): GalleryItem {
     name: str(r.title) ?? str(r.name) ?? 'Album',
     coverPhoto: coverThumb ?? cover,
     coverFull: coverThumb ? cover : undefined,
-    photoCount: num(r.photoCount) ?? num(r.photosCount),
+    // The album list sends `imageCount` (GalleryResponseDTO). Reading only photoCount made every album say "0 photos".
+    photoCount: num(r.imageCount) ?? num(r.photoCount) ?? num(r.photosCount),
     locked: r.isLocked === true || r.locked === true,
     isContent,
     kind: isContent ? 'Content' : str(r.albumType) ?? str(r.kind),
@@ -273,7 +274,7 @@ export type CreateAlbumInput = {
 };
 
 /** Creates a paid content album (web parity: POST /photographer/albums/content). */
-export async function createContentAlbum(input: CreateAlbumInput): Promise<void> {
+export async function createContentAlbum(input: CreateAlbumInput): Promise<string> {
   const form = new FormData();
   form.append('title', input.title.trim());
   if (input.description) form.append('description', input.description);
@@ -288,6 +289,7 @@ export async function createContentAlbum(input: CreateAlbumInput): Promise<void>
   if (res?.action !== 1) {
     throw { status: 400, message: res?.message || 'Could not create the album.' } satisfies ApiError;
   }
+  return String((res.data as Raw | undefined)?.id ?? '');
 }
 
 // ────── Normal album creation (Event / Personal PAID / Personal FREE) ────

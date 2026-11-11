@@ -75,3 +75,69 @@ export function notVisibleBadge(a: { isStandalone?: boolean; isFreeAlbum?: boole
   if (!a.isStandalone || a.isFreeAlbum || a.isContent) return null;
   return a.faceRecognitionEnabled ? null : 'Not visible on Find my photos';
 }
+
+// Chooser: what "Sell photos" asks first
+
+export type SellChoiceKey = 'event' | 'content';
+
+export const SELL_CHOOSER_TITLE = 'What do you want to sell?';
+/** The content album form. No face scanning and no face credits: a stock album is reviewed, then sold per photo. */
+export const SELL_CONTENT_HREF = '/content-album/new';
+
+export const SELL_CHOICES: {
+  key: SellChoiceKey;
+  title: string;
+  body: string;
+  icon: 'people-outline' | 'images-outline';
+  tone: 'primary' | 'accent';
+  href: string;
+}[] = [
+  {
+    key: 'event',
+    title: 'Event photos',
+    body: 'People at an event find and buy their photos with face search on Find my photos.',
+    icon: 'people-outline',
+    tone: 'primary',
+    href: SELL_PHOTOS_HREF,
+  },
+  {
+    key: 'content',
+    title: 'Stock & content',
+    body: 'Nature, portraits and other work to sell or showcase. Reviewed before going live.',
+    icon: 'images-outline',
+    tone: 'accent',
+    href: SELL_CONTENT_HREF,
+  },
+];
+
+/** Remembered per device so the last choice is highlighted next time. The chooser itself is never skipped. */
+export const SELL_LAST_CHOICE_KEY = 'sell.lastChoice';
+
+export function parseSellChoice(raw: string | null | undefined): SellChoiceKey | null {
+  return raw === 'event' || raw === 'content' ? raw : null;
+}
+
+// Content album outcomes
+
+export const CONTENT_PHOTOS_ERROR = 'Add at least 1 photo';
+
+export type ContentOutcome = {
+  state: 'submitted' | 'draft' | 'draft-submit-failed';
+  headline: string;
+  status: string;
+};
+
+export const CONTENT_SUBMITTED: ContentOutcome = {
+  state: 'submitted',
+  headline: 'Submitted for review',
+  status: "We'll notify you when it's live",
+};
+export const CONTENT_SAVED_DRAFT: ContentOutcome = {
+  state: 'draft',
+  headline: 'Saved as draft',
+  status: 'Submit it for review when you are ready. It is not visible to buyers until it is approved.',
+};
+/** Created, but the submit call failed: the album exists, so say so and offer the retry. */
+export function contentSubmitFailed(message: string): ContentOutcome {
+  return { state: 'draft-submit-failed', headline: 'Saved as draft, not yet submitted', status: message };
+}
