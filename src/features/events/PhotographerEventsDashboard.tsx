@@ -20,6 +20,7 @@
  * schedule. Cards on photographs keep fixed light-on-dark text (`onMedia`), and colour means
  * what it means everywhere: blue action, magenta attention, cyan live, amber pending.
  */
+import { SELL_PHOTOS_HREF } from '@/features/gallery/sellPhotos';
 import { useMemo, useState } from 'react';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -106,7 +107,7 @@ type Row = { kind: 'section'; key: string; title: string; count: number } | { ki
 const GET_STARTED_ROUTE: Record<GetStartedKey, string> = {
   'create-event': '/host/new',
   'go-live': '/host/new',
-  'new-album': '/album/new',
+  'new-album': SELL_PHOTOS_HREF,
   photobook: '/photobook/new',
 };
 
