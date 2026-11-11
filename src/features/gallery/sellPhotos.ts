@@ -25,11 +25,32 @@ export function sellPhotosError(photoCount: number): string | null {
 /** What the screen shows once the album is saved. */
 export type PublishOutcome =
   | { state: 'listed'; headline: string; status: string; facesIndexed: number; warn: boolean }
+  | { state: 'preparing'; headline: string; status: string; total: number; done: number }
   | { state: 'failed'; headline: string; status: string; failure: PublishFailure };
 
 export const LISTED_HEADLINE = 'Your photos are being prepared for Find my photos';
 
-export function publishOutcome(result: { published?: boolean; facesIndexed?: number; publishFailure?: PublishFailure }): PublishOutcome {
+/** A large album is published at once and indexed in the background: say how far it has got. */
+export function preparingOutcome(total: number, done: number): PublishOutcome {
+  const status =
+    total > 0
+      ? `Preparing ${Math.min(done, total)} of ${total} photos. Buyers can already find the ones that are ready.`
+      : 'Preparing your photos. Buyers can already find the ones that are ready.';
+  return { state: 'preparing', headline: LISTED_HEADLINE, status, total, done };
+}
+
+/** What a face-status poll means for the result screen. Null while the status says nothing about background indexing. */
+export function outcomeFromIndexing(s: { status: 'INDEXING' | 'DONE' | 'FAILED'; total: number; done: number } | undefined): PublishOutcome | null {
+  if (!s) return null;
+  if (s.status === 'INDEXING') return preparingOutcome(s.total, s.done);
+  if (s.status === 'DONE') return publishOutcome({ published: true, facesIndexed: s.done });
+  return publishOutcome({
+    publishFailure: { kind: 'other', message: 'Preparing the photos did not finish. Tap Retry publishing and it starts again. Nothing is uploaded twice.' },
+  });
+}
+
+export function publishOutcome(result: { published?: boolean; facesIndexed?: number; indexing?: { total: number; done: number }; publishFailure?: PublishFailure }): PublishOutcome {
+  if (result.published && result.indexing) return preparingOutcome(result.indexing.total, result.indexing.done);
   if (result.published) {
     const n = result.facesIndexed ?? 0;
     return n > 0

@@ -1,4 +1,4 @@
-import { listAlbums, createPaidAlbum, describePublishFailure, ensureAlbumInviteCode, getAlbum, publishAlbumToFaceSearch, PUBLISH_TIMEOUT_MS } from './api';
+import { getAlbumFaceStatus, listAlbums, createPaidAlbum, describePublishFailure, ensureAlbumInviteCode, getAlbum, publishAlbumToFaceSearch, PUBLISH_TIMEOUT_MS } from './api';
 
 const mockGet = jest.fn();
 const mockPost = jest.fn();
@@ -136,5 +136,30 @@ describe('listAlbums carries what decides Find my photos visibility', () => {
       ['f1', true, true, false],
       ['e1', false, false, false],
     ]);
+  });
+});
+
+describe('background indexing of a large album', () => {
+  it('publish answers published but still indexing, with the totals, and createPaidAlbum carries them', async () => {
+    mockPost
+      .mockResolvedValueOnce({ action: 1, data: { id: 'a1' } })
+      .mockResolvedValueOnce({ action: 1, data: { published: true, facesIndexed: 0, indexing: true, indexingTotal: 120, indexingDone: 0, inviteCode: 'ALB1' } });
+    const res = await createPaidAlbum({ title: 'Wedding', pricePerImage: '2000', currencyId: 'c1' });
+    expect(res).toMatchObject({ id: 'a1', published: true, inviteCode: 'ALB1', indexing: { total: 120, done: 0 } });
+    expect(res.publishFailure).toBeUndefined();
+  });
+
+  it('a small album has no indexing block', async () => {
+    mockPost.mockResolvedValue({ action: 1, data: { published: true, facesIndexed: 3 } });
+    await expect(publishAlbumToFaceSearch('a1')).resolves.toMatchObject({ facesIndexed: 3, indexing: undefined });
+  });
+
+  it('face-status carries the job progress, and ignores a status it does not know', async () => {
+    mockGet.mockResolvedValueOnce({ action: 1, data: { galleryImageCount: 120, indexing: { status: 'INDEXING', total: 120, done: 45 } } });
+    await expect(getAlbumFaceStatus('a1')).resolves.toMatchObject({ indexing: { status: 'INDEXING', total: 120, done: 45 } });
+    mockGet.mockResolvedValueOnce({ action: 1, data: { indexing: { status: 'WHAT', total: 1, done: 1 } } });
+    expect((await getAlbumFaceStatus('a1')).indexing).toBeUndefined();
+    mockGet.mockResolvedValueOnce({ action: 1, data: {} });
+    expect((await getAlbumFaceStatus('a1')).indexing).toBeUndefined();
   });
 });

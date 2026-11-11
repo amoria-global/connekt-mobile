@@ -26,14 +26,16 @@ export function PublishOutcomeView({
   const { colors } = useTheme();
   const styles = useStyles();
   const failed = outcome.state === 'failed';
-  const tone = failed ? colors.error : outcome.warn ? colors.warning : colors.success;
+  const preparing = outcome.state === 'preparing';
+  const warn = outcome.state === 'listed' && outcome.warn;
+  const tone = failed ? colors.error : preparing ? colors.primary : warn ? colors.warning : colors.success;
   return (
     <View style={styles.wrap} testID="publish-outcome" accessibilityLiveRegion="polite">
       <View style={[styles.badge, { backgroundColor: tone }]}>
-        {retrying ? (
+        {retrying || preparing ? (
           <ActivityIndicator color={colors.textOnPrimary} />
         ) : (
-          <Ionicons name={failed ? 'alert' : outcome.warn ? 'alert' : 'checkmark'} size={30} color={colors.textOnPrimary} />
+          <Ionicons name={failed || warn ? 'alert' : 'checkmark'} size={30} color={colors.textOnPrimary} />
         )}
       </View>
       <Text style={styles.headline}>{outcome.headline}</Text>
@@ -41,6 +43,11 @@ export function PublishOutcomeView({
       <View style={[styles.status, { borderColor: tone }]}>
         <Text style={styles.statusText} testID="publish-status">{retrying ? 'Preparing your photos. This can take a minute for a large album.' : outcome.status}</Text>
       </View>
+      {preparing && outcome.total > 0 ? (
+        <View style={styles.track} accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: outcome.total, now: Math.min(outcome.done, outcome.total) }}>
+          <View style={[styles.fill, { width: `${Math.round((Math.min(outcome.done, outcome.total) / outcome.total) * 100)}%`, backgroundColor: tone }]} />
+        </View>
+      ) : null}
       {failed ? null : <Text style={styles.note}>{LISTING_NOTE}</Text>}
       <View style={styles.buttons}>
         {failed ? <PrimaryButton title="Retry publishing" onPress={onRetry} loading={retrying} /> : null}
@@ -60,4 +67,6 @@ const useStyles = makeStyles((c) => ({
   statusText: { fontFamily: fonts.regular, fontSize: 14, lineHeight: 20, color: c.text },
   note: { fontFamily: fonts.regular, fontSize: 12.5, lineHeight: 17, color: c.textMuted, textAlign: 'center' },
   buttons: { alignSelf: 'stretch', gap: spacing.sm, marginTop: spacing.sm },
+  track: { alignSelf: 'stretch', height: 6, borderRadius: 3, backgroundColor: c.surfaceMuted, overflow: 'hidden' },
+  fill: { height: 6, borderRadius: 3 },
 }));
