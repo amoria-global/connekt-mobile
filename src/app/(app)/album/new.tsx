@@ -42,11 +42,12 @@ import {
   createFreeAlbum,
   createPaidAlbum,
   describePublishFailure,
+  getAlbumFaceStatus,
   publishAlbumToFaceSearch,
   type AlbumCreateResult,
 } from '@/features/gallery/api';
 import { PublishOutcomeView } from '@/features/gallery/PublishOutcomeView';
-import { publishOutcome, sellPhotosError, SELL_FORM_NOTE, SELL_SUBTITLE, type PublishOutcome } from '@/features/gallery/sellPhotos';
+import { outcomeFromIndexing, publishOutcome, sellPhotosError, SELL_FORM_NOTE, SELL_SUBTITLE, type PublishOutcome } from '@/features/gallery/sellPhotos';
 import { listPhotographerEvents } from '@/features/events/api';
 import { listCurrencies } from '@/features/reference/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -350,12 +351,33 @@ export default function NewAlbumScreen() {
     }
   };
 
+  // A large album is published at once and indexed in the background: follow it until it is ready or has failed.
+  const savedId = saved?.id;
+  const preparing = saved?.outcome.state === 'preparing';
+  useEffect(() => {
+    if (!savedId || !preparing) return;
+    let stopped = false;
+    const tick = async () => {
+      try {
+        const next = outcomeFromIndexing((await getAlbumFaceStatus(savedId)).indexing);
+        if (!stopped && next) setSaved((cur) => (cur && cur.id === savedId ? { ...cur, outcome: next } : cur));
+      } catch {
+        // A missed poll is not a failure: the next one will say.
+      }
+    };
+    const timer = setInterval(() => void tick(), 4000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [savedId, preparing]);
+
   const retryPublish = async () => {
     if (!saved || retrying) return;
     setRetrying(true);
     try {
       const pub = await publishAlbumToFaceSearch(saved.id, { pricePerImage: saved.price, currencyId: saved.currencyId });
-      setSaved({ ...saved, outcome: publishOutcome({ published: true, facesIndexed: pub.facesIndexed }) });
+      setSaved({ ...saved, outcome: publishOutcome({ published: true, facesIndexed: pub.facesIndexed, indexing: pub.indexing }) });
     } catch (e) {
       setSaved({ ...saved, outcome: publishOutcome({ publishFailure: describePublishFailure(e) }) });
     } finally {
