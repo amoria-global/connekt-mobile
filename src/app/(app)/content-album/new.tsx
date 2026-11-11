@@ -30,7 +30,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { z } from 'zod';
 import { Screen } from '@/components/ui/Screen';
-import { createContentAlbum, listAlbumCategories } from '@/features/gallery/api';
+import { createContentAlbum, listAlbumCategories, submitContentAlbum } from '@/features/gallery/api';
+import { ContentOutcomeView } from '@/features/gallery/ContentOutcomeView';
+import { CONTENT_SAVED_DRAFT, CONTENT_SUBMITTED, contentSubmitFailed, type ContentOutcome } from '@/features/gallery/sellPhotos';
 import { listCurrencies } from '@/features/reference/api';
 import { OptionsNote } from '@/components/ui/OptionsNote';
 import { useAsync } from '@/hooks/useAsync';
@@ -47,14 +49,14 @@ const NCA_I18N = {
     errNumeric: 'Enter a numeric price',
     errCategory: 'Please choose a category',
     errCurrency: 'Please select a currency',
-    errPhotos: 'Please add at least one photo',
+    errPhotos: 'Add at least 1 photo',
     errCreate: 'Could not create album. Please try again.',
     backA11y: 'Back',
     eyebrow: 'STOCK CATALOG',
     title: 'New Content Album',
     notePrefix: 'Saved as a ',
     noteDraft: 'draft',
-    noteSuffix: ". Submit it for review from the album viewer to publish to Connekt's public stock catalog.",
+    noteSuffix: ". Submit it for review to publish it to Connekt's public stock catalog. Nothing is visible to buyers until it is approved.",
     sectionDetails: 'COLLECTION DETAILS',
     labelTitle: 'ALBUM TITLE',
     placeholderTitle: 'e.g. Diplomatic Reception, Kigali 2026',
@@ -78,6 +80,8 @@ const NCA_I18N = {
     removePhotoA11y: 'Remove photo',
     cancel: 'Cancel',
     createBtn: 'Create Draft Album',
+    submitBtn: 'Submit for review',
+    draftBtn: 'Save as draft',
   },
   fr: {
     errTitle: 'Veuillez saisir un titre d’album',
@@ -115,6 +119,8 @@ const NCA_I18N = {
     removePhotoA11y: 'Retirer la photo',
     cancel: 'Annuler',
     createBtn: 'Créer le brouillon d’album',
+    submitBtn: 'Soumettre pour examen',
+    draftBtn: 'Enregistrer comme brouillon',
   },
   es: {
     errTitle: 'Por favor ingresa un título de álbum',
@@ -152,6 +158,8 @@ const NCA_I18N = {
     removePhotoA11y: 'Eliminar foto',
     cancel: 'Cancelar',
     createBtn: 'Crear borrador de álbum',
+    submitBtn: 'Enviar para revisión',
+    draftBtn: 'Guardar como borrador',
   },
 } as const;
 
@@ -183,6 +191,9 @@ export default function NewContentAlbumScreen() {
   const [imagesError, setImagesError] = useState<string | null>(null);
   const [category, setCategory] = useState('');
   const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [mode, setMode] = useState<'submit' | 'draft'>('submit');
+  const [result, setResult] = useState<{ id: string; title: string; outcome: ContentOutcome } | null>(null);
+  const [resubmitting, setResubmitting] = useState(false);
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
   // One currency per form: the last one this device used, else the account's own, chosen inside the price field.
   const [currencyId, setCurrencyId] = useMoneyCurrency(currencies.data);
@@ -221,7 +232,7 @@ export default function NewContentAlbumScreen() {
 
   const removePhoto = (uri: string) => setImages((prev) => prev.filter((x) => x.uri !== uri));
 
-  const onSubmit = async (values: FormValues) => {
+  const run = async (values: FormValues, how: 'submit' | 'draft') => {
     setServerError(null);
     if (!category) {
       setCategoryError(s.errCategory);
@@ -235,8 +246,9 @@ export default function NewContentAlbumScreen() {
       setImagesError(s.errPhotos);
       return;
     }
+    let id = '';
     try {
-      await createContentAlbum({
+      id = await createContentAlbum({
         title: values.title.trim(),
         description: values.description?.trim() || undefined,
         category,
@@ -245,13 +257,54 @@ export default function NewContentAlbumScreen() {
         cover,
         images,
       });
-      router.back();
     } catch (e) {
       setServerError(isApiError(e) ? e.message : s.errCreate);
+      return;
+    }
+    const name = values.title.trim();
+    if (how === 'draft') {
+      setResult({ id, title: name, outcome: CONTENT_SAVED_DRAFT });
+      return;
+    }
+    // The album exists now. If the submit call fails, say so and offer the retry instead of pretending it went through.
+    try {
+      await submitContentAlbum(id);
+      setResult({ id, title: name, outcome: CONTENT_SUBMITTED });
+    } catch (e) {
+      setResult({ id, title: name, outcome: contentSubmitFailed(isApiError(e) ? e.message : 'Could not submit it for review. Try again.') });
+    }
+  };
+
+  const resubmit = async () => {
+    if (!result) return;
+    setResubmitting(true);
+    try {
+      await submitContentAlbum(result.id);
+      setResult({ ...result, outcome: CONTENT_SUBMITTED });
+    } catch (e) {
+      setResult({ ...result, outcome: contentSubmitFailed(isApiError(e) ? e.message : 'Could not submit it for review. Try again.') });
+    } finally {
+      setResubmitting(false);
     }
   };
 
   const cats = categories.data ?? [];
+
+  if (result) {
+    return (
+      <Screen padded={false} edges={[]}>
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: Math.max(insets.top, 14) + 24, paddingBottom: Math.max(insets.bottom + 40, 60) }]}>
+          <ContentOutcomeView
+            outcome={result.outcome}
+            title={result.title}
+            submitting={resubmitting}
+            onSubmit={resubmit}
+            onView={() => router.replace(`/album/${result.id}` as never)}
+          />
+        </ScrollView>
+      </Screen>
+    );
+  }
 
   return (
     <Screen padded={false} edges={[]}>
@@ -475,25 +528,31 @@ export default function NewContentAlbumScreen() {
             </View>
           ) : null}
 
-          {/* Action buttons */}
+          {/* Action buttons: Submit for review is create + submit; Save as draft is create only. */}
           <View style={styles.actions}>
             <Pressable
-              style={[styles.btn, styles.cancel]}
-              onPress={() => router.back()}
-              disabled={isSubmitting}
+              style={[styles.btn, styles.create, (isSubmitting || !canCreate) && styles.btnDisabled]}
+              onPress={() => {
+                setMode('submit');
+                handleSubmit((v) => run(v, 'submit'))();
+              }}
+              disabled={isSubmitting || !canCreate}
+              accessibilityRole="button"
+              testID="content-submit"
             >
-              <Text style={styles.cancelText}>{s.cancel}</Text>
+              {isSubmitting && mode === 'submit' ? <ActivityIndicator color={onFill} /> : <Text style={styles.createText}>{s.submitBtn}</Text>}
             </Pressable>
             <Pressable
-              style={[styles.btn, styles.create, (isSubmitting || !canCreate) && styles.btnDisabled]}
-              onPress={handleSubmit(onSubmit)}
+              style={[styles.btn, styles.cancel, (isSubmitting || !canCreate) && styles.btnDisabled]}
+              onPress={() => {
+                setMode('draft');
+                handleSubmit((v) => run(v, 'draft'))();
+              }}
               disabled={isSubmitting || !canCreate}
+              accessibilityRole="button"
+              testID="content-draft"
             >
-              {isSubmitting ? (
-                <ActivityIndicator color={onFill} />
-              ) : (
-                <Text style={styles.createText}>{s.createBtn}</Text>
-              )}
+              {isSubmitting && mode === 'draft' ? <ActivityIndicator color={colors.textSoft} /> : <Text style={styles.cancelText}>{s.draftBtn}</Text>}
             </Pressable>
           </View>
         </ScrollView>
@@ -702,9 +761,8 @@ const useStyles = makeStyles((c) => ({
   errorText: { flex: 1, fontFamily: fonts.regular, fontSize: 13, color: c.error },
 
   // Actions
-  actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs },
+  actions: { gap: spacing.sm, marginTop: spacing.xs },
   btn: {
-    flex: 1,
     height: 48,
     borderRadius: radii.md,
     alignItems: 'center',

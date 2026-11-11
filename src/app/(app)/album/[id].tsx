@@ -52,6 +52,7 @@ import {
   type AlbumFaceStatus,
   type AlbumImage,
 } from '@/features/gallery/api';
+import { CONTENT_PHOTOS_ERROR } from '@/features/gallery/sellPhotos';
 import { albumDateText, photoCountText } from '@/features/gallery/albumFacts';
 import { archivedMessage, ownerArchivedMessage, restoreConfirmMessage } from '@/features/gallery/archivedCopy';
 import * as WebBrowser from 'expo-web-browser';
@@ -258,8 +259,12 @@ export default function AlbumDetailScreen() {
     }
   };
 
+  // A content album with no photos has nothing to review: the item says so instead of sending it (the server refuses too).
+  const noPhotos = images.length === 0;
   const onSubmitForReview = () =>
-    runLifecycle(
+    noPhotos
+      ? undefined
+      : runLifecycle(
       'submit',
       () => submitContentAlbum(id),
       'Submitted for Review',
@@ -915,16 +920,18 @@ export default function AlbumDetailScreen() {
               {/* Submit for Review (Content Album) */}
               {canSubmit ? (
                 <Pressable
-                  style={[styles.sheetItem, busy === 'submit' && styles.btnDisabled]}
+                  style={[styles.sheetItem, (busy === 'submit' || noPhotos) && styles.btnDisabled]}
                   onPress={onSubmitForReview}
-                  disabled={busy === 'submit'}
+                  disabled={busy === 'submit' || noPhotos}
                 >
                   <View style={styles.sheetIconBox}>
                     <Ionicons name="checkmark-circle-outline" size={18} color={colors.primary} />
                   </View>
                   <View style={styles.sheetItemText}>
                     <Text style={styles.sheetItemLabel}>Submit for Review</Text>
-                    <Text style={styles.sheetItemDesc}>Publish to Connekt stock catalog</Text>
+                    <Text style={[styles.sheetItemDesc, noPhotos && { color: colors.error }]} testID="submit-photos-error">
+                      {noPhotos ? CONTENT_PHOTOS_ERROR : 'Publish to Connekt stock catalog'}
+                    </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                 </Pressable>
