@@ -7,7 +7,7 @@
  *   2. Money now: the hero tile, available to withdraw over pending release, with the
  *      privacy toggle and Withdraw (from the wallet).
  *   3. Actions: a bento of opportunities, collaborate, upcoming count and share profile,
- *      then Create event, the screen's one raised button.
+ *      then Sell photos, the screen's one raised button.
  *   4. Needs your reply: booking requests and open opportunities.
  *   5. Next shoot: the first on the paper calendar tile, the rest as compact rows;
  *      "See all" opens the Events tab.
@@ -32,6 +32,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Pressable, RefreshControl, ScrollView, Share, Text, View } from 'react-native';
 import { Button, PrimaryButton } from '@/components/ui/Button';
+import { SELL_PHOTOS_HREF } from '@/features/gallery/sellPhotos';
 import { ActionRow, ActionTile, CountBadge, StatStrip, TileRow } from '@/components/ui/Compact';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { IconTile as GlowTile } from '@/components/ui/IconTile';
@@ -401,7 +402,7 @@ export function PhotographerHome() {
         )}
 
         {/* 3. Actions (Compact Glass): a slim stat strip, two horizontal action tiles, one share row, then
-            Create event, the screen's one raised button. */}
+            Sell photos, the screen's one raised button. */}
         <View style={[styles.gutter, styles.actions]}>
           {events.loading && !events.data ? (
             <Skeleton height={44} />
@@ -445,10 +446,12 @@ export function PhotographerHome() {
           )}
         </View>
         <View style={[styles.gutter, styles.cta]}>
+          {/* Create event here was the Go live flow under another name, so this is the photographer's own one-tap sale:
+              the album form preset to a PAID album that lands on Find my photos. */}
           <PrimaryButton
-            title="Create event"
-            onPress={() => open('/host/new')}
-            icon={<Ionicons name="add" size={20} color={colors.textOnPrimary} />}
+            title="Sell photos"
+            onPress={() => open(SELL_PHOTOS_HREF)}
+            icon={<Ionicons name="pricetag" size={19} color={colors.textOnPrimary} />}
           />
         </View>
         <View style={styles.gutter}>

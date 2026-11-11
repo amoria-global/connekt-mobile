@@ -41,8 +41,12 @@ import {
   createEventAlbum,
   createFreeAlbum,
   createPaidAlbum,
+  describePublishFailure,
+  publishAlbumToFaceSearch,
   type AlbumCreateResult,
 } from '@/features/gallery/api';
+import { PublishOutcomeView } from '@/features/gallery/PublishOutcomeView';
+import { publishOutcome, sellPhotosError, SELL_FORM_NOTE, SELL_SUBTITLE, type PublishOutcome } from '@/features/gallery/sellPhotos';
 import { listPhotographerEvents } from '@/features/events/api';
 import { listCurrencies } from '@/features/reference/api';
 import { useAsync } from '@/hooks/useAsync';
@@ -131,8 +135,8 @@ type PersonalType = 'PAID' | 'FREE';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** The inputs on this form that can carry an error under them. The server names them the same way (`field`). */
-type FormField = 'title' | 'price' | 'currency' | 'recipientEmail';
-const FORM_FIELDS: FormField[] = ['title', 'price', 'currency', 'recipientEmail'];
+type FormField = 'title' | 'price' | 'currency' | 'recipientEmail' | 'photos';
+const FORM_FIELDS: FormField[] = ['title', 'price', 'currency', 'recipientEmail', 'photos'];
 
 function shortDate(iso?: string) {
   if (!iso) return '';
@@ -147,12 +151,14 @@ export default function NewAlbumScreen() {
   const styles = useStyles();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ eventId?: string }>();
+  const params = useLocalSearchParams<{ eventId?: string; sell?: string }>();
+  // "Sell photos" from Home: the same form, preset to a standalone PAID album so it lands on Find my photos.
+  const sell = params.sell === '1';
 
   const events = useAsync(useCallback(() => listPhotographerEvents(), []));
   const currencies = useAsync(useCallback(() => listCurrencies(), []));
 
-  const [mode, setMode] = useState<Mode>('event');
+  const [mode, setMode] = useState<Mode>(sell ? 'personal' : 'event');
   const [personalType, setPersonalType] = useState<PersonalType>('PAID');
 
   const [selectedEvent, setSelectedEvent] = useState<EventItem | null>(null);
@@ -187,6 +193,9 @@ export default function NewAlbumScreen() {
     setFieldErrors((prev) => (fields.some((f) => prev[f]) ? { ...prev, ...Object.fromEntries(fields.map((f) => [f, undefined])) } : prev));
   const [submitting, setSubmitting] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  // Once a PAID album is saved this replaces the form: listed on Find my photos, or why not, with a publish-only retry.
+  const [saved, setSaved] = useState<{ id: string; title: string; price: string; currencyId: string; outcome: PublishOutcome } | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   // The minimum is per currency and comes from the backend, so USD 4 is judged as USD, never as "below 100".
   const currencyCode = currencies.data?.find((c) => c.id === currencyId)?.code;
@@ -251,6 +260,9 @@ export default function NewAlbumScreen() {
       if (!currencyId) {
         return showFieldError('currency', 'Choose a currency.');
       }
+      // Find my photos lists an album by the faces in its photos: with none there is nothing to find.
+      const photosMsg = sell ? sellPhotosError(images.length) : null;
+      if (photosMsg) return showFieldError('photos', photosMsg);
     } else {
       if (!EMAIL_RE.test(recipientEmail.trim())) {
         return showFieldError('recipientEmail', 'Enter a valid email address for the recipient.');
@@ -287,6 +299,12 @@ export default function NewAlbumScreen() {
           pricePerImage: price,
           currencyId,
           images,
+          onStage: (stage) =>
+            setUploadStatus(
+              stage === 'publishing'
+                ? 'Preparing your photos for Find my photos. This can take a minute for a large album…'
+                : `Uploading ${pluralize(images.length, 'photo')}…`,
+            ),
         });
       } else {
         result = await createFreeAlbum({
@@ -314,9 +332,11 @@ export default function NewAlbumScreen() {
             },
           ],
         );
+      } else if (mode === 'personal' && personalType === 'PAID') {
+        // Never a silent redirect: say it is listed, or say why it is not and offer a publish-only retry.
+        setSaved({ id: result.id, title: title.trim(), price, currencyId, outcome: publishOutcome(result) });
       } else {
-        // A paid album is live on Find My Photos by now: open it with the link and QR ready to share.
-        router.replace((result.published ? `/album/${result.id}?share=1` : `/album/${result.id}`) as Href);
+        router.replace(`/album/${result.id}` as Href);
       }
     } catch (e) {
       const shown = showError(e, { intent: 'validate' }, { onRetry: onSubmit, where: 'album.create' });
@@ -330,13 +350,26 @@ export default function NewAlbumScreen() {
     }
   };
 
+  const retryPublish = async () => {
+    if (!saved || retrying) return;
+    setRetrying(true);
+    try {
+      const pub = await publishAlbumToFaceSearch(saved.id, { pricePerImage: saved.price, currencyId: saved.currencyId });
+      setSaved({ ...saved, outcome: publishOutcome({ published: true, facesIndexed: pub.facesIndexed }) });
+    } catch (e) {
+      setSaved({ ...saved, outcome: publishOutcome({ publishFailure: describePublishFailure(e) }) });
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   return (
     <Screen padded={false} edges={[]}>
       {/* Pinned above the scroll so the close control never scrolls out of reach. */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 14), paddingBottom: 8, paddingHorizontal: spacing.lg }]}>
         <View style={{ flex: 1, gap: 1 }}>
-          <Text style={styles.eyebrow}>{trAlb('NEW COLLECTION')}</Text>
-          <Text style={styles.h1}>{trAlb('Create Album')}</Text>
+          <Text style={styles.eyebrow}>{sell ? SELL_SUBTITLE.toUpperCase() : trAlb('NEW COLLECTION')}</Text>
+          <Text style={styles.h1}>{sell ? 'Sell photos' : trAlb('Create Album')}</Text>
         </View>
         <Pressable
           style={styles.backBtn}
@@ -359,8 +392,19 @@ export default function NewAlbumScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-
-        {/* Seamless Segmented Mode Switcher */}
+        {saved ? (
+          <PublishOutcomeView
+            outcome={saved.outcome}
+            title={saved.title}
+            retrying={retrying}
+            onRetry={retryPublish}
+            onView={() => router.replace(`/album/${saved.id}` as Href)}
+            onShare={() => router.replace(`/album/${saved.id}?share=1` as Href)}
+          />
+        ) : (
+        <>
+        {/* Seamless Segmented Mode Switcher (hidden for Sell photos: it is always a personal PAID album) */}
+        {sell ? null : (
         <View style={styles.modeContainer}>
           <Pressable
             style={[styles.modeTab, mode === 'event' && styles.modeTabActive]}
@@ -390,6 +434,7 @@ export default function NewAlbumScreen() {
             </Text>
           </Pressable>
         </View>
+        )}
 
         {mode === 'event' ? (
           <View style={styles.formSection}>
@@ -482,6 +527,12 @@ export default function NewAlbumScreen() {
           </View>
         ) : (
           <View style={styles.formSection}>
+            {sell ? (
+              <View style={styles.note} testID="sell-note">
+                <Ionicons name="scan" size={18} color={colors.primary} />
+                <Text style={styles.noteText}>{SELL_FORM_NOTE}</Text>
+              </View>
+            ) : (
             <View style={styles.note}>
               <Ionicons name="information-circle" size={18} color={colors.primary} />
               <Text style={styles.noteText}>
@@ -491,8 +542,10 @@ export default function NewAlbumScreen() {
                 invite access.
               </Text>
             </View>
+            )}
 
-            <FieldLabel text={trAlb('ALBUM TYPE')} required />
+            {sell ? null : <FieldLabel text={trAlb('ALBUM TYPE')} required />}
+            {sell ? null : (
             <View style={styles.typeRow}>
               <TypeCard
                 active={personalType === 'PAID'}
@@ -519,15 +572,23 @@ export default function NewAlbumScreen() {
                 onPress={() => setPersonalType('FREE')}
               />
             </View>
+            )}
 
             <FieldLabel text={trAlb('ALBUM TITLE')} required />
-            <TextInput
-              style={styles.input}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g. Kigali Fashion Shoot"
-              placeholderTextColor={colors.textMuted}
-            />
+            <View onLayout={(e) => (fieldY.current.title = e.nativeEvent.layout.y)}>
+              <TextInput
+                style={[styles.input, fieldErrors.title ? invalidFieldStyle(colors) : null]}
+                value={title}
+                onChangeText={(v) => {
+                  setTitle(v);
+                  clearField('title');
+                }}
+                placeholder="e.g. Kigali Fashion Shoot"
+                placeholderTextColor={colors.textMuted}
+                accessibilityHint={fieldErrors.title}
+              />
+              <FieldError message={fieldErrors.title} />
+            </View>
 
             <View style={styles.row}>
               <View style={styles.rowItem}>
@@ -656,9 +717,9 @@ export default function NewAlbumScreen() {
         )}
 
         {/* Photos upload section */}
-        <View style={styles.formSection}>
-          <FieldLabel text="ALBUM PHOTOS (OPTIONAL)" />
-          <Pressable style={styles.uploadBox} onPress={addPhotos}>
+        <View style={styles.formSection} onLayout={(e) => (fieldY.current.photos = e.nativeEvent.layout.y)}>
+          <FieldLabel text={sell ? 'ALBUM PHOTOS' : 'ALBUM PHOTOS (OPTIONAL)'} required={sell} />
+          <Pressable style={[styles.uploadBox, fieldErrors.photos ? invalidFieldStyle(colors) : null]} onPress={() => { clearField('photos'); void addPhotos(); }}>
             <View style={styles.uploadIcon}>
               <Ionicons name="images" size={22} color={onFill} />
             </View>
@@ -668,9 +729,10 @@ export default function NewAlbumScreen() {
             <Text style={styles.helper}>
               {images.length > 0
                 ? `${images.length} photo${images.length === 1 ? '' : 's'} selected`
-                : 'Upload high-resolution images now or add them later.'}
+                : sell ? 'Upload high-resolution images. Buyers find them by their face.' : 'Upload high-resolution images now or add them later.'}
             </Text>
           </Pressable>
+          <FieldError message={fieldErrors.photos} />
 
           {images.length ? (
             <View style={styles.thumbsContainer}>
@@ -733,10 +795,12 @@ export default function NewAlbumScreen() {
             {submitting ? (
               <ActivityIndicator color={onFill} />
             ) : (
-              <Text style={styles.createText}>{trAlb('Create Album')}</Text>
+              <Text style={styles.createText}>{sell ? 'Upload and publish' : trAlb('Create Album')}</Text>
             )}
           </Pressable>
         </View>
+        </>
+        )}
       </ScrollView>
 
       {/* Event Picker Modal */}

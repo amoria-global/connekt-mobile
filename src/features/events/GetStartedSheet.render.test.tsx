@@ -49,7 +49,9 @@ describe('Get started sheet', () => {
     expect(text).toContain('Get started with Events');
     expect(text).toContain('What would you like to do first?');
     expect(text).toContain('Host an event');
-    expect(text).toContain('New album');
+    expect(text).toContain('Sell photos');
+    expect(text).toContain('Upload photos for buyers to find');
+    expect(text).not.toContain('New album');
     expect(text).toContain('Photobook');
     expect(text).not.toContain('Book a photographer for your event');
     expect(text).toContain('You can always create from the blue');
@@ -60,7 +62,7 @@ describe('Get started sheet', () => {
 
   it('a row picks its flow; the primary button runs the first action', async () => {
     const { r, onPick } = await mount('Photographer');
-    await press(r, 'New album');
+    await press(r, 'Sell photos');
     expect(onPick).toHaveBeenLastCalledWith('new-album');
     await press(r, 'Host an event');
     expect(onPick).toHaveBeenLastCalledWith('go-live');

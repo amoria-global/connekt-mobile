@@ -57,6 +57,10 @@ export type GalleryItem = {
   /** Who shot it, on the lists that name them (the client's). */
   photographer?: string;
   eventLocation?: string;
+  /** A photographer's own list: what decides whether buyers can find the album on Find my photos. */
+  isStandalone?: boolean;
+  isFreeAlbum?: boolean;
+  faceRecognitionEnabled?: boolean;
 };
 
 export type AlbumImage = { id: ID; url?: string; fullUrl?: string; caption?: string };
@@ -121,6 +125,9 @@ function mapGallery(r: Raw): GalleryItem {
     receivedDate: str(r.receivedDate) ?? str(r.createdAt),
     photographer: str(r.photographer) ?? str(r.photographerName),
     eventLocation: str(r.eventLocation),
+    isStandalone: r.albumType === 'standalone' || r.standalone === true || r.isStandalone === true,
+    isFreeAlbum: r.freeAlbum === true || r.isFreeAlbum === true,
+    faceRecognitionEnabled: r.faceRecognitionEnabled === true,
   };
 }
 
@@ -292,7 +299,51 @@ export async function createContentAlbum(input: CreateAlbumInput): Promise<void>
 //                    then POST /photographer/albums/{id}/send-free
 // In every case photos are uploaded afterwards via addAlbumImages().
 
-export type AlbumCreateResult = { id: string; accessCode?: string; inviteCode?: string; /** Paid personal albums are published to Find My Photos on creation, as on the web. */ published?: boolean };
+export type AlbumCreateResult = {
+  id: string;
+  accessCode?: string;
+  inviteCode?: string;
+  /** Paid personal albums are published to Find My Photos on creation, as on the web. */
+  published?: boolean;
+  /** Faces the server indexed while publishing. 0 means published, but a face search will find nothing yet. */
+  facesIndexed?: number;
+  /** Why publishing did not happen. The album exists either way; the screen offers "Retry publishing", never a re-upload. */
+  publishFailure?: PublishFailure;
+};
+
+/** A publish that did not finish, in words a photographer can act on. */
+export type PublishFailure = {
+  kind: 'credits' | 'timeout' | 'other';
+  message: string;
+  /** Face-index credits the album needs and the balance, when the server said so (402). */
+  needed?: number;
+  balance?: number;
+};
+
+/** The publish request indexes every photo before it answers, so it gets longer than the 20 s default. The proxy cuts it at 60 s. */
+export const PUBLISH_TIMEOUT_MS = 65_000;
+
+/** Turns whatever a failed publish threw into one friendly failure. Pure, so every branch is tested. */
+export function describePublishFailure(e: unknown): PublishFailure {
+  const err = (e ?? {}) as Partial<ApiError>;
+  const body = (err.body ?? {}) as Record<string, unknown>;
+  const needed = typeof body.needed === 'number' ? body.needed : undefined;
+  const balance = typeof body.balance === 'number' ? body.balance : undefined;
+  if (err.status === 402 || body.code === 'INSUFFICIENT_AI_CREDITS') {
+    const n = needed != null ? ` You need ${needed} credit${needed === 1 ? '' : 's'}${balance != null ? ` and have ${balance}` : ''}.` : '';
+    return { kind: 'credits', needed, balance, message: `Not enough credits to prepare these photos for Find my photos.${n} Top up, then retry.` };
+  }
+  if (err.status === 408 || err.status === 504 || err.status === 502) {
+    return {
+      kind: 'timeout',
+      message: 'Preparing the photos is taking longer than usual. It keeps going on our side. Tap Retry publishing in a minute to check.',
+    };
+  }
+  if (err.status === 0) {
+    return { kind: 'other', message: 'We lost the connection before the photos were published. Check your internet and tap Retry publishing.' };
+  }
+  return { kind: 'other', message: err.message?.trim() || 'The album is saved but could not be published to Find my photos. Tap Retry publishing.' };
+}
 
 async function postAlbum(path: string, fields: Record<string, string | undefined>): Promise<AlbumCreateResult> {
   const form = new FormData();
@@ -337,6 +388,8 @@ export async function createPaidAlbum(input: {
   pricePerImage: string;
   currencyId: string;
   images?: PickedImage[];
+  /** Lets the screen say what is happening: the photos go up first, then publishing indexes them. */
+  onStage?: (stage: 'uploading' | 'publishing') => void;
 }): Promise<AlbumCreateResult> {
   const res = await postAlbum('/photographer/albums/paid', {
     title: input.title.trim(),
@@ -348,15 +401,18 @@ export async function createPaidAlbum(input: {
     currencyId: input.currencyId,
   });
   if (input.images && input.images.length > 0) {
+    input.onStage?.('uploading');
     await addAlbumImages(res.id, input.images);
   }
-  // The web publishes a paid personal album to Find My Photos as soon as its photos are up, so buyers can search it.
-  // Best effort: the album exists either way, and the photographer can retry from its options.
+  input.onStage?.('publishing');
+  // A paid personal album is published to Find My Photos as soon as its photos are up, so buyers can search it.
+  // The album exists either way. A failure is returned, never swallowed: the screen shows it with "Retry publishing"
+  // (publish only, no re-upload), so an album never silently stays invisible.
   try {
     const pub = await publishAlbumToFaceSearch(res.id, { pricePerImage: input.pricePerImage, currencyId: input.currencyId });
-    return { ...res, inviteCode: pub.inviteCode ?? res.inviteCode, published: true };
-  } catch {
-    return res;
+    return { ...res, inviteCode: pub.inviteCode ?? res.inviteCode, published: true, facesIndexed: pub.facesIndexed };
+  } catch (e) {
+    return { ...res, publishFailure: describePublishFailure(e) };
   }
 }
 
@@ -452,14 +508,14 @@ export async function sendAlbumToClient(albumId: string): Promise<void> {
 export async function publishAlbumToFaceSearch(
   albumId: string,
   opts?: { pricePerImage?: string; currencyId?: string },
-): Promise<{ inviteCode?: string }> {
+): Promise<{ inviteCode?: string; facesIndexed?: number }> {
   const body: Record<string, unknown> = {};
   const price = opts?.pricePerImage ? parseFloat(opts.pricePerImage) : 0;
   if (price > 0 && opts?.currencyId) {
     body.pricePerImage = price;
     body.currencyId = opts.currencyId;
   }
-  const res = await api.post<ApiEnvelope<Raw>>(`/photographer/albums/${encodeURIComponent(albumId)}/publish`, body);
+  const res = await api.post<ApiEnvelope<Raw>>(`/photographer/albums/${encodeURIComponent(albumId)}/publish`, body, { timeoutMs: PUBLISH_TIMEOUT_MS });
   if (res?.action !== 1) {
     throw {
       status: 400,
@@ -467,7 +523,7 @@ export async function publishAlbumToFaceSearch(
     } satisfies ApiError;
   }
   const d = (res?.data ?? {}) as Raw;
-  return { inviteCode: str(d.inviteCode) };
+  return { inviteCode: str(d.inviteCode), facesIndexed: num(d.facesIndexed) };
 }
 
 /** Makes sure an album has an invite code to share (the web asks for one before opening Face AI). */
