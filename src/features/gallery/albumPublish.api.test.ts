@@ -1,4 +1,4 @@
-import { createPaidAlbum, ensureAlbumInviteCode, getAlbum, publishAlbumToFaceSearch } from './api';
+import { listAlbums, createPaidAlbum, describePublishFailure, ensureAlbumInviteCode, getAlbum, publishAlbumToFaceSearch, PUBLISH_TIMEOUT_MS } from './api';
 
 const mockGet = jest.fn();
 const mockPost = jest.fn();
@@ -14,9 +14,10 @@ beforeEach(() => {
 
 describe('publishAlbumToFaceSearch', () => {
   it('returns the invite code the share link is built from', async () => {
-    mockPost.mockResolvedValue({ action: 1, data: { published: true, inviteCode: 'ALB1234ABCD' } });
-    await expect(publishAlbumToFaceSearch('a1')).resolves.toEqual({ inviteCode: 'ALB1234ABCD' });
-    expect(mockPost).toHaveBeenCalledWith('/photographer/albums/a1/publish', {});
+    mockPost.mockResolvedValue({ action: 1, data: { published: true, inviteCode: 'ALB1234ABCD', facesIndexed: 12 } });
+    await expect(publishAlbumToFaceSearch('a1')).resolves.toEqual({ inviteCode: 'ALB1234ABCD', facesIndexed: 12 });
+    // The server indexes every photo before it answers, so this call gets more than the 20 s default.
+    expect(mockPost).toHaveBeenCalledWith('/photographer/albums/a1/publish', {}, { timeoutMs: PUBLISH_TIMEOUT_MS });
   });
 
   it('sends the price and currency only when both are set', async () => {
@@ -46,11 +47,19 @@ describe('createPaidAlbum', () => {
     expect(res).toMatchObject({ id: 'a1', inviteCode: 'ALB1234ABCD', published: true });
   });
 
-  it('still returns the album when publishing fails', async () => {
-    mockPost.mockResolvedValueOnce({ action: 1, data: { id: 'a1' } }).mockResolvedValueOnce({ action: 0, message: 'no' });
+  it('returns the album AND the reason when publishing fails, never a silent unpublished album', async () => {
+    mockPost.mockResolvedValueOnce({ action: 1, data: { id: 'a1' } }).mockRejectedValueOnce({ status: 402, message: 'x', body: { code: 'INSUFFICIENT_AI_CREDITS', needed: 30, balance: 4 } });
     const res = await createPaidAlbum(input);
     expect(res.id).toBe('a1');
     expect(res.published).toBeUndefined();
+    expect(res.publishFailure).toMatchObject({ kind: 'credits', needed: 30, balance: 4 });
+    expect(res.publishFailure?.message).toMatch(/30 credits and have 4/);
+  });
+
+  it('a refusal answered with action 0 carries the server message', async () => {
+    mockPost.mockResolvedValueOnce({ action: 1, data: { id: 'a1' } }).mockResolvedValueOnce({ action: 0, message: 'Price per image is required to publish PAID album' });
+    const res = await createPaidAlbum(input);
+    expect(res.publishFailure).toEqual({ kind: 'other', message: 'Price per image is required to publish PAID album' });
   });
 });
 
@@ -79,5 +88,53 @@ describe('getAlbum: standalone', () => {
   it('does not flag an event album', async () => {
     mockGet.mockResolvedValue({ action: 1, data: { id: 'a2', title: 'T', albumType: 'event', images: [] } });
     expect((await getAlbum('a2')).isStandalone).toBe(false);
+  });
+});
+
+describe('describePublishFailure', () => {
+  it('credits: names the shortfall and says to top up, then retry', () => {
+    const f = describePublishFailure({ status: 402, message: 'Not enough AI credits to index faces for this album', body: { needed: 1, balance: 0 } });
+    expect(f.kind).toBe('credits');
+    expect(f.message).toContain('You need 1 credit and have 0');
+    expect(f.message).toMatch(/Top up/);
+  });
+  it('credits without numbers still reads cleanly', () => {
+    expect(describePublishFailure({ status: 402, message: 'x' }).message).toBe('Not enough credits to prepare these photos for Find my photos. Top up, then retry.');
+  });
+  it('a timeout says the work continues on the server and to retry, not to re-upload', () => {
+    for (const status of [408, 502, 504]) {
+      const f = describePublishFailure({ status, message: 'x' });
+      expect(f.kind).toBe('timeout');
+      expect(f.message).toMatch(/keeps going/);
+      expect(f.message).toMatch(/Retry publishing/);
+    }
+  });
+  it('offline reads as a connection problem', () => {
+    expect(describePublishFailure({ status: 0, message: 'x' }).message).toMatch(/lost the connection/);
+  });
+  it('anything else keeps the server message, and falls back to a plain sentence', () => {
+    expect(describePublishFailure({ status: 400, message: 'Price too low' }).message).toBe('Price too low');
+    expect(describePublishFailure(undefined).message).toMatch(/Retry publishing/);
+  });
+});
+
+describe('listAlbums carries what decides Find my photos visibility', () => {
+  it('maps standalone, free and live flags from the photographer list', async () => {
+    mockGet.mockResolvedValue({
+      action: 1,
+      data: [
+        { id: 'p1', title: 'Paid not live', albumType: 'standalone', faceRecognitionEnabled: false },
+        { id: 'p2', title: 'Paid live', albumType: 'standalone', faceRecognitionEnabled: true },
+        { id: 'f1', title: 'Free', albumType: 'standalone', freeAlbum: true },
+        { id: 'e1', title: 'Event', albumType: 'event' },
+      ],
+    });
+    const list = await listAlbums(true);
+    expect(list.map((a) => [a.id, a.isStandalone, a.isFreeAlbum, a.faceRecognitionEnabled])).toEqual([
+      ['p1', true, false, false],
+      ['p2', true, false, true],
+      ['f1', true, true, false],
+      ['e1', false, false, false],
+    ]);
   });
 });
