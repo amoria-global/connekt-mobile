@@ -305,7 +305,7 @@ export type AlbumCreateResult = {
   inviteCode?: string;
   /** Paid personal albums are published to Find My Photos on creation, as on the web. */
   published?: boolean;
-  /** Faces the server indexed while publishing. 0 means published, but a selfie search will find nothing yet. */
+  /** Faces the server indexed while publishing. 0 means published, but a face search will find nothing yet. */
   facesIndexed?: number;
   /** Why publishing did not happen. The album exists either way; the screen offers "Retry publishing", never a re-upload. */
   publishFailure?: PublishFailure;
