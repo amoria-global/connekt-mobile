@@ -30,8 +30,14 @@ jest.mock('@/store/auth', () => ({
 
 const ok = (data: unknown) => ({ action: 1, message: 'ok', data });
 const elig = (o: Record<string, unknown> = {}) => ok({ enabled: true, canHostFree: true, canHostPaid: false, reason: null, ...o });
+// Relative to today: a fixed date turns "upcoming" into "past" on the day it passes and fails the suite.
+const inDays = (n: number) => {
+  const t = new Date();
+  t.setDate(t.getDate() + n);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+};
 const events = [
-  { id: 'u1', title: 'Friday set', eventStatus: 'PUBLISHED', eventDate: '2026-11-10', hostedByPhotographer: true, isPublished: true },
+  { id: 'u1', title: 'Friday set', eventStatus: 'PUBLISHED', eventDate: inDays(3), hostedByPhotographer: true, isPublished: true },
   { id: 'l1', title: 'Live now show', eventStatus: 'ONGOING', eventDate: '2026-11-01', hostedByPhotographer: true, isPublished: true },
   { id: 'e1', title: 'Old set', eventStatus: 'COMPLETED', eventDate: '2026-10-01', hostedByPhotographer: true, isPublished: true },
 ];

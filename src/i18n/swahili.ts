@@ -2,6 +2,7 @@
  * Swahili (`sw` — Kiswahili) translations & phrase engine for Connekyt Mobile.
  */
 
+import { chatShareEn } from './chatShare';
 import { BASE_SW_EXTRA } from './base_sw_extra';
 import { batch1Sw, batch2Sw, batch3Sw } from './batch1_3_sw';
 import { batch4Sw, batch5Sw } from './batch4_5_sw';
@@ -14,6 +15,7 @@ export const CORE_SW: Record<string, string> = {
   ...batch1Sw,
   ...batch2Sw,
   ...batch3Sw,
+  ...chatShareEn,
   ...batch4Sw,
   ...batch5Sw,
   // Auth & Login
