@@ -343,8 +343,9 @@ export default function ConversationScreen() {
                 />
               )
             }
-            // The intro sits directly above the first message, and a short thread hugs the composer.
+            // The intro stays at the top; the messages hug the composer, so a short thread has no gap under the header.
             ListHeaderComponent={intro}
+            ListHeaderComponentStyle={styles.introGrow}
             contentContainerStyle={styles.list}
           />
         )}
@@ -507,6 +508,7 @@ const useStyles = makeStyles((c) => ({
   retryText: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: '600' },
   // flexGrow + flex-end: a short thread sits on the composer, a long one scrolls from the end.
   list: { paddingHorizontal: SIDE, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: GAP, flexGrow: 1, justifyContent: 'flex-end' },
+  introGrow: { flexGrow: 1 },
   intro: { alignItems: 'center', gap: 4, paddingTop: spacing.lg, paddingBottom: spacing.lg },
   introAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.surfaceMuted },
   introInitial: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.tint },
