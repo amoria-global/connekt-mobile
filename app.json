@@ -173,14 +173,6 @@
       "releaseNotes": {
         "releases": [
           {
-            "id": "2026-11-12-topbar-appearance",
-            "date": "2026-11-12",
-            "title": "Light and dark from the top bar",
-            "items": [
-              {"icon": "moon-outline", "title": "Switch appearance anywhere", "body": "The top bar now has a sun and moon button beside the currency and language, so you can switch between light and dark from any screen instead of only from Profile."}
-            ]
-          },
-          {
             "id": "2026-11-13-sell-chooser",
             "date": "2026-11-13",
             "title": "Sell photos asks what you are selling",
@@ -200,6 +192,14 @@
                 "title": "Content Albums shows the right photo count",
                 "body": "Photo counts on your Content Albums are now correct, and the status chips scroll with a fade instead of being cut off."
               }
+            ]
+          },
+          {
+            "id": "2026-11-12-topbar-appearance",
+            "date": "2026-11-12",
+            "title": "Light and dark from the top bar",
+            "items": [
+              {"icon": "moon-outline", "title": "Switch appearance anywhere", "body": "The top bar now has a sun and moon button beside the currency and language, so you can switch between light and dark from any screen instead of only from Profile."}
             ]
           },
           {
