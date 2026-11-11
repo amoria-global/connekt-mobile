@@ -17,7 +17,7 @@ export type GetStartedAction = { key: GetStartedKey; title: string; body: string
 const ALL: Record<GetStartedKey, GetStartedAction> = {
   'create-event': { key: 'create-event', title: 'Create event', body: 'Book a photographer for your event', icon: 'calendar-outline', tone: 'primary' },
   'go-live': { key: 'go-live', title: 'Host an event', body: 'Host and stream an event yourself', icon: 'radio-outline', tone: 'live' },
-  'new-album': { key: 'new-album', title: 'New album', body: 'Upload, share or sell photos', icon: 'images-outline', tone: 'active' },
+  'new-album': { key: 'new-album', title: 'Sell photos', body: 'Upload photos for buyers to find', icon: 'pricetag-outline', tone: 'active' },
   photobook: { key: 'photobook', title: 'Photobook', body: 'Design a printed book', icon: 'book-outline', tone: 'accent' },
 };
 

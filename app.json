@@ -173,6 +173,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-12-sell-photos",
+            "date": "2026-11-12",
+            "title": "Sell your photos",
+            "items": [
+              {
+                "icon": "pricetag-outline",
+                "title": "Sell photos in one tap",
+                "body": "The big button on your Home is now Sell photos. Add your photos and a price, and buyers can find them on Find my photos by taking a selfie."
+              },
+              {
+                "icon": "alert-circle-outline",
+                "title": "You are told if an album is not live",
+                "body": "If an album could not be published to Find my photos, you now see the reason and a Retry publishing button, and the album list marks it as not visible."
+              }
+            ]
+          },
+          {
             "id": "2026-11-11-chat-albums",
             "date": "2026-11-11",
             "title": "Better chats and album sharing",
