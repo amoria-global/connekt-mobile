@@ -11,6 +11,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useAuth } from '@/store/auth';
 import { fonts, spacing, radii, makeStyles, useTheme } from '@/theme';
 import { GLASS_BAR } from '@/components/ui/GlassCard';
+import { AppearanceButton } from './AppearanceButton';
 import { BrandPill } from './BrandPill';
 import { CurrencyButton } from './CurrencyButton';
 import { LanguageButton } from './LanguageButton';
@@ -35,7 +36,7 @@ export type TopBarProps = {
 
 /**
  * Shared glass top bar for all roles (design/home.png):
- * avatar in its ring (or back) · wordmark · "RWF · EN" glass pill · Help · notifications.
+ * avatar in its ring (or back) · wordmark · "RWF · EN · theme" glass pill · Help · notifications.
  * Renders as an absolute overlay so content scrolls under it. Place it as the last child of a
  * screen and pad the scroll content by useTopBarHeight().
  *
@@ -86,6 +87,10 @@ export function TopBar({ back, onBack }: TopBarProps = {}) {
             ·
           </Text>
           <LanguageButton inPill />
+          <Text style={styles.sep} aria-hidden>
+            ·
+          </Text>
+          <AppearanceButton />
         </View>
         <TopBarIconButton icon="help-circle-outline" label="Help" onPress={() => router.push(HELP_HREF as Href)} />
         <NotificationButton hasUnread={hasUnread} onPress={() => router.push('/notifications')} />
