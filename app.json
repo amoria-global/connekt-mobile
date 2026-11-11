@@ -173,6 +173,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-12-large-albums",
+            "date": "2026-11-12",
+            "title": "Big albums publish without waiting",
+            "items": [
+              {
+                "icon": "images-outline",
+                "title": "Large albums are prepared in the background",
+                "body": "When you sell a big album, it goes live straight away and you can watch the photos being prepared for Find my photos. Buyers can already find the ones that are ready."
+              }
+            ]
+          },
+          {
             "id": "2026-11-12-sell-photos",
             "date": "2026-11-12",
             "title": "Sell your photos",
