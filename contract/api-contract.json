@@ -1483,6 +1483,11 @@
     "controller" : "AdminChatApiController#getViolations"
   }, {
     "method" : "GET",
+    "path" : "/api/admin/chats/violations/{id}/messages",
+    "controller" : "AdminChatApiController#getViolationMessages",
+    "pathVariables" : [ "id" ]
+  }, {
+    "method" : "GET",
     "path" : "/api/admin/contact-messages/all",
     "controller" : "AdminContactMessageApiController#getContactMessages"
   }, {
@@ -3088,6 +3093,11 @@
     "pathVariables" : [ "bookingId" ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/chat/albums/{albumId}/card",
+    "controller" : "ChatController#getAlbumCard",
+    "pathVariables" : [ "albumId" ]
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/chat/conversations",
     "controller" : "ChatController#getConversations"
   }, {
@@ -3145,6 +3155,14 @@
       "file" : true
     } ],
     "consumes" : [ "multipart/form-data" ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/remote/chat/send-albums",
+    "controller" : "ChatController#sendAlbums",
+    "body" : {
+      "type" : "SendAlbumsRequest",
+      "properties" : [ "albumIds", "note", "recipientId" ]
+    }
   }, {
     "method" : "GET",
     "path" : "/api/remote/chat/unread-count",

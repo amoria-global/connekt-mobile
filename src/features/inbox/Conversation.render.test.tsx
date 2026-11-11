@@ -14,9 +14,15 @@ import '@/test/autoUnmount';
 
 const mockList = jest.fn();
 const mockSend = jest.fn();
+const mockCard = jest.fn();
+let mockRole = { isPhotographer: false, isCollaboratorWorkspace: false, isCollaboratorLogin: false };
+jest.mock('@/features/auth/role', () => ({ useRole: () => mockRole }));
 jest.mock('@/features/inbox/api', () => ({
   listMessages: (...a: unknown[]) => mockList(...a),
   sendMessage: (...a: unknown[]) => mockSend(...a),
+  getAlbumCard: (...a: unknown[]) => mockCard(...a),
+  listShareableAlbums: jest.fn().mockResolvedValue([]),
+  sendAlbums: jest.fn(),
   markConversationRead: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('@/features/moderation/api', () => ({ reportContent: jest.fn() }));
@@ -62,7 +68,12 @@ beforeEach(() => {
   mockList.mockReset().mockResolvedValue([]);
   mockSend.mockReset().mockResolvedValue(undefined);
   mockAlert.mockReset();
+  mockCard.mockReset().mockResolvedValue({ id: 'al1', available: false });
+  mockRole = { isPhotographer: false, isCollaboratorWorkspace: false, isCollaboratorLogin: false };
 });
+
+const plusBtn = (r: TestRenderer.ReactTestRenderer) =>
+  r.root.findAll((n) => n.props?.accessibilityLabel === 'Share something' && typeof n.props.onPress === 'function');
 
 describe('conversation as rendered', () => {
   it('shows the messages with who said them in the spoken label', async () => {
@@ -76,8 +87,38 @@ describe('conversation as rendered', () => {
     expect(labels.some((l) => l.startsWith('They: Yes, from 10.'))).toBe(true);
   });
 
-  it('an empty conversation says no messages yet', async () => {
-    expect(flat((await mount()).root)).toContain('No messages yet');
+  it('an empty conversation opens with who it is with, not a blank page', async () => {
+    const text = flat((await mount()).root);
+    expect(text).toContain('Start of your conversation with Eric Mugisha');
+    expect(text).toContain('View profile');
+  });
+
+  it('puts a date separator before the first message of a day', async () => {
+    mockList.mockResolvedValue([{ id: 'm1', type: 'text', text: 'Hi', senderId: 'ph1', timestamp: '2026-01-05T09:00:00' }]);
+    expect(flat((await mount()).root)).toMatch(/Mon 5 Jan|Mon Jan 5|Jan 5|5 Jan/);
+  });
+
+  it('shows a server-hidden message as "Message removed", never its words', async () => {
+    mockList.mockResolvedValue([{ id: 'm1', type: 'removed', text: 'Message removed', senderId: 'me', timestamp: '2026-10-18T09:00:00' }]);
+    const text = flat((await mount()).root);
+    expect(text).toContain('Message removed');
+  });
+
+  it('renders a shared album as a card that says when the album is gone', async () => {
+    mockList.mockResolvedValue([
+      { id: 'm1', type: 'album_share', albumShare: { albumIds: ['al1'] }, text: 'Shared an album: X', senderId: 'ph1', timestamp: '2026-10-18T09:00:00' },
+    ]);
+    const text = flat((await mount()).root);
+    expect(mockCard).toHaveBeenCalledWith('al1');
+    expect(text).toContain('This album is no longer available');
+  });
+
+  it('offers the + only to a photographer working as themselves', async () => {
+    expect(plusBtn(await mount())).toHaveLength(0);
+    mockRole = { isPhotographer: true, isCollaboratorWorkspace: false, isCollaboratorLogin: false };
+    expect(plusBtn(await mount())).toHaveLength(1);
+    mockRole = { isPhotographer: true, isCollaboratorWorkspace: true, isCollaboratorLogin: false };
+    expect(plusBtn(await mount())).toHaveLength(0);
   });
 
   it('send is disabled with nothing typed, and sends the trimmed text once', async () => {

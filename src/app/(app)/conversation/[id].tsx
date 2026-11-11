@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Stack, useLocalSearchParams, useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -13,19 +15,27 @@ import {
   View,
 } from 'react-native';
 import { Alert } from '@/components/ui/dialog';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRole } from '@/features/auth/role';
 import {
   listMessages,
   markConversationRead,
   sendMessage,
   type Message,
 } from '@/features/inbox/api';
+import { AlbumCard } from '@/features/inbox/AlbumCard';
+import { AlbumPickerSheet, AttachSheet } from '@/features/inbox/AlbumPicker';
+import { buildTimeline, type TimelineItem } from '@/features/inbox/albumShare';
 import { reportContent } from '@/features/moderation/api';
 import { ReportSheet } from '@/features/moderation/ReportSheet';
 import { useModeration } from '@/features/moderation/useModeration';
 import { isApiError, useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, makeStyles, useTheme } from '@/theme';
+import { spacing, radii, fontSize, fonts, makeStyles, useTheme } from '@/theme';
+
+// One horizontal gutter and one vertical rhythm for the whole thread.
+const SIDE = 14;
+const GAP = 6;
 
 function formatMessageTime(dateStr?: string): string {
   if (!dateStr) return '';
@@ -38,22 +48,41 @@ function formatMessageTime(dateStr?: string): string {
   }
 }
 
+/** The bottom gap under the composer: the home-indicator inset plus 10pt, or just 10pt while the keyboard covers it. */
+export function composerBottomPadding(insetBottom: number, keyboardOpen: boolean): number {
+  return (keyboardOpen ? 0 : Math.max(insetBottom, 0)) + 10;
+}
+
 export default function ConversationScreen() {
   const { colors } = useTheme();
   const styles = useStyles();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   // `id` is the partner's customerId (UUID) used for chat history and sending
-  const { id, name } = useLocalSearchParams<{ id: string; name?: string }>();
+  const { id, name, avatar } = useLocalSearchParams<{ id: string; name?: string; avatar?: string }>();
   const router = useRouter();
   const myId = useAuth((s) => s.user?.customerId);
+  const { isPhotographer, isCollaboratorWorkspace, isCollaboratorLogin } = useRole();
+  // Albums belong to the photographer. A workspace session acts for the owner, so it never offers the "+".
+  const canShareAlbums = isPhotographer && !isCollaboratorWorkspace && !isCollaboratorLogin;
+
+  const insets = useSafeAreaInsets();
+  // The offset the keyboard view needs is how far its top sits below the screen top (the native header), measured, never guessed.
+  const kavRef = useRef<View>(null);
+  const [kavOffset, setKavOffset] = useState(0);
+  const measureOffset = useCallback(() => {
+    kavRef.current?.measureInWindow((_x, y) => setKavOffset(Math.max(0, Math.round(y))));
+  }, []);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  const flatListRef = useRef<FlatList<Message>>(null);
+  const flatListRef = useRef<FlatList<TimelineItem<Message>>>(null);
 
   const blockAccount = useModeration((s) => s.block);
   const loadModeration = useModeration((s) => s.load);
@@ -61,6 +90,21 @@ export default function ConversationScreen() {
   const [reportMessage, setReportMessage] = useState<Message | null>(null);
 
   const partnerLabel = name || t('b3_conv_creator');
+
+  // Keyboard open/closed drives the bottom gap, and keeps the newest message in view above it.
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => {
+      setKeyboardOpen(true);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 60);
+    });
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () =>
+      setKeyboardOpen(false),
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   // Fetch messages from backend
   const fetchMessages = useCallback(
@@ -109,6 +153,12 @@ export default function ConversationScreen() {
       return () => clearTimeout(timer);
     }
   }, [messages.length]);
+
+  const timeline = useMemo(
+    () =>
+      buildTimeline(messages, new Date(), { today: t('chat_today'), yesterday: t('chat_yesterday') }, language),
+    [messages, t, language],
+  );
 
   const onBlock = useCallback(() => {
     Alert.alert(
@@ -170,6 +220,7 @@ export default function ConversationScreen() {
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage: Message = {
       id: tempId,
+      type: 'text',
       text,
       senderId: myId,
       isMine: true,
@@ -194,8 +245,46 @@ export default function ConversationScreen() {
     }
   };
 
+  const isMine = (item: Message) => {
+    const cleanMyId = myId ? String(myId).toLowerCase().trim() : '';
+    const cleanSenderId = item.senderId ? String(item.senderId).toLowerCase().trim() : '';
+    return item.isMine === true || (!!cleanMyId && !!cleanSenderId && cleanSenderId === cleanMyId);
+  };
+
+  const viewProfile = () => {
+    const path = isPhotographer ? `/client/${id}` : `/photographer/${id}`;
+    router.push(path as Href);
+  };
+
+  const intro = (
+    <View style={styles.intro}>
+      {avatar ? (
+        <Image source={{ uri: avatar }} style={styles.introAvatar} accessibilityIgnoresInvertColors />
+      ) : (
+        <View style={[styles.introAvatar, styles.introInitial]}>
+          <Text style={styles.introLetter}>{partnerLabel.trim().charAt(0).toUpperCase()}</Text>
+        </View>
+      )}
+      <Text style={styles.introName} numberOfLines={1}>
+        {partnerLabel}
+      </Text>
+      <Text style={styles.introRole}>{isPhotographer ? t('chat_role_client') : t('chat_role_photographer')}</Text>
+      <Text style={styles.introStart}>{t('chat_intro_start', { name: partnerLabel })}</Text>
+      <Pressable
+        onPress={viewProfile}
+        hitSlop={8}
+        accessibilityRole="link"
+        accessibilityLabel={`${t('chat_intro_view_profile')}: ${partnerLabel}`}
+        style={styles.introLink}
+      >
+        <Text style={styles.introLinkText}>{t('chat_intro_view_profile')}</Text>
+        <Ionicons name="chevron-forward" size={14} color={colors.link} />
+      </Pressable>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={styles.safe} edges={[]}>
+    <View style={styles.safe}>
       <Stack.Screen
         options={{
           title: partnerLabel,
@@ -211,11 +300,8 @@ export default function ConversationScreen() {
           ),
         }}
       />
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-      >
+      <View ref={kavRef} onLayout={measureOffset} style={styles.flex}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding" keyboardVerticalOffset={kavOffset}>
         {loading && messages.length === 0 ? (
           <View style={styles.centered}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -236,34 +322,46 @@ export default function ConversationScreen() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
-            keyExtractor={(m) => String(m.id)}
-            renderItem={({ item }) => {
-              const cleanMyId = myId ? String(myId).toLowerCase().trim() : '';
-              const cleanSenderId = item.senderId ? String(item.senderId).toLowerCase().trim() : '';
-              const mine =
-                item.isMine === true ||
-                (!!cleanMyId && !!cleanSenderId && cleanSenderId === cleanMyId);
-
-              return (
+            data={timeline}
+            keyExtractor={(i) => i.key}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            renderItem={({ item }) =>
+              item.kind === 'date' ? (
+                <View style={styles.dateWrap}>
+                  <Text style={styles.dateText}>{item.label}</Text>
+                </View>
+              ) : (
                 <Bubble
-                  message={item}
-                  mine={mine}
-                  onLongPress={mine ? undefined : () => onLongPressMessage(item)}
+                  message={item.message}
+                  mine={isMine(item.message)}
+                  onLongPress={
+                    isMine(item.message) || item.message.type !== 'text'
+                      ? undefined
+                      : () => onLongPressMessage(item.message)
+                  }
                 />
-              );
-            }}
-            contentContainerStyle={styles.list}
-            ListEmptyComponent={
-              <View style={styles.emptyWrap}>
-                <Ionicons name="chatbubble-ellipses-outline" size={36} color={colors.textMuted} />
-                <Text style={styles.empty}>{t('b3_conv_empty', { name: partnerLabel })}</Text>
-              </View>
+              )
             }
+            // The intro stays at the top; the messages hug the composer, so a short thread has no gap under the header.
+            ListHeaderComponent={intro}
+            ListHeaderComponentStyle={styles.introGrow}
+            contentContainerStyle={styles.list}
           />
         )}
 
-        <View style={styles.composer}>
+        <View style={[styles.composer, { paddingBottom: composerBottomPadding(insets.bottom, keyboardOpen) }]}>
+          {canShareAlbums ? (
+            <Pressable
+              onPress={() => setAttachOpen(true)}
+              hitSlop={4}
+              accessibilityRole="button"
+              accessibilityLabel={t('chat_plus_a11y')}
+              style={styles.plusBtn}
+            >
+              <Ionicons name="add" size={24} color={colors.link} />
+            </Pressable>
+          ) : null}
           <TextInput
             style={styles.input}
             placeholder={t('b3_conv_placeholder')}
@@ -290,6 +388,28 @@ export default function ConversationScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+      </View>
+
+      {canShareAlbums ? (
+        <>
+          <AttachSheet
+            visible={attachOpen}
+            name={partnerLabel}
+            onClose={() => setAttachOpen(false)}
+            onShareAlbum={() => {
+              setAttachOpen(false);
+              setPickerOpen(true);
+            }}
+          />
+          <AlbumPickerSheet
+            visible={pickerOpen}
+            partnerId={id}
+            name={partnerLabel}
+            onClose={() => setPickerOpen(false)}
+            onSent={() => void fetchMessages(false)}
+          />
+        </>
+      ) : null}
 
       <ReportSheet
         visible={reportUserOpen}
@@ -307,7 +427,7 @@ export default function ConversationScreen() {
         subject={partnerLabel}
         submit={submitMessageReport}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -321,7 +441,36 @@ function Bubble({
   onLongPress?: () => void;
 }) {
   const styles = useStyles();
+  const { t } = useLanguage();
   const timeStr = formatMessageTime(message.timestamp);
+  const side = [styles.bubbleWrap, mine ? styles.bubbleWrapMine : styles.bubbleWrapTheirs];
+
+  if (message.type === 'removed') {
+    return (
+      <View style={side} accessible accessibilityLabel={t('chat_removed')}>
+        <View style={[styles.bubble, styles.bubbleRemoved]}>
+          <Text style={styles.removedText}>{t('chat_removed')}</Text>
+        </View>
+      </View>
+    );
+  }
+
+  if (message.type === 'album_share' && message.albumShare) {
+    const { albumIds, note } = message.albumShare;
+    return (
+      <View style={[...side, styles.albumWrap]}>
+        {albumIds.map((albumId) => (
+          <AlbumCard key={albumId} albumId={albumId} mine={mine} />
+        ))}
+        {note ? (
+          <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
+            <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{note}</Text>
+          </View>
+        ) : null}
+        {timeStr ? <Text style={[styles.timeText, styles.albumTime]}>{timeStr}</Text> : null}
+      </View>
+    );
+  }
 
   return (
     <Pressable
@@ -330,7 +479,7 @@ function Bubble({
       accessible
       accessibilityLabel={`${mine ? 'You' : 'They'}: ${message.text}${timeStr ? `, ${timeStr}` : ''}`}
       accessibilityHint={onLongPress ? 'Long press to report this message' : undefined}
-      style={[styles.bubbleWrap, mine ? styles.bubbleWrapMine : styles.bubbleWrapTheirs]}
+      style={side}
     >
       <View style={[styles.bubble, mine ? styles.bubbleMine : styles.bubbleTheirs]}>
         <Text style={[styles.bubbleText, mine && styles.bubbleTextMine]}>{message.text}</Text>
@@ -357,15 +506,30 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
   },
   retryText: { color: c.textOnPrimary, fontSize: fontSize.sm, fontWeight: '600' },
-  list: { padding: spacing.lg, gap: spacing.sm, flexGrow: 1, justifyContent: 'flex-end' },
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: spacing['3xl'], gap: spacing.sm },
-  empty: { textAlign: 'center', color: c.textMuted, fontSize: fontSize.sm },
-  bubbleWrap: { maxWidth: '80%', marginVertical: 2 },
+  // flexGrow + flex-end: a short thread sits on the composer, a long one scrolls from the end.
+  list: { paddingHorizontal: SIDE, paddingTop: spacing.sm, paddingBottom: spacing.md, gap: GAP, flexGrow: 1, justifyContent: 'flex-end' },
+  introGrow: { flexGrow: 1 },
+  intro: { alignItems: 'center', gap: 4, paddingTop: spacing.lg, paddingBottom: spacing.lg },
+  introAvatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: c.surfaceMuted },
+  introInitial: { alignItems: 'center', justifyContent: 'center', backgroundColor: c.tint },
+  introLetter: { color: c.link, fontSize: 26, fontFamily: fonts.display },
+  introName: { color: c.text, fontSize: fontSize.lg, fontFamily: fonts.display, marginTop: 6 },
+  introRole: { color: c.textMuted, fontSize: 12, fontFamily: fonts.medium },
+  introStart: { color: c.textMuted, fontSize: 12, fontFamily: fonts.regular, marginTop: 6, textAlign: 'center' },
+  introLink: { flexDirection: 'row', alignItems: 'center', gap: 2, minHeight: 36 },
+  introLinkText: { color: c.link, fontSize: fontSize.sm, fontFamily: fonts.semibold },
+  dateWrap: { alignItems: 'center', paddingVertical: 6 },
+  dateText: { color: c.textMuted, fontSize: 12, fontFamily: fonts.medium },
+  bubbleWrap: { maxWidth: '82%' },
   bubbleWrapMine: { alignSelf: 'flex-end' },
   bubbleWrapTheirs: { alignSelf: 'flex-start' },
+  albumWrap: { gap: GAP, maxWidth: '100%' },
+  albumTime: { alignSelf: 'flex-end' },
   bubble: { paddingHorizontal: spacing.lg, paddingVertical: spacing.sm + 2, borderRadius: radii.lg },
   bubbleMine: { backgroundColor: c.primary, borderBottomRightRadius: 4 },
   bubbleTheirs: { backgroundColor: c.card, borderBottomLeftRadius: 4, borderWidth: 1, borderColor: c.borderSoft },
+  bubbleRemoved: { borderWidth: 1, borderStyle: 'dashed', borderColor: c.border, backgroundColor: 'transparent' },
+  removedText: { fontSize: 14, fontStyle: 'italic', color: c.textMuted },
   bubbleText: { fontSize: 15, lineHeight: 21, color: c.text },
   bubbleTextMine: { color: c.textOnPrimary },
   timeText: { fontSize: 12, color: c.textMuted, alignSelf: 'flex-end', marginTop: 3 },
@@ -374,22 +538,32 @@ const useStyles = makeStyles((c) => ({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: SIDE - 2,
+    paddingTop: spacing.sm,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: c.borderSoft,
     backgroundColor: c.surface,
   },
+  plusBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: c.border,
+    backgroundColor: c.tint,
+  },
   input: {
     flex: 1,
     maxHeight: 120,
-    minHeight: 42,
+    minHeight: 44,
     borderWidth: 1,
     borderColor: c.border,
     borderRadius: radii.lg,
     paddingHorizontal: spacing.md,
-    paddingTop: Platform.OS === 'ios' ? 10 : 8,
-    paddingBottom: Platform.OS === 'ios' ? 10 : 8,
+    paddingTop: Platform.OS === 'ios' ? 11 : 9,
+    paddingBottom: Platform.OS === 'ios' ? 11 : 9,
     fontSize: fontSize.md,
     color: c.text,
     backgroundColor: c.background,
