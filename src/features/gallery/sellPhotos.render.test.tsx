@@ -94,6 +94,18 @@ describe('the result screen after saving a PAID album', () => {
     expect(fns.onRetry).toHaveBeenCalledTimes(1);
   });
 
+  it('preparing: same headline, how far it got, a progress bar, and Share and View are offered because it is published', async () => {
+    const { el, fns } = view(publishOutcome({ published: true, indexing: { total: 120, done: 45 } }));
+    const r = await mountNode(el);
+    const t = flat(r.root);
+    expect(t).toContain('Your photos are being prepared for Find my photos');
+    expect(t).toContain('Preparing 45 of 120 photos');
+    expect(t).not.toContain('Retry publishing');
+    expect(r.root.findAll((n) => typeof n.type === 'string' && n.props?.accessibilityRole === 'progressbar')).toHaveLength(1);
+    await pressText(r, 'Share album');
+    expect(fns.onShare).toHaveBeenCalledTimes(1);
+  });
+
   it('while retrying it says it is preparing and offers no second tap on View', async () => {
     const { el } = view(publishOutcome({}), { retrying: true });
     const r = await mountNode(el);

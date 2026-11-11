@@ -1,4 +1,4 @@
-import { LISTED_HEADLINE, LISTING_NOTE, notVisibleBadge, publishOutcome, sellPhotosError, SELL_PHOTOS_HREF } from './sellPhotos';
+import { LISTED_HEADLINE, LISTING_NOTE, notVisibleBadge, outcomeFromIndexing, preparingOutcome, publishOutcome, sellPhotosError, SELL_PHOTOS_HREF } from './sellPhotos';
 
 describe('sell photos rules', () => {
   it('opens the existing album form with the sell preset', () => {
@@ -37,6 +37,30 @@ describe('sell photos rules', () => {
       const o = publishOutcome({});
       expect(o.state).toBe('failed');
       expect(o.status).toMatch(/Retry publishing/);
+    });
+  });
+
+  describe('a large album indexed in the background', () => {
+    it('a published album that is still being indexed says how far it has got, not "no faces"', () => {
+      const o = publishOutcome({ published: true, facesIndexed: 0, indexing: { total: 120, done: 15 } });
+      expect(o).toMatchObject({ state: 'preparing', headline: LISTED_HEADLINE, total: 120, done: 15 });
+      expect(o.status).toBe('Preparing 15 of 120 photos. Buyers can already find the ones that are ready.');
+    });
+    it('never shows more done than total', () => {
+      expect(preparingOutcome(10, 14).status).toContain('Preparing 10 of 10');
+    });
+    it('an unknown total still reads cleanly', () => {
+      expect(preparingOutcome(0, 0).status).toBe('Preparing your photos. Buyers can already find the ones that are ready.');
+    });
+    it('polling: INDEXING stays preparing, DONE is listed, FAILED is a failure with Retry publishing', () => {
+      expect(outcomeFromIndexing({ status: 'INDEXING', total: 40, done: 20 })).toMatchObject({ state: 'preparing', done: 20 });
+      expect(outcomeFromIndexing({ status: 'DONE', total: 40, done: 40 })).toMatchObject({ state: 'listed', warn: false, facesIndexed: 40 });
+      const failed = outcomeFromIndexing({ status: 'FAILED', total: 40, done: 12 });
+      expect(failed).toMatchObject({ state: 'failed' });
+      expect(failed?.status).toMatch(/Retry publishing/);
+    });
+    it('a status that says nothing about background indexing changes nothing', () => {
+      expect(outcomeFromIndexing(undefined)).toBeNull();
     });
   });
 

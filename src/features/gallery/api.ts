@@ -307,6 +307,8 @@ export type AlbumCreateResult = {
   published?: boolean;
   /** Faces the server indexed while publishing. 0 means published, but a face search will find nothing yet. */
   facesIndexed?: number;
+  /** A large album is indexed in the background: it is published, and this says how far the server has got. */
+  indexing?: { total: number; done: number };
   /** Why publishing did not happen. The album exists either way; the screen offers "Retry publishing", never a re-upload. */
   publishFailure?: PublishFailure;
 };
@@ -410,7 +412,7 @@ export async function createPaidAlbum(input: {
   // (publish only, no re-upload), so an album never silently stays invisible.
   try {
     const pub = await publishAlbumToFaceSearch(res.id, { pricePerImage: input.pricePerImage, currencyId: input.currencyId });
-    return { ...res, inviteCode: pub.inviteCode ?? res.inviteCode, published: true, facesIndexed: pub.facesIndexed };
+    return { ...res, inviteCode: pub.inviteCode ?? res.inviteCode, published: true, facesIndexed: pub.facesIndexed, indexing: pub.indexing };
   } catch (e) {
     return { ...res, publishFailure: describePublishFailure(e) };
   }
@@ -508,7 +510,7 @@ export async function sendAlbumToClient(albumId: string): Promise<void> {
 export async function publishAlbumToFaceSearch(
   albumId: string,
   opts?: { pricePerImage?: string; currencyId?: string },
-): Promise<{ inviteCode?: string; facesIndexed?: number }> {
+): Promise<{ inviteCode?: string; facesIndexed?: number; indexing?: { total: number; done: number } }> {
   const body: Record<string, unknown> = {};
   const price = opts?.pricePerImage ? parseFloat(opts.pricePerImage) : 0;
   if (price > 0 && opts?.currencyId) {
@@ -523,7 +525,9 @@ export async function publishAlbumToFaceSearch(
     } satisfies ApiError;
   }
   const d = (res?.data ?? {}) as Raw;
-  return { inviteCode: str(d.inviteCode), facesIndexed: num(d.facesIndexed) };
+  // A large album comes back published but still being indexed in the background (the server cannot finish it inside one request).
+  const indexing = d.indexing === true ? { total: num(d.indexingTotal) ?? 0, done: num(d.indexingDone) ?? 0 } : undefined;
+  return { inviteCode: str(d.inviteCode), facesIndexed: num(d.facesIndexed), indexing };
 }
 
 /** Makes sure an album has an invite code to share (the web asks for one before opening Face AI). */
@@ -572,6 +576,8 @@ export type AlbumFaceStatus = {
     message?: string;
   };
   message?: string;
+  /** Background indexing of a large album, when the server runs it that way. */
+  indexing?: { status: 'INDEXING' | 'DONE' | 'FAILED'; total: number; done: number };
 };
 
 export async function getAlbumFaceStatus(albumId: string): Promise<AlbumFaceStatus> {
@@ -596,5 +602,14 @@ export async function getAlbumFaceStatus(albumId: string): Promise<AlbumFaceStat
         }
       : undefined,
     message: str(res?.message),
+    indexing: parseIndexing(d.indexing),
   };
+}
+
+function parseIndexing(v: unknown): AlbumFaceStatus['indexing'] {
+  if (!v || typeof v !== 'object') return undefined;
+  const r = v as Raw;
+  const status = r.status === 'INDEXING' || r.status === 'DONE' || r.status === 'FAILED' ? r.status : undefined;
+  if (!status) return undefined;
+  return { status, total: num(r.total) ?? 0, done: num(r.done) ?? 0 };
 }
