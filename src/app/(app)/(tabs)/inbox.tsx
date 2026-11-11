@@ -328,7 +328,9 @@ export default function InboxScreen() {
         renderItem={({ item }) => (
           <Pressable
             onPress={() =>
-              router.push(`/conversation/${item.id}?name=${encodeURIComponent(item.name)}`)
+              router.push(
+                `/conversation/${item.id}?name=${encodeURIComponent(item.name)}${item.avatar ? `&avatar=${encodeURIComponent(item.avatar)}` : ''}`,
+              )
             }
             accessibilityRole="button"
             accessibilityLabel={conversationLabel(item)}
