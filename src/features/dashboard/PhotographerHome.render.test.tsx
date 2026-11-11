@@ -151,6 +151,17 @@ describe('photographer home as rendered', () => {
     expect(shown).not.toMatch(/NaN|undefined/);
   });
 
+  it('the raised button is Sell photos, not Create event, and it opens the album form preset to sell', async () => {
+    serve({ events: ok([]) });
+    const r = await mount();
+    const text = flat(r.root);
+    expect(text).toContain('Sell photos');
+    expect(text).not.toContain('Create event');
+    await pressText(r, 'Sell photos');
+    expect(mockPush).toHaveBeenLastCalledWith('/album/new?sell=1');
+    expect(mockPush).not.toHaveBeenCalledWith('/host/new');
+  });
+
   it('a refused analytics request is an error with a retry, not a zero and not a new-creator screen', async () => {
     serve({ analytics: refused('Analytics are unavailable') });
     const r = await mount();

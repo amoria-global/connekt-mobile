@@ -13,6 +13,7 @@ import { Skeleton } from '@/features/photographer/kit';
 import { useSharedT } from '@/i18n/sharedStrings';
 import type { GalleryItem } from './api';
 import { albumSubtitle, photoCountText } from './albumFacts';
+import { notVisibleBadge } from './sellPhotos';
 
 const SCRIM = ['rgba(5,12,24,0)', 'rgba(5,12,24,0.88)'] as const;
 
@@ -25,7 +26,7 @@ function badgeFor(kind?: string): string {
 }
 
 function a11yLabel(a: GalleryItem, subtitle?: string): string {
-  return [a.name, photoCountText(a.photoCount), subtitle, a.locked ? 'Archived' : null].filter(Boolean).join(', ');
+  return [a.name, photoCountText(a.photoCount), subtitle, a.locked ? 'Archived' : null, notVisibleBadge(a)].filter(Boolean).join(', ');
 }
 
 function Cover({ uri, full, icon, size }: { uri?: string; full?: string; icon: number; size?: 'fill' }) {
@@ -51,6 +52,23 @@ function CountChip({ count }: { count?: number }) {
       <Ionicons name="images" size={11} color={onFill} />
       <Text style={styles.chipText} maxFontSizeMultiplier={1.6}>
         {tr(text)}
+      </Text>
+    </View>
+  );
+}
+
+/** A PAID standalone album buyers cannot find: said on the card, with the way to fix it (the album's own Publish). */
+function NotVisibleBadge({ album }: { album: GalleryItem }) {
+  const styles = useStyles();
+  const { colors } = useTheme();
+  const { tr } = useSharedT();
+  const text = notVisibleBadge(album);
+  if (!text) return null;
+  return (
+    <View style={styles.notVisible} testID="not-visible-badge">
+      <Ionicons name="eye-off-outline" size={12} color={colors.text} />
+      <Text style={styles.notVisibleText} numberOfLines={1} maxFontSizeMultiplier={1.6}>
+        {tr(text)} · {tr('Publish')}
       </Text>
     </View>
   );
@@ -130,6 +148,7 @@ function AlbumGridCardImpl({ album, showPhotographer, onOpen }: { album: Gallery
             {sub}
           </Text>
         ) : null}
+        <NotVisibleBadge album={album} />
       </View>
     </Pressable>
   );
@@ -172,6 +191,7 @@ function AlbumListRowImpl({ album, showPhotographer, onOpen }: { album: GalleryI
             {sub}
           </Text>
         ) : null}
+        <NotVisibleBadge album={album} />
       </View>
       <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
     </Pressable>
@@ -229,6 +249,8 @@ const useStyles = makeStyles((c, e) => ({
   cardBody: { padding: spacing.sm, gap: 3 },
   cardTitle: { color: c.text, fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
   cardSub: { color: c.textMuted, fontSize: 12.5 },
+  notVisible: { flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start', marginTop: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: c.warningBg ?? c.surfaceMuted, borderWidth: 1, borderColor: c.warning },
+  notVisibleText: { color: c.text, fontSize: 11.5, fontWeight: '700' },
 
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, padding: spacing.sm, borderRadius: radii.lg, backgroundColor: c.card, borderWidth: 1, borderColor: c.border },
   rowThumb: { width: 88, height: 66, borderRadius: radii.md, overflow: 'hidden', backgroundColor: c.surfaceMuted },
