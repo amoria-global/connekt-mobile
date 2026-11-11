@@ -173,6 +173,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-11-chat-albums",
+            "date": "2026-11-11",
+            "title": "Better chats and album sharing",
+            "items": [
+              {
+                "icon": "chatbubbles-outline",
+                "title": "A cleaner conversation screen",
+                "body": "Chats now open with who you are talking to, show the day above each group of messages, and keep the message box right above your keyboard with no empty gap."
+              },
+              {
+                "icon": "images-outline",
+                "title": "Share albums in a chat",
+                "body": "Photographers can tap the plus button next to the message box to send up to five of their albums to a client as a card, with an optional note."
+              },
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Phone numbers split across messages",
+                "body": "If someone sends a phone number in pieces over several messages, the pieces are now removed and show as Message removed, in the same way a full number is blocked."
+              }
+            ]
+          },
+          {
             "id": "2026-11-10-album-date-check",
             "date": "2026-11-10",
             "title": "Album date double-check",
