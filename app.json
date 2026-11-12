@@ -190,6 +190,23 @@
             ]
           },
           {
+            "id": "2026-11-13-client-details",
+            "date": "2026-11-13",
+            "title": "Client details show your bookings",
+            "items": [
+              {
+                "icon": "people-outline",
+                "title": "Bookings and events on a client",
+                "body": "A client you work with now shows how many bookings you have together and the events they belong to, instead of Bookings 0."
+              },
+              {
+                "icon": "wallet-outline",
+                "title": "Total spent is what was actually paid",
+                "body": "The Total spent on a client now counts only money that was collected, in one currency, instead of adding up quoted prices."
+              }
+            ]
+          },
+          {
             "id": "2026-11-13-sell-chooser",
             "date": "2026-11-13",
             "title": "Sell photos asks what you are selling",
