@@ -173,6 +173,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-13-calmer-errors",
+            "date": "2026-11-13",
+            "title": "Clearer messages when a profile is not ready",
+            "items": [
+              {
+                "icon": "hourglass-outline",
+                "title": "Profiles still being reviewed",
+                "body": "If you open or try to book a photographer whose profile is still being reviewed, you now see a calm \"Profile pending\" message with a way back, instead of a general error."
+              },
+              {
+                "icon": "bug-outline",
+                "title": "Faster fixes when something breaks",
+                "body": "When the app hits a problem it now tells us which version and update you were on, with no personal details, so we can fix it sooner. The version is shown at the bottom of Preferences."
+              }
+            ]
+          },
+          {
             "id": "2026-11-13-sell-chooser",
             "date": "2026-11-13",
             "title": "Sell photos asks what you are selling",
