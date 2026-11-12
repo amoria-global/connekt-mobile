@@ -265,3 +265,16 @@ describe('reporting and PII scrubbing', () => {
     expect(() => reportError({}, p)).not.toThrow();
   });
 });
+
+describe('presentError: a photographer whose profile is pending', () => {
+  it('is a calm notice with a way back, not "no permission", even on a 403', () => {
+    const p = presentError(
+      { status: 403, body: { action: 0, errorCode: 'PROFILE_PENDING', message: "This photographer's profile is awaiting approval." } },
+      { intent: 'save' },
+    );
+    expect(p.title).toBe('Profile pending');
+    expect(p.message).not.toMatch(/permission/i);
+    expect(p.tone).toBe('info');
+    expect(p.actions.map((a) => a.id)).toContain('back');
+  });
+});

@@ -1,4 +1,4 @@
-import { buildEnvelope, createSentrySink, installCrashReporting, parseDsn } from './sentrySink';
+import { buildEnvelope, createSentrySink, installCrashReporting, isAppBreaking, isNoise, parseDsn } from './sentrySink';
 import { presentError } from './presentError';
 import { setErrorSink } from './report';
 
@@ -146,5 +146,46 @@ describe('the server support code', () => {
   it('ignores a malformed one and makes its own for an unknown failure', () => {
     const p = presentError({ status: 500, message: 'x', body: { supportCode: '<script>' } });
     expect(p.supportCode).toMatch(/^[A-Z2-9]{3}-[A-Z2-9]{3}$/);
+  });
+});
+
+describe('isNoise', () => {
+  const crash = (message: string, where = 'js.uncaught') => ({ kind: 'crash' as const, where, detail: { message } });
+
+  it.each(['Network request failed', 'Failed to fetch', 'Load failed'])('drops a bare uncaught "%s"', (m) => {
+    expect(isNoise(crash(m))).toBe(true);
+  });
+
+  it('keeps a real crash, a handled failure, and the deliberate test report', () => {
+    expect(isNoise(crash("undefined is not an object (evaluating 'a.b')"))).toBe(false);
+    expect(isNoise({ kind: 'toast', where: 'pay', detail: { message: 'Network request failed' } })).toBe(false);
+    expect(isNoise(crash('Network request failed', 'sentry.test'))).toBe(false);
+  });
+
+  it('never reaches the network', () => {
+    const fetchImpl = jest.fn(async () => ({}) as Response) as unknown as typeof fetch;
+    const sink = createSentrySink({ dsn: DSN, app: 'mobile', platform: 'ios', fetchImpl })!;
+    sink(crash('Network request failed'));
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+});
+
+describe('severity', () => {
+  const level = (r: Parameters<typeof buildEnvelope>[0]) =>
+    JSON.parse(buildEnvelope(r, { dsn: DSN, app: 'mobile', platform: 'ios' }, 1).body.split('\n')[2]).level;
+
+  it('is fatal only for a fatal JavaScript error; an uncaught one the app survived is an error', () => {
+    expect(level({ kind: 'crash', where: 'js.fatal', detail: {} })).toBe('fatal');
+    expect(level({ kind: 'crash', where: 'js.uncaught', detail: {} })).toBe('error');
+    expect(isAppBreaking({ kind: 'toast', where: 'js.fatal', detail: {} })).toBe(false);
+  });
+
+  it('carries the release, the update id as dist, and the extra tags', () => {
+    const e = JSON.parse(
+      buildEnvelope({ kind: 'toast', where: 'x', detail: {} }, { dsn: DSN, app: 'mobile', platform: 'ios', release: '2.3.2+ota.a1b2c3d4', dist: 'a1b2c3d4', extraTags: { update_id: 'u-1' } }, 1).body.split('\n')[2],
+    );
+    expect(e.release).toBe('2.3.2+ota.a1b2c3d4');
+    expect(e.dist).toBe('a1b2c3d4');
+    expect(e.tags).toMatchObject({ update_id: 'u-1', app: 'mobile' });
   });
 });
