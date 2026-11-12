@@ -20,6 +20,10 @@ export type SentryOptions = {
   platform: string;
   environment?: string;
   release?: string;
+  /** The OTA update id, so one release can be told apart from the next update on the same app version. */
+  dist?: string;
+  /** Extra tags on every event (update id, runtime version, channel). Never personal data. */
+  extraTags?: Record<string, string>;
   fetchImpl?: typeof fetch;
   now?: () => number;
   /** Events allowed per rolling minute. */
@@ -42,10 +46,32 @@ function eventId(random: () => number = Math.random): string {
   return s;
 }
 
+/**
+ * `fatal` is kept for a failure that took the app down: a fatal JavaScript error (`js.fatal`). An uncaught error the
+ * app survived (`js.uncaught`) is an ordinary `error`.
+ */
+const APP_BREAKING_WHERE = new Set(['js.fatal', 'page.crash', 'app.crash']);
+
+export function isAppBreaking(report: ErrorReport): boolean {
+  return report.kind === 'crash' && report.where !== undefined && APP_BREAKING_WHERE.has(report.where);
+}
+
+/**
+ * Failures nobody can act on, dropped before they leave the phone: a bare dropped connection that surfaced as an
+ * uncaught error. Only uncaught errors (`kind: 'crash'`) are judged; a failure we handled and showed is always sent,
+ * and so is the deliberate test report.
+ */
+export function isNoise(report: ErrorReport): boolean {
+  if (report.kind !== 'crash' || report.where === 'sentry.test') return false;
+  const d = (report.detail ?? {}) as { message?: unknown };
+  const message = typeof d.message === 'string' ? d.message : '';
+  return /^(Network request failed|Failed to fetch|Load failed|Aborted|The operation was aborted\.?)$/.test(message);
+}
+
 /** The two-line-plus envelope Sentry's ingest takes. Exported for tests. */
 export function buildEnvelope(report: ErrorReport, o: SentryOptions, nowMs: number): { id: string; body: string } {
   const id = eventId();
-  const tags: Record<string, string> = { app: o.app, platform: o.platform, kind: report.kind };
+  const tags: Record<string, string> = { ...(o.extraTags ?? {}), app: o.app, platform: o.platform, kind: report.kind };
   if (report.supportCode) tags.support_code = report.supportCode;
   if (report.code) tags.error_code = report.code;
   if (report.where) tags.where = report.where;
@@ -59,11 +85,12 @@ export function buildEnvelope(report: ErrorReport, o: SentryOptions, nowMs: numb
     event_id: id,
     timestamp: nowMs / 1000,
     platform: 'javascript',
-    level: report.kind === 'crash' ? 'fatal' : 'error',
+    level: isAppBreaking(report) ? 'fatal' : 'error',
     logger: 'connekyt.errors',
     message,
     environment: o.environment ?? 'production',
     ...(o.release ? { release: o.release } : {}),
+    ...(o.dist ? { dist: o.dist } : {}),
     tags,
     extra: { detail },
   };
@@ -85,6 +112,7 @@ export function createSentrySink(o: SentryOptions): ErrorSink | null {
   const seen = new Map<string, number>();
 
   return (report) => {
+    if (isNoise(report)) return;
     const t = now();
     while (recent.length && t - recent[0] > 60_000) recent.shift();
     if (recent.length >= limit) return;

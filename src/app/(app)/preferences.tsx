@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   AppState,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Switch,
@@ -26,6 +28,8 @@ import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
 import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
 import { useCurrency } from '@/store/currency';
+import { currentBuild } from '@/features/errors/release';
+import { sendSentryTestEvent } from '@/features/errors/startReporting';
 import { spacing, fontSize, fontWeight, makeStyles, useTheme } from '@/theme';
 
 export default function PreferencesScreen() {
@@ -170,6 +174,7 @@ export default function PreferencesScreen() {
             ) : null}
           </>
         )}
+        <BuildFooter />
       </ScrollView>
 
       <LanguageSelectorSheet
@@ -182,6 +187,27 @@ export default function PreferencesScreen() {
         onClose={() => setCurrencySheetVisible(false)}
       />
     </Screen>
+  );
+}
+
+/**
+ * The app version and update, small, so support can read it out. Tapping it seven times sends one clearly labelled test
+ * report, to confirm error reporting works on this phone.
+ */
+function BuildFooter() {
+  const styles = useStyles();
+  const taps = useRef(0);
+  const build = currentBuild();
+  const onPress = () => {
+    taps.current += 1;
+    if (taps.current < 7) return;
+    taps.current = 0;
+    Alert.alert(sendSentryTestEvent() ? 'Test report sent' : 'Reporting is off in this build');
+  };
+  return (
+    <Pressable onPress={onPress} accessibilityRole="text" style={styles.buildFooter}>
+      <Text style={styles.buildText}>{`Version ${build.release.replace('+', ' · ')}`}</Text>
+    </Pressable>
   );
 }
 
@@ -202,6 +228,8 @@ const useStyles = makeStyles((c) => ({
   valueText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.link },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg, minHeight: 64 },
   dndCard: { marginTop: spacing.sm },
+  buildFooter: { alignItems: 'center', paddingVertical: spacing.lg },
+  buildText: { fontSize: 12, color: c.textMuted },
   rowBorder: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.borderSoft },
   rowBody: { flex: 1, gap: 2 },
   rowLabel: { fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
