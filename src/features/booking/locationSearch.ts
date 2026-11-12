@@ -7,8 +7,7 @@
  *     configured Google Maps API key.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform } from 'react-native';
-import { env } from '@/config/env';
+import { api } from '@/api/client';
 
 export type LocationSuggestion = {
   id: string;
@@ -419,195 +418,92 @@ export function getRecommendedLikePlaces(
   ].slice(0, limit);
 }
 
-let webMapsScriptPromise: Promise<any> | null = null;
-
-function loadWebGoogleMapsPlaces(apiKey: string): Promise<any> {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    return Promise.resolve(null);
-  }
-  const w = window as any;
-  if (w.google?.maps?.places?.AutocompleteService) {
-    return Promise.resolve(w.google.maps.places);
-  }
-  if (webMapsScriptPromise) return webMapsScriptPromise;
-
-  webMapsScriptPromise = new Promise((resolve) => {
-    const finish = async () => {
-      try {
-        if (w.google?.maps?.importLibrary) {
-          const lib = await w.google.maps.importLibrary('places');
-          if (lib?.AutocompleteService) {
-            resolve(lib);
-            return;
-          }
-        }
-      } catch {
-        // fallback to window.google.maps.places
-      }
-      resolve(w.google?.maps?.places ?? null);
-    };
-
-    if (w.google?.maps) {
-      void finish();
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&libraries=places`;
-    script.async = true;
-    script.onload = () => void finish();
-    script.onerror = () => resolve(null);
-    document.head.appendChild(script);
-  });
-  return webMapsScriptPromise;
-}
-
-async function fetchWebAutocompletePredictions(
-  query: string,
-  city: string,
-  apiKey: string,
-): Promise<LocationSuggestion[]> {
-  const placesLib = await loadWebGoogleMapsPlaces(apiKey);
-  if (!placesLib?.AutocompleteService) return [];
-  return new Promise((resolve) => {
-    try {
-      const service = new placesLib.AutocompleteService();
-      service.getPlacePredictions(
-        {
-          input: query,
-          componentRestrictions: { country: 'rw' },
-        },
-        (predictions: any[] | null) => {
-          if (!Array.isArray(predictions) || predictions.length === 0) {
-            resolve([]);
-            return;
-          }
-          const parsed: LocationSuggestion[] = predictions
-            .map((p: any, idx: number): LocationSuggestion | null => {
-              const mainText =
-                p?.structured_formatting?.main_text ||
-                (typeof p?.description === 'string' ? p.description.split(',')[0] : '');
-              const secondaryText =
-                p?.structured_formatting?.secondary_text ||
-                (typeof p?.description === 'string'
-                  ? p.description.split(',').slice(1).join(',').trim()
-                  : city || 'Rwanda');
-              if (!mainText) return null;
-              return {
-                id: `google-web-${p.place_id || idx}`,
-                title: mainText,
-                subtitle: secondaryText,
-                fullText: mainText,
-                source: 'google',
-              };
-            })
-            .filter((x): x is LocationSuggestion => x !== null);
-          resolve(parsed);
-        },
-      );
-    } catch {
-      resolve([]);
-    }
-  });
-}
+/** What the backend's place-search routes answer: the fields shown, nothing else. */
+type PlacesEnvelope = {
+  action?: number;
+  data?: {
+    predictions?: { placeId?: string | null; description?: string | null; mainText?: string | null; secondaryText?: string | null }[];
+    results?: { placeId?: string | null; name?: string | null; formattedAddress?: string | null }[];
+  };
+};
 
 /**
- * Queries Google Maps APIs using the configured Google Maps API key:
- *   1. On Web: Google Maps JS SDK Places AutocompleteService
- *   2. Google Places Autocomplete HTTP API (`maps.googleapis.com/maps/api/place/autocomplete/json`)
- *   3. Google Maps Geocoding API (`maps.googleapis.com/maps/api/geocode/json`, CORS-enabled everywhere)
+ * Looks places up through our own backend (`/public/places/autocomplete` and `/geocode`), which holds the Google key.
+ * No Google key is in this app: a key inside an app bundle can be unpacked, and the one that used to be here was
+ * committed to a public repository and had to be revoked. When the backend has no key, is busy (429) or is down, this
+ * returns nothing and the screen keeps its own suggestions.
  */
 export async function fetchGoogleMapsLocations(
   query: string,
   city = 'Kigali',
-  apiKey: string = env.googleMapsApiKey,
   signal?: AbortSignal,
 ): Promise<LocationSuggestion[]> {
   const trimmed = (query || '').trim();
-  if (!trimmed || !apiKey) return [];
+  if (trimmed.length < 2) return [];
 
   const searchQuery =
     city && !trimmed.toLowerCase().includes(city.toLowerCase())
       ? `${trimmed}, ${city}`
       : trimmed;
 
-  // 1) On Web, try Google Maps JS SDK AutocompleteService first
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
-    const webResults = await fetchWebAutocompletePredictions(searchQuery, city, apiKey);
+  // 1) Autocomplete: what the person is typing, completed.
+  try {
+    const res = await api.get<PlacesEnvelope>(
+      `/public/places/autocomplete?input=${encodeURIComponent(searchQuery)}`,
+      { skipAuth: true },
+    );
     if (signal?.aborted) return [];
-    if (webResults.length > 0) return webResults;
+    const predictions = Array.isArray(res?.data?.predictions) ? res.data.predictions : [];
+    const parsed: LocationSuggestion[] = predictions
+      .map((p, idx): LocationSuggestion | null => {
+        const mainText = p?.mainText || (typeof p?.description === 'string' ? p.description.split(',')[0] : '');
+        const secondaryText =
+          p?.secondaryText ||
+          (typeof p?.description === 'string' ? p.description.split(',').slice(1).join(',').trim() : city || 'Rwanda');
+        if (!mainText) return null;
+        return {
+          id: `google-ac-${p.placeId || idx}`,
+          title: mainText,
+          subtitle: secondaryText,
+          fullText: mainText,
+          source: 'google',
+        };
+      })
+      .filter((x): x is LocationSuggestion => x !== null);
+    if (parsed.length > 0) return parsed;
+  } catch {
+    // Busy, unavailable or offline: the geocode route shares the same limits and the same key, so asking again would
+    // only fail again. The screen keeps its own suggestions.
+    return [];
   }
 
-  // 2) Google Maps Places Autocomplete API (verified active on this API key)
+  // 2) Nothing completed: look the text up as an address.
   try {
-    const url =
-      `https://maps.googleapis.com/maps/api/place/autocomplete/json` +
-      `?input=${encodeURIComponent(searchQuery)}` +
-      `&components=country:rw` +
-      `&key=${encodeURIComponent(apiKey)}`;
-    const res = await fetch(url, { signal });
-    if (res.ok) {
-      const data = await res.json();
-      const predictions = Array.isArray(data?.predictions) ? data.predictions : [];
-      const parsed: LocationSuggestion[] = predictions
-        .map((p: any, idx: number): LocationSuggestion | null => {
-          const mainText =
-            p?.structured_formatting?.main_text ||
-            (typeof p?.description === 'string' ? p.description.split(',')[0] : '');
-          const secondaryText =
-            p?.structured_formatting?.secondary_text ||
-            (typeof p?.description === 'string'
-              ? p.description.split(',').slice(1).join(',').trim()
-              : city || 'Rwanda');
-          if (!mainText) return null;
-          return {
-            id: `google-ac-${p.place_id || idx}`,
-            title: mainText,
-            subtitle: secondaryText,
-            fullText: mainText,
-            source: 'google',
-          };
-        })
-        .filter((x: LocationSuggestion | null): x is LocationSuggestion => x !== null);
-      if (parsed.length > 0) return parsed;
-    }
-  } catch (err: any) {
-    if (err?.name === 'AbortError') return [];
+    const res = await api.get<PlacesEnvelope>(
+      `/public/places/geocode?address=${encodeURIComponent(`${searchQuery}, Rwanda`)}`,
+      { skipAuth: true },
+    );
+    if (signal?.aborted) return [];
+    const results = Array.isArray(res?.data?.results) ? res.data.results : [];
+    return results
+      .map((r, idx): LocationSuggestion | null => {
+        const formatted = typeof r?.formattedAddress === 'string' ? r.formattedAddress : '';
+        const parts = formatted.split(',').map((x) => x.trim()).filter(Boolean);
+        const mainText = r?.name || parts[0] || '';
+        const secondaryText = parts.slice(1).join(', ') || city || 'Rwanda';
+        if (!mainText) return null;
+        return {
+          id: `google-geo-${r.placeId || idx}`,
+          title: mainText,
+          subtitle: secondaryText,
+          fullText: mainText,
+          source: 'google',
+        };
+      })
+      .filter((x): x is LocationSuggestion => x !== null);
+  } catch {
+    return [];
   }
-
-  // 3) Fallback to Google Maps Geocoding API (verified active + CORS-enabled)
-  try {
-    const url =
-      `https://maps.googleapis.com/maps/api/geocode/json` +
-      `?address=${encodeURIComponent(`${searchQuery}, Rwanda`)}` +
-      `&key=${encodeURIComponent(apiKey)}`;
-    const res = await fetch(url, { signal });
-    if (res.ok) {
-      const data = await res.json();
-      const results = Array.isArray(data?.results) ? data.results : [];
-      const parsed: LocationSuggestion[] = results
-        .map((r: any, idx: number): LocationSuggestion | null => {
-          const formatted = typeof r?.formatted_address === 'string' ? r.formatted_address : '';
-          const parts = formatted.split(',').map((s: string) => s.trim()).filter(Boolean);
-          const mainText = r?.name || parts[0] || '';
-          const secondaryText = parts.slice(1).join(', ') || city || 'Rwanda';
-          if (!mainText) return null;
-          return {
-            id: `google-geo-${r.place_id || idx}`,
-            title: mainText,
-            subtitle: secondaryText,
-            fullText: mainText,
-            source: 'google',
-          };
-        })
-        .filter((x: LocationSuggestion | null): x is LocationSuggestion => x !== null);
-      if (parsed.length > 0) return parsed;
-    }
-  } catch (err: any) {
-    if (err?.name === 'AbortError') return [];
-  }
-
-  return [];
 }
 
 /**
@@ -659,12 +555,7 @@ export function useLocationSearch(query: string, city = 'Kigali', active = true)
       const controller = new AbortController();
       abortRef.current = controller;
       try {
-        const fetched = await fetchGoogleMapsLocations(
-          trimmed,
-          city,
-          env.googleMapsApiKey,
-          controller.signal,
-        );
+        const fetched = await fetchGoogleMapsLocations(trimmed, city, controller.signal);
         if (!controller.signal.aborted) {
           setGoogleResults(fetched);
           setLoadingGoogle(false);

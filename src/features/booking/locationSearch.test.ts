@@ -1,4 +1,6 @@
-import { env } from '@/config/env';
+import * as fs from 'fs';
+import * as path from 'path';
+import { api } from '@/api/client';
 import {
   buildOrderedLocationResults,
   fetchGoogleMapsLocations,
@@ -7,15 +9,27 @@ import {
 } from './locationSearch';
 import { POPULAR_VENUES_BY_CITY } from '@/features/hybrid/offerBrief';
 
+jest.mock('@/api/client', () => ({ api: { get: jest.fn() } }));
+const get = api.get as jest.Mock;
+
 describe('booking location search-as-you-type', () => {
-  const originalFetch = global.fetch;
+  beforeEach(() => get.mockReset());
 
-  afterEach(() => {
-    global.fetch = originalFetch;
-  });
-
-  it('configures the Google Maps API key', () => {
-    expect(env.googleMapsApiKey).toBe('AIzaSyDdbOwGJ0I-WTnZVWvjh8aCjxA5y8FRN6Y');
+  it('ships no Google API key in the app', () => {
+    // The old key was committed to a public repository and revoked. Place search now goes through our backend, which
+    // holds the key, so nothing in the app source may look like a Google API key (Firebase config files are the only
+    // allowed place, and they are not source).
+    const root = path.join(__dirname, '..', '..');
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (/\.(ts|tsx|js|json)$/.test(e.name) && /AIza[0-9A-Za-z_-]{35}/.test(fs.readFileSync(full, 'utf8'))) offenders.push(path.relative(root, full));
+      }
+    };
+    walk(root);
+    expect(offenders).toEqual([]);
   });
 
   it('keeps fewer preset venue options per city (at most 3)', () => {
@@ -74,34 +88,49 @@ describe('booking location search-as-you-type', () => {
     expect(combined[2].title).toBe('Grand Legacy Hotel');
   });
 
-  it('fetches Google Maps Places predictions using the configured API key', async () => {
-    const mockFetch = jest.fn().mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({
-        status: 'OK',
+  it('asks our backend for place suggestions, with no key and no call to Google', async () => {
+    get.mockResolvedValueOnce({
+      action: 1,
+      data: {
         predictions: [
-          {
-            place_id: 'place-1',
-            structured_formatting: {
-              main_text: 'Mille Collines Hotel',
-              secondary_text: 'Kiyovu, Kigali, Rwanda',
-            },
-          },
+          { placeId: 'place-1', description: 'Mille Collines Hotel, Kiyovu, Kigali, Rwanda', mainText: 'Mille Collines Hotel', secondaryText: 'Kiyovu, Kigali, Rwanda' },
         ],
-      }),
+      },
     });
-    global.fetch = mockFetch as unknown as typeof fetch;
 
     const results = await fetchGoogleMapsLocations('Mille', 'Kigali');
-    expect(mockFetch).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'https://maps.googleapis.com/maps/api/place/autocomplete/json',
-      ),
-      expect.any(Object),
-    );
-    expect(mockFetch.mock.calls[0][0]).toContain('AIzaSyDdbOwGJ0I-WTnZVWvjh8aCjxA5y8FRN6Y');
+
+    expect(get).toHaveBeenCalledTimes(1);
+    const [url, opts] = get.mock.calls[0];
+    expect(url).toBe('/public/places/autocomplete?input=Mille%2C%20Kigali');
+    expect(url).not.toContain('googleapis');
+    expect(url).not.toContain('key=');
+    expect(opts).toEqual({ skipAuth: true });
     expect(results).toHaveLength(1);
     expect(results[0].title).toBe('Mille Collines Hotel');
+    expect(results[0].subtitle).toBe('Kiyovu, Kigali, Rwanda');
     expect(results[0].source).toBe('google');
+  });
+
+  it('falls back to the address lookup when nothing completes', async () => {
+    get
+      .mockResolvedValueOnce({ action: 1, data: { predictions: [] } })
+      .mockResolvedValueOnce({ action: 1, data: { results: [{ placeId: 'g1', name: 'Nyarutarama', formattedAddress: 'Nyarutarama, Kigali, Rwanda' }] } });
+
+    const results = await fetchGoogleMapsLocations('Nyarutarama', 'Kigali');
+
+    expect(get.mock.calls[1][0]).toBe('/public/places/geocode?address=Nyarutarama%2C%20Kigali%2C%20Rwanda');
+    expect(results[0]).toMatchObject({ title: 'Nyarutarama', subtitle: 'Kigali, Rwanda', source: 'google' });
+  });
+
+  it('returns nothing, without trying again, when the backend is busy or unavailable', async () => {
+    get.mockRejectedValueOnce(Object.assign(new Error('busy'), { status: 429 }));
+    await expect(fetchGoogleMapsLocations('Kigali Heights', 'Kigali')).resolves.toEqual([]);
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask for fewer than two characters', async () => {
+    await expect(fetchGoogleMapsLocations('a', 'Kigali')).resolves.toEqual([]);
+    expect(get).not.toHaveBeenCalled();
   });
 });
