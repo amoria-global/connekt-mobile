@@ -24,7 +24,7 @@ import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { FlatList, Modal, Pressable, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BookingModeSelector, type ExistingHybridEvent } from '@/features/booking/BookingModeSelector';
+import { BookingModeSelector, type BookingStep, type ExistingHybridEvent } from '@/features/booking/BookingModeSelector';
 import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
 import { ModeBadge, friendlyEventStatus, isOpenHybrid, modeOf } from '@/features/hybrid/hybridUi';
 import { env } from '@/config/env';
@@ -136,6 +136,7 @@ export function ClientEventsDashboard({
   const [sortOpen, setSortOpen] = useState(false);
   const [qrTarget, setQrTarget] = useState<EventItem | null>(null);
   const [bookingModeOpen, setBookingModeOpen] = useState(false);
+  const [bookingStep, setBookingStep] = useState<BookingStep>('select');
   const [postExisting, setPostExisting] = useState<ExistingHybridEvent | null>(null);
   const [exploreOpen, setExploreOpen] = useState(false);
 
@@ -442,20 +443,24 @@ export function ClientEventsDashboard({
         signedIn
         onPostEvent={() => {
           setPostExisting(null);
+          setBookingStep('session');
           setBookingModeOpen(true);
         }}
       />
 
       <BookingModeSelector
         visible={bookingModeOpen}
+        initialStep={bookingStep}
         existingEvent={postExisting}
         onClose={() => {
           setBookingModeOpen(false);
+          setBookingStep('select');
           setPostExisting(null);
           void refresh();
         }}
         onSelectDirect={() => {
           setBookingModeOpen(false);
+          setBookingStep('select');
           router.push('/event/new' as Href);
         }}
       />

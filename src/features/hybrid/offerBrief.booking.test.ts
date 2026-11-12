@@ -5,8 +5,11 @@ import {
   PHOTO_QUANTITY_PRESETS,
   estimateOfferPriceRwf,
   formatPhotoBookSummary,
+  getEventTypePresetsForClient,
   isExpressMajorEvent,
   paperDimensions,
+  parseEventOfferBrief,
+  serializeOfferBrief,
   type HybridOfferDraft,
 } from './offerBrief';
 import { durationBetween } from './hybridUi';
@@ -92,5 +95,43 @@ describe('the 7,000,000 RWF recommendation', () => {
 
   it('is given to large events', () => {
     expect(isExpressMajorEvent(draft({ clientType: 'INDIVIDUAL', eventTypeKey: 'Large event', ...quick }), 360)).toBe(true);
+  });
+});
+
+describe('indoor (studio) vs outdoor (outside studio) session presets and brief serialization', () => {
+  it('returns small indoor studio presets for both Individual and Organization', () => {
+    const indivIndoor = getEventTypePresetsForClient('INDIVIDUAL', 'INDOOR').map((p) => p.key);
+    expect(indivIndoor).toContain('Studio Portrait');
+    expect(indivIndoor).toContain('Birthday Shoot');
+    expect(indivIndoor).toContain('Family & Baby');
+
+    const orgIndoor = getEventTypePresetsForClient('ORGANIZATION', 'INDOOR').map((p) => p.key);
+    expect(orgIndoor).toContain('Corporate Headshots');
+    expect(orgIndoor).toContain('Product / Studio');
+    expect(orgIndoor).toContain('Small Office Session');
+  });
+
+  it('returns large outdoor presets for both Individual and Organization', () => {
+    const indivOutdoor = getEventTypePresetsForClient('INDIVIDUAL', 'OUTDOOR').map((p) => p.key);
+    expect(indivOutdoor).toContain('Wedding');
+    expect(indivOutdoor).toContain('Birthday');
+    expect(indivOutdoor).toContain('Traditional / Gusaba');
+
+    const orgOutdoor = getEventTypePresetsForClient('ORGANIZATION', 'OUTDOOR').map((p) => p.key);
+    expect(orgOutdoor).toContain('Conference');
+    expect(orgOutdoor).toContain('Corporate');
+    expect(orgOutdoor).toContain('Wedding');
+  });
+
+  it('serializes and parses Indoor and Outdoor session labels in the offer brief', () => {
+    const indoorBrief = serializeOfferBrief(draft({ sessionType: 'INDOOR', eventTypeKey: 'Studio Portrait' }), 180);
+    expect(indoorBrief).toContain('Session: Indoor session (Studio session)');
+    const parsedIndoor = parseEventOfferBrief(indoorBrief);
+    expect(parsedIndoor?.sessionTypeLabel).toBe('Indoor session (Studio session)');
+
+    const outdoorBrief = serializeOfferBrief(draft({ sessionType: 'OUTDOOR', eventTypeKey: 'Wedding' }), 480);
+    expect(outdoorBrief).toContain('Session: Outdoor session (Outside studio session)');
+    const parsedOutdoor = parseEventOfferBrief(outdoorBrief);
+    expect(parsedOutdoor?.sessionTypeLabel).toBe('Outdoor session (Outside studio session)');
   });
 });

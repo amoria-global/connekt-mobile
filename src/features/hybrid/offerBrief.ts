@@ -12,6 +12,7 @@ import { durationText } from './hybridUi';
 import type { PackageBenchmarkStats } from './types';
 
 export type ClientEntityType = 'INDIVIDUAL' | 'ORGANIZATION';
+export type EventSessionType = 'INDOOR' | 'OUTDOOR';
 export type DigitalCoverageMode = 'PHOTOGRAPHY' | 'VIDEO' | 'BOTH';
 export type PackageOptionTier = 'WITHIN_BUDGET' | 'RECOMMENDED' | 'PRIORITY';
 export type PricingDecisionMode = 'RECOMMENDED' | 'MY_OFFER_ANYWAY';
@@ -24,13 +25,48 @@ export type EventTypePreset = {
   icon: keyof typeof Ionicons.glyphMap;
 };
 
-export const INDIVIDUAL_EVENT_TYPE_PRESETS: EventTypePreset[] = [
-  { key: 'Wedding', label: 'Wedding', icon: 'heart-outline' },
-  { key: 'Birthday', label: 'Birthday', icon: 'gift-outline' },
+/**
+ * Indoor Session (Studio session): Small events & studio sessions for Individuals
+ */
+export const INDIVIDUAL_INDOOR_EVENT_TYPE_PRESETS: EventTypePreset[] = [
+  { key: 'Studio Portrait', label: 'Studio Portrait', icon: 'person-outline' },
+  { key: 'Birthday Shoot', label: 'Birthday Shoot', icon: 'gift-outline' },
+  { key: 'Family & Baby', label: 'Family & Baby', icon: 'people-outline' },
+  { key: 'Couple / Engagement', label: 'Couple / Engagement', icon: 'heart-outline' },
+  { key: 'Maternity Shoot', label: 'Maternity Shoot', icon: 'flower-outline' },
+  { key: 'Passport / Headshot', label: 'Passport / Headshot', icon: 'card-outline' },
   { key: 'Other', label: 'Other', icon: 'ellipsis-horizontal' },
 ];
 
-export const ORGANIZATION_EVENT_TYPE_PRESETS: EventTypePreset[] = [
+/**
+ * Indoor Session (Studio session): Small events & studio sessions for Organizations
+ */
+export const ORGANIZATION_INDOOR_EVENT_TYPE_PRESETS: EventTypePreset[] = [
+  { key: 'Corporate Headshots', label: 'Corporate Headshots', icon: 'person-circle-outline' },
+  { key: 'Product / Studio', label: 'Product / Studio', icon: 'cube-outline' },
+  { key: 'Team Portraits', label: 'Team Portraits', icon: 'people-circle-outline' },
+  { key: 'Brand / Catalog', label: 'Brand / Catalog', icon: 'pricetag-outline' },
+  { key: 'Podcast / Interview', label: 'Podcast / Interview', icon: 'mic-outline' },
+  { key: 'Small Office Session', label: 'Small Office Session', icon: 'business-outline' },
+  { key: 'Other', label: 'Other', icon: 'ellipsis-horizontal' },
+];
+
+/**
+ * Outdoor Session (Outside studio session): Large & on-location events for Individuals
+ */
+export const INDIVIDUAL_OUTDOOR_EVENT_TYPE_PRESETS: EventTypePreset[] = [
+  { key: 'Wedding', label: 'Wedding', icon: 'heart-outline' },
+  { key: 'Birthday', label: 'Birthday', icon: 'gift-outline' },
+  { key: 'Traditional / Gusaba', label: 'Traditional / Gusaba', icon: 'sparkles-outline' },
+  { key: 'Outdoor Engagement', label: 'Outdoor Engagement', icon: 'leaf-outline' },
+  { key: 'Family Gathering', label: 'Family Gathering', icon: 'people-outline' },
+  { key: 'Other', label: 'Other', icon: 'ellipsis-horizontal' },
+];
+
+/**
+ * Outdoor Session (Outside studio session): Large & on-location events for Organizations
+ */
+export const ORGANIZATION_OUTDOOR_EVENT_TYPE_PRESETS: EventTypePreset[] = [
   { key: 'Conference', label: 'Conference', icon: 'people-outline' },
   { key: 'Corporate', label: 'Corporate', icon: 'business-outline' },
   { key: 'Commercial', label: 'Commercial', icon: 'megaphone-outline' },
@@ -42,6 +78,9 @@ export const ORGANIZATION_EVENT_TYPE_PRESETS: EventTypePreset[] = [
   { key: 'Wedding', label: 'Wedding', icon: 'heart-outline' },
   { key: 'Other', label: 'Other', icon: 'ellipsis-horizontal' },
 ];
+
+export const INDIVIDUAL_EVENT_TYPE_PRESETS: EventTypePreset[] = INDIVIDUAL_OUTDOOR_EVENT_TYPE_PRESETS;
+export const ORGANIZATION_EVENT_TYPE_PRESETS: EventTypePreset[] = ORGANIZATION_OUTDOOR_EVENT_TYPE_PRESETS;
 
 export const EVENT_TYPE_PRESETS: EventTypePreset[] = INDIVIDUAL_EVENT_TYPE_PRESETS;
 
@@ -61,10 +100,24 @@ export function isOrganizationOnlyCategory(nameOrKey: string): boolean {
   return ORGANIZATION_ONLY_CATEGORY_KEYS.some((k) => lower.includes(k));
 }
 
-export function getEventTypePresetsForClient(clientType: ClientEntityType): EventTypePreset[] {
+export function getEventTypePresetsForClient(
+  clientType: ClientEntityType,
+  sessionType: EventSessionType = 'OUTDOOR'
+): EventTypePreset[] {
+  if (sessionType === 'INDOOR') {
+    return clientType === 'ORGANIZATION'
+      ? ORGANIZATION_INDOOR_EVENT_TYPE_PRESETS
+      : INDIVIDUAL_INDOOR_EVENT_TYPE_PRESETS;
+  }
   return clientType === 'ORGANIZATION'
-    ? ORGANIZATION_EVENT_TYPE_PRESETS
-    : INDIVIDUAL_EVENT_TYPE_PRESETS;
+    ? ORGANIZATION_OUTDOOR_EVENT_TYPE_PRESETS
+    : INDIVIDUAL_OUTDOOR_EVENT_TYPE_PRESETS;
+}
+
+export function formatSessionTypeLabel(sessionType?: EventSessionType): string {
+  return sessionType === 'INDOOR'
+    ? 'Indoor session (Studio session)'
+    : 'Outdoor session (Outside studio session)';
 }
 
 export const POPULAR_VENUES_BY_CITY: Record<string, string[]> = {
@@ -164,6 +217,7 @@ export const PRINT_COLLECTION_METHODS = [
 
 export type HybridOfferDraft = {
   // Page 1: Event details
+  sessionType: EventSessionType;
   clientType: ClientEntityType;
   eventTypeKey: string;
   eventTypeId: string;
@@ -214,6 +268,7 @@ export type HybridOfferDraft = {
 };
 
 export const DEFAULT_OFFER_DRAFT: HybridOfferDraft = {
+  sessionType: 'OUTDOOR',
   clientType: 'INDIVIDUAL',
   eventTypeKey: 'Wedding',
   eventTypeId: '',
@@ -737,6 +792,7 @@ export function serializeOfferBrief(draft: HybridOfferDraft, durationMinutes: nu
   const parts = [
     `[OFFER_SCOPE]`,
     `Mode: ${formatCoverageModeLabel(draft.coverageMode)}`,
+    `Session: ${formatSessionTypeLabel(draft.sessionType)}`,
     `Client: ${draft.clientType === 'ORGANIZATION' ? 'Organization' : 'Individual'}`,
     `Coverage: ${durationText(durationMinutes) || '6 hours'}`,
     `Photos: ${draft.coverageMode === 'VIDEO' ? 0 : draft.editedPhotos}`,
@@ -759,6 +815,7 @@ export function serializeOfferBrief(draft: HybridOfferDraft, durationMinutes: nu
 
 export type ParsedOfferBrief = {
   coverageModeLabel: string;
+  sessionTypeLabel: string;
   clientTypeLabel: string;
   coverageHoursLabel: string;
   editedPhotosLabel: string;
@@ -791,6 +848,7 @@ export function parseOpportunityOfferBrief(opp: PhotographerOpportunity): Parsed
 
   const defaults: ParsedOfferBrief = {
     coverageModeLabel: 'Photography + video',
+    sessionTypeLabel: 'Outdoor session (Outside studio session)',
     clientTypeLabel: 'Individual',
     coverageHoursLabel: fallbackHours,
     editedPhotosLabel: '100',
@@ -834,6 +892,7 @@ export function parseOpportunityOfferBrief(opp: PhotographerOpportunity): Parsed
 
   return {
     coverageModeLabel: map.Mode || defaults.coverageModeLabel,
+    sessionTypeLabel: map.Session || defaults.sessionTypeLabel,
     clientTypeLabel: map.Client || defaults.clientTypeLabel,
     coverageHoursLabel: map.Coverage || defaults.coverageHoursLabel,
     editedPhotosLabel: map.Photos || defaults.editedPhotosLabel,
