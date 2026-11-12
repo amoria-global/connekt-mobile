@@ -206,7 +206,7 @@ function BuildFooter() {
   };
   return (
     <Pressable onPress={onPress} accessibilityRole="text" style={styles.buildFooter}>
-      <Text style={styles.buildText} maxFontSizeMultiplier={1.4}>{`Version ${build.release.replace('+', ' · ')}`}</Text>
+      <Text style={styles.buildText}>{`Version ${build.release.replace('+', ' · ')}`}</Text>
     </Pressable>
   );
 }
