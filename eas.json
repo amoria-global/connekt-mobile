@@ -36,6 +36,11 @@
         "simulator": true
       }
     },
+    "preview-store": {
+      "extends": "production",
+      "channel": "preview",
+      "distribution": "store"
+    },
     "production": {
       "autoIncrement": true,
       "channel": "production",
