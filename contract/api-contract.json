@@ -7800,6 +7800,22 @@
     "pathVariables" : [ "photoId" ]
   }, {
     "method" : "GET",
+    "path" : "/api/remote/public/places/autocomplete",
+    "controller" : "PlacesProxyController#autocomplete",
+    "params" : [ {
+      "name" : "input",
+      "required" : true
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/places/geocode",
+    "controller" : "PlacesProxyController#geocode",
+    "params" : [ {
+      "name" : "address",
+      "required" : true
+    } ]
+  }, {
+    "method" : "GET",
     "path" : "/api/remote/public/platform/config",
     "controller" : "PublicRemoteController#getPlatformConfig"
   }, {
