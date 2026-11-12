@@ -328,8 +328,9 @@
           {
             "id": "2026-11-10-incoming-call-alerts",
             "date": "2026-11-10",
-            "title": "Reliable ringing, call screens and package pricing for offers",
+            "title": "Reliable ringing, call screens, package pricing and indoor or outdoor sessions",
             "items": [
+              {"icon": "home-outline", "title": "Choose indoor studio or outdoor session when posting an offer", "body": "Tap Post my offer to choose between an Indoor session (studio session for small events) and an Outdoor session (outside studio session for large events) for individuals or organizations."},
               {"icon": "call-outline", "title": "Incoming call screen and ringtone restored", "body": "New event opportunities and direct booking requests now immediately show the full-screen incoming call screen, play your ringtone and vibrate."},
               {"icon": "notifications-outline", "title": "Device push alerts and lock screen notifications", "body": "When a new offer or booking request arrives, your phone wakes up and posts a ringing notification on the lock screen with quick Accept and Reject actions."},
               {"icon": "pricetag-outline", "title": "Choose your package price when accepting offers", "body": "When accepting an offer with your package delivery policy, choose the client's offer amount or send one of your own packages as a suggested price, and clients can confirm and pay by package."}

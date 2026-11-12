@@ -79,6 +79,7 @@ import {
   formatPhotoAlbumSummary,
   formatPhotoBookSummary,
   formatPrintHandoverSummary,
+  formatSessionTypeLabel,
   formatShortVideosSummary,
   formatWallPortraitSummary,
   getDeadlineCalendarDays,
@@ -87,6 +88,7 @@ import {
   serializeOfferBrief,
   type ClientEntityType,
   type DigitalCoverageMode,
+  type EventSessionType,
   type HybridOfferDraft,
 } from '@/features/hybrid/offerBrief';
 import { createEvent } from '@/features/events/api';
@@ -103,7 +105,7 @@ import { confirmYear } from '@/features/events/farFutureDate';
 import { formatAmountWithCommas, parseAmountNumber } from '@/utils/amount';
 import { useLocationSearch, type LocationSuggestion } from './locationSearch';
 
-export type BookingStep = 'select' | 1 | 2 | 3 | 4 | 5;
+export type BookingStep = 'select' | 'session' | 1 | 2 | 3 | 4 | 5;
 
 const WIZARD_STEPS = [
   { n: 1, title: 'EVENT DETAILS', short: 'Event details' },
@@ -803,9 +805,36 @@ export function BookingModeSelector({
       close();
       setTimeout(onSelectHybrid, 150);
     } else {
-      setStep(1);
+      setStep('session');
     }
   };
+
+  const handleSelectSessionType = useCallback(
+    (sessionType: EventSessionType, advanceToStep1 = false) => {
+      setHasDirtyChanges(true);
+      setDraft((prev) => {
+        const nextPresets = getEventTypePresetsForClient(prev.clientType, sessionType);
+        const keepCurrent = nextPresets.some((p) => p.key === prev.eventTypeKey);
+        const fallbackKey = keepCurrent
+          ? prev.eventTypeKey
+          : nextPresets[0]?.key || (sessionType === 'INDOOR' ? 'Studio Portrait' : 'Wedding');
+        const matched = options?.eventTypes.find((t) =>
+          t.name.toLowerCase().includes(fallbackKey.toLowerCase()),
+        );
+        return {
+          ...prev,
+          sessionType,
+          eventTypeKey: fallbackKey,
+          eventTypeId: matched ? matched.id : keepCurrent ? prev.eventTypeId : '',
+        };
+      });
+      if (advanceToStep1) {
+        setStep(1);
+        scrollToTop();
+      }
+    },
+    [options, scrollToTop],
+  );
 
   const validateStep1 = (): string | null => {
     if (!draft.eventTypeKey && !draft.eventTypeId) return tr('Choose what you are planning.');
@@ -869,7 +898,8 @@ export function BookingModeSelector({
 
   const back = () => {
     setError(null);
-    if (step === 1) setStep('select');
+    if (step === 'session') setStep('select');
+    else if (step === 1) setStep('session');
     else if (step === 2) setStep(1);
     else if (step === 3) setStep(2);
     else if (step === 4) setStep(3);
@@ -1192,6 +1222,94 @@ export function BookingModeSelector({
         </Pressable>
       </View>
     );
+  } else if (step === 'session') {
+    body = (
+      <View style={{ gap: spacing.md }}>
+        <Text style={styles.hint}>
+          {tr(
+            'Choose your session setting to get started. Indoor sessions cover studio & small events, while Outdoor sessions cover outside-studio & large events for individuals or organizations.',
+          )}
+        </Text>
+
+        {/* Option A: Indoor Session (Studio session) */}
+        <Pressable
+          onPress={() => handleSelectSessionType('INDOOR', true)}
+          accessibilityRole="button"
+          accessibilityLabel={tr('Indoor session (Studio session)')}
+          style={({ pressed }) => [
+            styles.modeCard,
+            draft.sessionType === 'INDOOR' && styles.modeCardFeatured,
+            pressed && styles.modeCardPressed,
+          ]}
+        >
+          <View style={styles.modeCardHeader}>
+            <View style={[styles.modeIconBox, { backgroundColor: colors.tint }]}>
+              <Ionicons name="home-outline" size={20} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <View style={[styles.modeTitleRow, { flexWrap: 'wrap' }]}>
+                <Text style={styles.modeCardTitle}>{tr('Indoor session (Studio session)')}</Text>
+                <View
+                  style={[
+                    styles.modeTypePill,
+                    { backgroundColor: colors.tint, borderColor: colors.borderSoft },
+                  ]}
+                >
+                  <Text style={[styles.modeTypePillText, { color: colors.primary }]}>
+                    {tr('Small events · Individual or Org')}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.modeCardDesc}>
+                {tr(
+                  'Small events & studio sessions for individuals or organizations — portraits, birthday shoots, family & baby, headshots, product studio, or small office sessions.',
+                )}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </View>
+        </Pressable>
+
+        {/* Option B: Outdoor Session (Outside studio session) */}
+        <Pressable
+          onPress={() => handleSelectSessionType('OUTDOOR', true)}
+          accessibilityRole="button"
+          accessibilityLabel={tr('Outdoor session (Outside studio session)')}
+          style={({ pressed }) => [
+            styles.modeCard,
+            draft.sessionType === 'OUTDOOR' && styles.modeCardFeatured,
+            pressed && styles.modeCardPressed,
+          ]}
+        >
+          <View style={styles.modeCardHeader}>
+            <View
+              style={[
+                styles.modeIconBox,
+                { backgroundColor: isDark ? 'rgba(242, 12, 143, 0.16)' : 'rgba(242, 12, 143, 0.08)' },
+              ]}
+            >
+              <Ionicons name="sunny-outline" size={20} color={colors.accent} />
+            </View>
+            <View style={{ flex: 1, gap: 4 }}>
+              <View style={[styles.modeTitleRow, { flexWrap: 'wrap' }]}>
+                <Text style={styles.modeCardTitle}>{tr('Outdoor session (Outside studio session)')}</Text>
+                <View style={[styles.modeTypePill, styles.modeTypePillFeatured]}>
+                  <Text style={[styles.modeTypePillText, { color: colors.accent }]}>
+                    {tr('Large events · Individual or Org')}
+                  </Text>
+                </View>
+              </View>
+              <Text style={styles.modeCardDesc}>
+                {tr(
+                  'Outside-studio & large events for individuals or organizations — weddings, conferences, corporate events, graduations, concerts, or cultural ceremonies.',
+                )}
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </View>
+        </Pressable>
+      </View>
+    );
   } else if (!options && !optionsError) {
     body = <ActivityIndicator style={{ marginTop: 40 }} color={colors.primary} />;
   } else if (optionsError) {
@@ -1216,6 +1334,35 @@ export function BookingModeSelector({
 
     body = (
       <View style={styles.pageCard}>
+        {/* Session setting: Indoor session (Studio session) vs Outdoor session (Outside studio session) */}
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionTitle}>{tr('Session setting')}</Text>
+          <View style={styles.segmentedRow}>
+            {(
+              [
+                ['INDOOR', 'home-outline', 'Indoor session (Studio session)'],
+                ['OUTDOOR', 'sunny-outline', 'Outdoor session (Outside studio session)'],
+              ] as [EventSessionType, keyof typeof Ionicons.glyphMap, string][]
+            ).map(([val, icon, label]) => {
+              const active = draft.sessionType === val;
+              return (
+                <Pressable
+                  key={val}
+                  onPress={() => handleSelectSessionType(val, false)}
+                  style={[styles.segmentCard, active && styles.segmentCardActive]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                >
+                  <Ionicons name={icon} size={16} color={active ? onFill : colors.primary} />
+                  <Text style={[styles.segmentCardText, active && styles.segmentCardTextActive]}>
+                    {tr(label)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+
         {/* Individual or Organization */}
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionTitle}>{tr('Booking as')}</Text>
@@ -1232,9 +1379,11 @@ export function BookingModeSelector({
                   key={val}
                   onPress={() => {
                     updateDraft('clientType', val);
-                    const nextPresets = getEventTypePresetsForClient(val);
+                    const nextPresets = getEventTypePresetsForClient(val, draft.sessionType);
                     if (!nextPresets.some((p) => p.key === draft.eventTypeKey)) {
-                      const fallbackKey = nextPresets[0]?.key || 'Wedding';
+                      const fallbackKey =
+                        nextPresets[0]?.key ||
+                        (draft.sessionType === 'INDOOR' ? 'Studio Portrait' : 'Wedding');
                       updateDraft('eventTypeKey', fallbackKey);
                       const matched = options.eventTypes.find((t) =>
                         t.name.toLowerCase().includes(fallbackKey.toLowerCase()),
@@ -1258,9 +1407,23 @@ export function BookingModeSelector({
 
         {/* What are you planning? */}
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionTitle}>{tr('What are you planning?')}</Text>
+          <View style={styles.rowBetween}>
+            <Text style={styles.sectionTitle}>{tr('What are you planning?')}</Text>
+            <View style={styles.durationPill}>
+              <Ionicons
+                name={draft.sessionType === 'INDOOR' ? 'home-outline' : 'sunny-outline'}
+                size={12}
+                color={colors.primary}
+              />
+              <Text style={styles.durationPillText}>
+                {draft.sessionType === 'INDOOR'
+                  ? tr('Indoor · Small events')
+                  : tr('Outdoor · Large events')}
+              </Text>
+            </View>
+          </View>
           <View style={styles.eventTypeGrid}>
-            {getEventTypePresetsForClient(draft.clientType).map((presetItem) => {
+            {getEventTypePresetsForClient(draft.clientType, draft.sessionType).map((presetItem) => {
               const active = draft.eventTypeKey === presetItem.key;
               return (
                 <Pressable
@@ -2705,11 +2868,23 @@ export function BookingModeSelector({
                 {tr('Requested')}: {formatCoverageModeLabel(draft.coverageMode)}
               </Text>
             </View>
-            <View style={styles.durationPill}>
-              <Ionicons name="person-outline" size={12} color={colors.primary} />
-              <Text style={styles.durationPillText}>
-                {draft.clientType === 'ORGANIZATION' ? tr('Organization') : tr('Individual')}
-              </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <View style={styles.durationPill}>
+                <Ionicons
+                  name={draft.sessionType === 'INDOOR' ? 'home-outline' : 'sunny-outline'}
+                  size={12}
+                  color={colors.primary}
+                />
+                <Text style={styles.durationPillText}>
+                  {tr(formatSessionTypeLabel(draft.sessionType))}
+                </Text>
+              </View>
+              <View style={styles.durationPill}>
+                <Ionicons name="person-outline" size={12} color={colors.primary} />
+                <Text style={styles.durationPillText}>
+                  {draft.clientType === 'ORGANIZATION' ? tr('Organization') : tr('Individual')}
+                </Text>
+              </View>
             </View>
           </View>
 
@@ -3212,13 +3387,17 @@ export function BookingModeSelector({
           <View style={{ flex: 1, gap: 2 }}>
             {step === 'select' ? (
               <Text style={[styles.eyebrow, { color: accent }]}>BOOKING OPTIONS</Text>
+            ) : step === 'session' ? (
+              <Text style={[styles.eyebrow, { color: accent }]}>CHOOSE SESSION TYPE</Text>
             ) : null}
             <Text style={styles.headerTitle} accessibilityRole="header">
               {step === 'select'
                 ? tr('How would you like to book?')
-                : step === 'done'
-                  ? tr('Your offer is published')
-                  : tr('CREATE YOUR EVENT OFFER')}
+                : step === 'session'
+                  ? tr('Indoor or Outdoor Session?')
+                  : step === 'done'
+                    ? tr('Your offer is published')
+                    : tr('CREATE YOUR EVENT OFFER')}
             </Text>
           </View>
           <Pressable

@@ -11,7 +11,7 @@ export default function HybridWizardScreen() {
   return (
     <BookingModeSelector
       visible={true}
-      initialStep={1}
+      initialStep="session"
       onClose={() => {
         if (router.canGoBack()) {
           router.back();
