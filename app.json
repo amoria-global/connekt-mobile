@@ -173,6 +173,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-13-safer-location-search",
+            "date": "2026-11-13",
+            "title": "Safer location search",
+            "items": [
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Place suggestions through our own servers",
+                "body": "When you type a venue or address while booking, suggestions now come through our own servers, so no search key is stored inside the app. Suggestions look and work the same."
+              }
+            ]
+          },
+          {
             "id": "2026-11-13-calmer-errors",
             "date": "2026-11-13",
             "title": "Clearer messages when a profile is not ready",
