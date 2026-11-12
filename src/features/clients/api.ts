@@ -30,7 +30,8 @@ function mapClient(r: Raw): ClientItem {
     name,
     email: str(r.email),
     avatar: str(r.profilePicture) ?? str(r.avatar),
-    bookings: num(r.bookings) ?? num(r.bookingsCount) ?? num(r.eventsCount),
+    // The photographer endpoints send `totalBookings`; `bookings` there is the list of bookings, not a count.
+    bookings: num(r.bookings) ?? num(r.bookingsCount) ?? num(r.totalBookings) ?? num(r.eventsCount),
     totalSpent: num(r.totalSpent) ?? num(r.totalSpentUsd),
     currency: str(r.currency) ?? str(r.currencyCode),
   };
@@ -144,19 +145,28 @@ export async function getClient(id: string, isCoordinator = false): Promise<Clie
   try {
     const res = requireOk(await api.get<ApiEnvelope<Raw>>(endpoint));
     const d = (res?.data ?? {}) as Raw;
-    const rawEvents = Array.isArray(d.events) ? (d.events as Raw[]) : [];
+    // Coordinators get `events`; a photographer gets the client's bookings as `pastBookings`, one row per booking, so
+    // several bookings of one event show once.
+    const rawEvents = Array.isArray(d.events)
+      ? (d.events as Raw[])
+      : Array.isArray(d.pastBookings)
+        ? (d.pastBookings as Raw[])
+        : Array.isArray(d.bookings)
+          ? (d.bookings as Raw[])
+          : [];
+    const seen = new Set<string>();
     return {
       ...mapClient(d),
       phone: str(d.phone),
       location: str(d.location) ?? str(d.city),
       events: rawEvents
         .map((e) => ({
-          id: String(e.id ?? ''),
-          title: str(e.title) ?? str(e.name) ?? 'Event',
+          id: String(e.id ?? e.eventId ?? ''),
+          title: str(e.title) ?? str(e.name) ?? str(e.eventName) ?? 'Event',
           date: str(e.eventDate) ?? str(e.date),
           status: str(e.status),
         }))
-        .filter((e) => e.id),
+        .filter((e) => e.id && !seen.has(e.id) && !!seen.add(e.id)),
     };
   } catch (err) {
     if (!isCoordinator) throw err;

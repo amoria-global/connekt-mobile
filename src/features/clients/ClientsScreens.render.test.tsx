@@ -129,3 +129,44 @@ describe('coordinator client detail as rendered', () => {
     expect(text).toContain('Try again');
   });
 });
+
+describe('a photographer\'s client detail, as the backend really sends it', () => {
+  // The photographer endpoint sends totalBookings and pastBookings, not bookings (a count) and events. Mapping only the
+  // coordinator shape showed "Bookings 0" and "No events with this client yet" for clients who had bookings.
+  const payload = {
+    id: 'c1',
+    name: 'Igihe Ltd',
+    firstName: 'Igihe',
+    lastName: 'Ltd',
+    totalBookings: 3,
+    totalSpent: 1779,
+    currency: 'USD',
+    bookings: [
+      { bookingId: 'b1', eventId: 'e1', eventName: 'Launch', eventDate: '2026-11-01', status: 'ACCEPTED', amount: 6000000, currency: 'RWF' },
+      { bookingId: 'b2', eventId: 'e1', eventName: 'Launch', eventDate: '2026-11-01', status: 'ACCEPTED', amount: 400, currency: 'RWF' },
+      { bookingId: 'b3', eventId: 'e2', eventName: 'Workshop', eventDate: '2026-12-01', status: 'ACCEPTED', amount: 779, currency: 'USD' },
+    ],
+    pastBookings: [
+      { bookingId: 'b1', eventId: 'e1', eventName: 'Launch', eventDate: '2026-11-01', status: 'ACCEPTED' },
+      { bookingId: 'b2', eventId: 'e1', eventName: 'Launch', eventDate: '2026-11-01', status: 'ACCEPTED' },
+      { bookingId: 'b3', eventId: 'e2', eventName: 'Workshop', eventDate: '2026-12-01', status: 'ACCEPTED' },
+    ],
+  };
+
+  it('shows the booking count and the events, one row per event', async () => {
+    mockGet.mockImplementation(async (path: string) => (path.includes('/clients/') ? ok(payload) : ok([])));
+    const r = await mount(<ClientDetailScreen />);
+    const text = flat(r.root);
+    expect(text).toContain('Igihe Ltd');
+    expect(text).toContain('3');
+    expect(text).not.toContain('No events with this client yet');
+    expect(text.match(/Launch/g)).toHaveLength(1);
+    expect(text).toContain('Workshop');
+  });
+
+  it('shows the total in the currency the server says it is in, not a multiplied figure', async () => {
+    mockGet.mockImplementation(async (path: string) => (path.includes('/clients/') ? ok(payload) : ok([])));
+    const r = await mount(<ClientDetailScreen />);
+    expect(flat(r.root)).toContain('$1,779.00');
+  });
+});
