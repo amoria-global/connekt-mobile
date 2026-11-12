@@ -199,7 +199,7 @@ export function ClientHome() {
   // A guest who chose "Post my event" before signing in lands here; open the wizard for them.
   useEffect(() => {
     if (env.hybridBookingEnabled && pendingPostEvent.take()) {
-      setBookingStep(1);
+      setBookingStep('session');
       setBookingModeOpen(true);
     }
   }, []);
@@ -663,7 +663,7 @@ export function ClientHome() {
         onClose={() => setExploreChoiceOpen(false)}
         signedIn
         onPostEvent={() => {
-          setBookingStep(1);
+          setBookingStep('session');
           setBookingModeOpen(true);
         }}
       />

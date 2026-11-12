@@ -37,7 +37,7 @@ jest.mock('@/features/hybrid/api', () => ({
   createMatchRequest: jest.fn(),
 }));
 
-async function open(initialStep: 1 | 2 | 3 | 4 | 5) {
+async function open(initialStep: 'select' | 'session' | 1 | 2 | 3 | 4 | 5) {
   let r!: TestRenderer.ReactTestRenderer;
   await act(async () => {
     r = TestRenderer.create(<BookingModeSelector visible initialStep={initialStep} onClose={jest.fn()} />);
@@ -50,6 +50,13 @@ async function open(initialStep: 1 | 2 | 3 | 4 | 5) {
     .map((t) => [t.props.children].flat(4).filter((c) => typeof c === 'string' || typeof c === 'number').join(''))
     .join('\n');
   return { r, all };
+}
+
+function readAllText(r: TestRenderer.ReactTestRenderer): string {
+  return r.root
+    .findAllByType(Text)
+    .map((t) => [t.props.children].flat(4).filter((c) => typeof c === 'string' || typeof c === 'number').join(''))
+    .join('\n');
 }
 
 describe('booking flow pages', () => {
@@ -133,5 +140,54 @@ describe('booking flow pages', () => {
     ]) {
       expect(afterOrg).toContain(orgCat);
     }
+  });
+
+  it('shows the single Indoor vs Outdoor session modal when clicking Create Your Event Offer and filters small vs large events for Individual and Organization', async () => {
+    const start = await open('select');
+    const createOfferBtn = start.r.root.find(
+      (n) =>
+        n.props.accessibilityRole === 'button' &&
+        n.props.accessibilityLabel === 'Create Your Event Offer',
+    );
+    await act(async () => {
+      createOfferBtn.props.onPress();
+    });
+
+    const sessionModalText = readAllText(start.r);
+    expect(sessionModalText).toContain('Indoor or Outdoor Session?');
+    expect(sessionModalText).toContain('Indoor session (Studio session)');
+    expect(sessionModalText).toContain('Outdoor session (Outside studio session)');
+
+    // Choose Indoor session (Studio session) -> opens Step 1 with small indoor events for Individual
+    const indoorBtn = start.r.root.find(
+      (n) =>
+        n.props.accessibilityRole === 'button' &&
+        n.props.accessibilityLabel === 'Indoor session (Studio session)',
+    );
+    await act(async () => {
+      indoorBtn.props.onPress();
+    });
+
+    const step1IndoorIndiv = readAllText(start.r);
+    expect(step1IndoorIndiv).toContain('Indoor · Small events');
+    expect(step1IndoorIndiv).toContain('Studio Portrait');
+    expect(step1IndoorIndiv).toContain('Birthday Shoot');
+    expect(step1IndoorIndiv).toContain('Family & Baby');
+
+    // Switch to Organization while in Indoor session -> shows small indoor events for Organization
+    const orgBtn = start.r.root.find(
+      (n) =>
+        n.props.accessibilityRole === 'button' &&
+        n.findAllByType(Text).some((t) => t.props.children === 'Organization'),
+    );
+    await act(async () => {
+      orgBtn.props.onPress();
+    });
+
+    const step1IndoorOrg = readAllText(start.r);
+    expect(step1IndoorOrg).toContain('Corporate Headshots');
+    expect(step1IndoorOrg).toContain('Product / Studio');
+    expect(step1IndoorOrg).toContain('Team Portraits');
+    expect(step1IndoorOrg).toContain('Small Office Session');
   });
 });
