@@ -168,6 +168,14 @@ export const CATALOGUE: Record<string, CatalogueEntry> = {
     severity: 'field',
     field: 'password',
   },
+  // Photographers
+  PROFILE_PENDING: {
+    title: 'Profile pending',
+    message: "This photographer's profile is still being reviewed. Choose another photographer or check back soon.",
+    severity: 'sheet',
+    tone: 'info',
+    actions: ['back'],
+  },
   WORKSPACE_ACCESS_ENDED: {
     title: 'Your access to this workspace ended',
     message: 'Ask the owner to invite you again. Your own account is unchanged.',
