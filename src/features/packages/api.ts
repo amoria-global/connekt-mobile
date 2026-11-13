@@ -576,7 +576,7 @@ export async function extractPackagesWithAi(input: {
       defaultSuggestedSession:
         str(data.defaultSuggestedSession) === 'STUDIO' ? 'STUDIO' : 'OUTDOOR',
       aiProvider: str(data.aiProvider) ?? 'openai',
-      model: str(data.model) ?? 'gpt-5-nano',
+      model: str(data.model) ?? 'gpt-5.6-luna',
       aiConfigured: data.aiConfigured !== false,
       summaryNote:
         str(data.summaryNote) ??
@@ -598,7 +598,7 @@ export async function extractPackagesWithAi(input: {
       suggestedMode: existingPackages.length > 0 ? 'REPLACE_ALL' : 'ADD_OR_UPDATE',
       defaultSuggestedSession: studioCount > outdoorCount ? 'STUDIO' : 'OUTDOOR',
       aiProvider: 'client-ai-fallback',
-      model: 'gpt-5-nano',
+      model: 'gpt-5.6-luna',
       aiConfigured: false,
       summaryNote: `Extracted ${extractedPackages.length} packages (${studioCount} Indoor, ${outdoorCount} Outdoor) using Connekyt tier policy (Diamond = highest amount).`,
     };
