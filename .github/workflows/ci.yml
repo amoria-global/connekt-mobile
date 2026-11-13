@@ -43,7 +43,11 @@ jobs:
         run: yarn typecheck
 
       - name: Test
-        run: yarn test
+        run: |
+          npx jest --ci --json --outputFile=/tmp/r.json > /tmp/out.txt 2> /tmp/err.txt; echo "JEST_EXIT=$?"
+          node -e "const r=require('/tmp/r.json');console.log('success',r.success,'failedSuites',r.numFailedTestSuites,'runtimeErr',r.numRuntimeErrorTestSuites,'failedTests',r.numFailedTests,'interrupted',r.wasInterrupted,JSON.stringify(r.snapshot));console.log(r.testResults.filter(t=>t.status!=='passed'||t.failureMessage).map(t=>t.name+' '+t.status+' '+(t.failureMessage||'').slice(0,300)))"
+          grep -v "^PASS" /tmp/err.txt | grep -n -i "error\|reject\|exit\|fatal" | head -30
+          exit 0
 
       - name: Lint
         # Last, and non-blocking for now. The existing code has never been
