@@ -44,9 +44,9 @@ jobs:
 
       - name: Test
         run: |
-          npx jest --ci --json --outputFile=/tmp/r.json > /tmp/out.txt 2> /tmp/err.txt || echo "JEST_NONZERO"
+          NODE_OPTIONS=--trace-uncaught npx jest --ci --json --outputFile=/tmp/r.json > /tmp/out.txt 2> /tmp/err.txt || echo "JEST_NONZERO"
           node -e "const r=require('/tmp/r.json');console.log('success',r.success,'failedSuites',r.numFailedTestSuites,'runtimeErr',r.numRuntimeErrorTestSuites,'failedTests',r.numFailedTests,'interrupted',r.wasInterrupted,JSON.stringify(r.snapshot));console.log(r.testResults.filter(t=>t.status!=='passed'||t.failureMessage).map(t=>t.name+' '+t.status+' '+(t.failureMessage||'').slice(0,300)))"
-          grep -v "^PASS" /tmp/err.txt | grep -n -i "error\|reject\|exit\|fatal" | head -30
+          tail -n 60 /tmp/err.txt | cut -c1-300; echo =====OUT; tail -c 1500 /tmp/out.txt | cut -c1-300
           exit 0
 
       - name: Lint
