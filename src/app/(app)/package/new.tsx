@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
@@ -18,6 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MoneyInput, useMoneyCurrency } from '@/components/ui/MoneyInput';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { OptionsNote } from '@/components/ui/OptionsNote';
@@ -196,13 +196,6 @@ export default function NewPackageScreen() {
     () => existingPackagesAsync.data ?? [],
     [existingPackagesAsync.data],
   );
-
-  // Suggest Replace mode automatically when online packages exist and user chose Update
-  useEffect(() => {
-    if (existingPackages.length > 0 && params.replace === '1') {
-      setPublishMode('REPLACE_ALL');
-    }
-  }, [existingPackages.length, params.replace]);
 
   // Policy hint for Manual Upload: if the entered price is the largest in its session, recommend "Diamond"
   const isLargestInManualSession = useMemo(() => {
@@ -653,13 +646,13 @@ export default function NewPackageScreen() {
                   </Text>
 
                   <View style={styles.formatBadgesRow}>
-                    <View style={[styles.formatBadge, { backgroundColor: '#EF4444' }]}>
+                    <View style={[styles.formatBadge, { backgroundColor: colors.dangerFill }]}>
                       <Text style={styles.formatBadgeText}>PDF</Text>
                     </View>
-                    <View style={[styles.formatBadge, { backgroundColor: '#8B5CF6' }]}>
+                    <View style={[styles.formatBadge, { backgroundColor: colors.accent }]}>
                       <Text style={styles.formatBadgeText}>JPG</Text>
                     </View>
-                    <View style={[styles.formatBadge, { backgroundColor: '#3B82F6' }]}>
+                    <View style={[styles.formatBadge, { backgroundColor: colors.primary }]}>
                       <Text style={styles.formatBadgeText}>PNG</Text>
                     </View>
                   </View>
@@ -707,10 +700,10 @@ export default function NewPackageScreen() {
                           style={[
                             styles.fileTypeBadge,
                             f.badge === 'PDF'
-                              ? { backgroundColor: '#EF4444' }
+                              ? { backgroundColor: colors.dangerFill }
                               : f.badge === 'PNG'
-                                ? { backgroundColor: '#3B82F6' }
-                                : { backgroundColor: '#8B5CF6' },
+                                ? { backgroundColor: colors.primary }
+                                : { backgroundColor: colors.accent },
                           ]}
                         >
                           <Text style={styles.fileTypeBadgeText}>{f.badge}</Text>
@@ -1712,8 +1705,8 @@ export default function NewPackageScreen() {
           animationType="slide"
           onRequestClose={() => setPdfPickerModalOpen(false)}
         >
-          <View style={styles.modalBackdrop}>
-            <View style={styles.modalSheet}>
+          <GlassScrim style={styles.modalBackdrop} onPress={() => setPdfPickerModalOpen(false)}>
+            <GlassSheetHost style={styles.modalSheet}>
               <View style={styles.rowBetween}>
                 <Text style={styles.sectionTitle}>Select PDF or Brochure File</Text>
                 <Pressable onPress={() => setPdfPickerModalOpen(false)} hitSlop={8}>
@@ -1727,7 +1720,7 @@ export default function NewPackageScreen() {
                 <WebView
                   originWhitelist={['*']}
                   source={{
-                    html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:120px;margin:0;background:#f8fafc;}label{display:inline-block;padding:14px 24px;background:#6D28D9;color:#fff;font-weight:700;border-radius:12px;font-size:15px;cursor:pointer;}</style></head><body><label>Choose PDF / Brochure File<input id="f" type="file" accept="application/pdf,image/*,.doc,.docx" style="display:none"/></label><script>document.getElementById('f').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(){window.ReactNativeWebView.postMessage(JSON.stringify({name:file.name,type:file.type||'application/pdf',size:file.size,dataUri:reader.result}));};reader.readAsDataURL(file);});</script></body></html>`,
+                    html: `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:120px;margin:0;background:${colors.background};}label{display:inline-block;padding:14px 24px;background:${colors.primary};color:${onFill};font-weight:700;border-radius:12px;font-size:15px;cursor:pointer;}</style></head><body><label>Choose PDF / Brochure File<input id="f" type="file" accept="application/pdf,image/*,.doc,.docx" style="display:none"/></label><script>document.getElementById('f').addEventListener('change',function(e){var file=e.target.files[0];if(!file)return;var reader=new FileReader();reader.onload=function(){window.ReactNativeWebView.postMessage(JSON.stringify({name:file.name,type:file.type||'application/pdf',size:file.size,dataUri:reader.result}));};reader.readAsDataURL(file);});</script></body></html>`,
                   }}
                   onMessage={(event) => {
                     try {
@@ -1757,8 +1750,8 @@ export default function NewPackageScreen() {
                   }}
                 />
               </View>
-            </View>
-          </View>
+            </GlassSheetHost>
+          </GlassScrim>
         </Modal>
       ) : null}
     </Screen>
@@ -1909,7 +1902,7 @@ const useStyles = makeStyles((c) => ({
   formatBadgeText: {
     fontSize: 10,
     fontWeight: fontWeight.extrabold,
-    color: '#FFFFFF',
+    color: onFill,
   },
   uploadButtonsRow: {
     flexDirection: 'row',
@@ -1954,7 +1947,7 @@ const useStyles = makeStyles((c) => ({
   fileTypeBadgeText: {
     fontSize: 10,
     fontWeight: fontWeight.extrabold,
-    color: '#FFFFFF',
+    color: onFill,
   },
   pickedFileName: {
     fontSize: fontSize.xs,
@@ -2509,14 +2502,9 @@ const useStyles = makeStyles((c) => ({
     fontWeight: fontWeight.semibold,
   },
   modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: c.surface,
-    borderTopLeftRadius: radii.xl,
-    borderTopRightRadius: radii.xl,
     padding: spacing.lg,
     gap: spacing.md,
   },

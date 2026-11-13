@@ -4962,6 +4962,14 @@
       "required" : false
     } ]
   }, {
+    "method" : "POST",
+    "path" : "/api/remote/direct-booking/map",
+    "controller" : "DirectBookingMapController#postNearbyPhotographersMap",
+    "body" : {
+      "type" : "MapSearchBody",
+      "properties" : [ "eventDate", "lat", "lng", "radiusKm", "search", "specialty" ]
+    }
+  }, {
     "method" : "GET",
     "path" : "/api/remote/donations",
     "controller" : "DonationController#getMyDonations",
@@ -6675,6 +6683,22 @@
     "controller" : "PhotographerRemoteController#getPhotographerProfileSummary"
   }, {
     "method" : "DELETE",
+    "path" : "/api/remote/photographer/service-area",
+    "controller" : "ServiceAreaController#remove"
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/photographer/service-area",
+    "controller" : "ServiceAreaController#get"
+  }, {
+    "method" : "PUT",
+    "path" : "/api/remote/photographer/service-area",
+    "controller" : "ServiceAreaController#set",
+    "body" : {
+      "type" : "SetServiceAreaRequest",
+      "properties" : [ "placeId" ]
+    }
+  }, {
+    "method" : "DELETE",
     "path" : "/api/remote/photographer/studio-rate",
     "controller" : "PhotographerRemoteController#deleteStudioRate"
   }, {
@@ -7756,6 +7780,14 @@
       "required" : false
     } ]
   }, {
+    "method" : "POST",
+    "path" : "/api/remote/public/photographers/map",
+    "controller" : "DirectBookingMapController#postNearbyPhotographersMap",
+    "body" : {
+      "type" : "MapSearchBody",
+      "properties" : [ "eventDate", "lat", "lng", "radiusKm", "search", "specialty" ]
+    }
+  }, {
     "method" : "GET",
     "path" : "/api/remote/public/photographers/{id}",
     "controller" : "PublicRemoteController#getPhotographerById",
@@ -7798,6 +7830,22 @@
       "type" : "Map"
     },
     "pathVariables" : [ "photoId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/places/area",
+    "controller" : "PlacesProxyController#area",
+    "params" : [ {
+      "name" : "placeId",
+      "required" : true
+    } ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/remote/public/places/areas",
+    "controller" : "PlacesProxyController#areas",
+    "params" : [ {
+      "name" : "input",
+      "required" : true
+    } ]
   }, {
     "method" : "GET",
     "path" : "/api/remote/public/places/autocomplete",
