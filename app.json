@@ -190,6 +190,23 @@
             ]
           },
           {
+            "id": "2026-11-13-service-area",
+            "date": "2026-11-13",
+            "title": "Choose where you work",
+            "items": [
+              {
+                "icon": "location-outline",
+                "title": "Set your service area",
+                "body": "Photographers can now choose the area or neighbourhood where they usually work, so clients searching nearby can find them on the map. Clients only ever see an approximate area and a rounded distance, never your address."
+              },
+              {
+                "icon": "eye-off-outline",
+                "title": "Change it or remove it any time",
+                "body": "You can change your service area whenever you like, and removing it takes you off the map straight away. You will find it in Profile settings, and on your Home screen until you have set one."
+              }
+            ]
+          },
+          {
             "id": "2026-11-13-safer-location-search",
             "date": "2026-11-13",
             "title": "Safer location search",
