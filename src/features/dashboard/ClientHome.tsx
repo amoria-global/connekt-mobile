@@ -365,7 +365,7 @@ export function ClientHome() {
               icon="document-text-outline"
               tone="glass"
               onPress={() => {
-                setBookingStep(1);
+                setBookingStep('session');
                 setBookingModeOpen(true);
               }}
             />

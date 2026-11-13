@@ -27,6 +27,8 @@ import { LiveButton } from '@/components/ui/live';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
 import { PayNowSheet } from '@/features/payments/PayNowSheet';
+import { BookingModeSelector, type BookingStep } from '@/features/booking/BookingModeSelector';
+import { env } from '@/config/env';
 import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
@@ -107,6 +109,8 @@ export function CoordinatorHome() {
   // Amounts start hidden, like the photographer and client Home.
   const [hidden, setHidden] = useState(true);
   const [payNowPayment, setPayNowPayment] = useState<PendingPayment | null>(null);
+  const [bookingModeOpen, setBookingModeOpen] = useState(false);
+  const [bookingStep, setBookingStep] = useState<BookingStep>('select');
 
   const analytics = useAsync(useCallback(() => getCoordinatorAnalytics(), []));
   const events = useAsync(useCallback(() => listCoordinatorEvents(), []));
@@ -161,6 +165,14 @@ export function CoordinatorHome() {
   const trendFailed = (!!perfState.error && !perfState.data) || (!!trendsState.error && !trendsState.data);
   const open = (path: string) => router.push(path as never);
   const openEvent = (e: EventItem) => open(`/event/${e.id}`);
+  const createEvent = () => {
+    if (env.hybridBookingEnabled) {
+      setBookingStep('select');
+      setBookingModeOpen(true);
+    } else {
+      open('/event/new');
+    }
+  };
   const figure = (v: number | undefined) => (aFailed ? 'N/A' : String(v ?? 0));
   const revenueText = moneySyncing ? moneyDots : !a || !currency ? 'N/A' : moneyText(a.totalRevenue, currency, hidden);
 
@@ -271,7 +283,7 @@ export function CoordinatorHome() {
                 title={t('createEvent')}
                 subtitle="Book a photographer for your event"
                 icon="add-circle-outline"
-                onPress={() => open('/event/new')}
+                onPress={createEvent}
               />
             </View>
             {/* The same Go live and My hosted events tiles the photographer has; the server decides who sees them. */}
@@ -385,7 +397,7 @@ export function CoordinatorHome() {
                 title="No upcoming events"
                 body="Create an event to start coordinating photographers and streams."
                 actionLabel="Create event"
-                onAction={() => open('/event/new')}
+                onAction={createEvent}
               />
             ) : (
               <HCarousel
@@ -460,6 +472,15 @@ export function CoordinatorHome() {
         onSuccess={() => {
           pending.refresh();
           analytics.refresh();
+        }}
+      />
+
+      <BookingModeSelector
+        visible={bookingModeOpen}
+        initialStep={bookingStep}
+        onClose={() => {
+          setBookingModeOpen(false);
+          void events.refresh();
         }}
       />
     </Screen>
