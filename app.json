@@ -173,6 +173,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-13-ai-package-upload",
+            "date": "2026-11-13",
+            "title": "Upload your packages with AI or manually",
+            "items": [
+              {
+                "icon": "sparkles-outline",
+                "title": "Scan a PDF or photo of your package menu",
+                "body": "Upload your pricing brochure, PDF, or menu photo and let AI organize your Indoor and Outdoor packages into Diamond, Gold, Silver, Premium, and Basic tiers ready to review and publish."
+              },
+              {
+                "icon": "list-outline",
+                "title": "Custom manual package builder",
+                "body": "You can also build packages manually by choosing Indoor or Outdoor, picking a tier or custom title, adding package items to your list, and setting your delivery policy and price."
+              }
+            ]
+          },
+          {
             "id": "2026-11-13-safer-location-search",
             "date": "2026-11-13",
             "title": "Safer location search",
