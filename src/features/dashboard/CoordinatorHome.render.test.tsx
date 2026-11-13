@@ -66,6 +66,13 @@ jest.mock('@/features/payments/PayNowSheet', () => ({
     return null;
   },
 }));
+const mockBookingSheet = jest.fn();
+jest.mock('@/features/booking/BookingModeSelector', () => ({
+  BookingModeSelector: (props: unknown) => {
+    mockBookingSheet(props);
+    return null;
+  },
+}));
 jest.mock('expo-image', () => ({ Image: () => null }));
 jest.mock('@/store/auth', () => {
   const state = () => ({ user: { firstName: 'Marie', customerId: 'k1', customerType: 'Coordinator' }, status: 'authenticated' });
@@ -150,6 +157,7 @@ beforeEach(() => {
   mockGet.mockReset();
   mockPush.mockReset();
   mockPaySheet.mockReset();
+  mockBookingSheet.mockReset();
   useCurrency.setState({ currency: 'USD', currencies: DEFAULT_CURRENCIES });
 });
 
@@ -222,12 +230,17 @@ describe('coordinator home as rendered', () => {
     expect(text).toContain('wave:Trend data could not be loaded');
   });
 
-  it('a genuinely empty account offers to create an event', async () => {
+  it('a genuinely empty account offers to create an event and opens the Post my offer / Browse photographers selector', async () => {
     serve({});
     const r = await mount();
     expect(flat(r.root)).toContain('No upcoming events');
     await tap(r, 'Create event');
-    expect(mockPush).toHaveBeenCalledWith('/event/new');
+    const last = mockBookingSheet.mock.calls[mockBookingSheet.mock.calls.length - 1][0] as {
+      visible: boolean;
+      initialStep: string;
+    };
+    expect(last.visible).toBe(true);
+    expect(last.initialStep).toBe('select');
   });
 
   it('Pay now opens the payment sheet with that exact payment', async () => {
