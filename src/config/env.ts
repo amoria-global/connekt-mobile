@@ -40,6 +40,13 @@ export const env = {
   webBaseUrl: process.env.EXPO_PUBLIC_WEB_BASE_URL ?? 'https://connekyt.com',
 
   /**
+   * CARTO Basemaps key for map tiles (a temporary stopgap until we serve our own). It is public by nature (it is in every tile URL),
+   * so it is restricted by domain in CARTO's dashboard. Without it no map preview is drawn: the keyless tiles carry an
+   * "API KEY REQUIRED" watermark, so we never ask for them.
+   */
+  cartoKey: process.env.EXPO_PUBLIC_CARTO_KEY ?? '',
+
+  /**
    * Authenticated dashboard (salo-run) base URL.
    *
    * Separate from webBaseUrl because they are different deployments: the
