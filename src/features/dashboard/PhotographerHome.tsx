@@ -47,6 +47,7 @@ import { HostEntry } from '@/features/hosting/HostEntry';
 import { Screen } from '@/components/ui/Screen';
 import { TopBar, useTopBarHeight } from '@/components/topbar/TopBar';
 import { KycBanner } from '@/features/kyc/KycBanner';
+import { ServiceAreaPrompt } from '@/features/serviceArea/ServiceAreaPrompt';
 import { GetHelpCard } from '@/features/support/GetHelpCard';
 import { showIncomingOpportunity } from '@/features/hybrid/GlobalOpportunityCallNotifier';
 import { listOpportunities, approveOpportunity, rejectOpportunity } from '@/features/hybrid/api';
@@ -331,6 +332,8 @@ export function PhotographerHome() {
       >
         {/* Identity checks and the public profile belong to the owner, never to a collaborator. */}
         {isCollab ? null : <KycBanner compact style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />}
+        {/* Where the photographer appears on the map is the account holder's own decision: no collaborator is offered it. */}
+        {isCollab ? null : <ServiceAreaPrompt style={{ marginHorizontal: spacing.lg, marginBottom: spacing.md }} />}
 
         {/* 1. Orientation */}
         <DashboardGreeting

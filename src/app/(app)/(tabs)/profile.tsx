@@ -53,6 +53,7 @@ import { LanguageSelectorSheet } from '@/components/LanguageSelectorSheet';
 import { CurrencySelectorSheet } from '@/components/CurrencySelectorSheet';
 import { SUPPORTED_LANGUAGES, useLanguage } from '@/store/language';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { useServiceArea } from '@/features/serviceArea/useServiceArea';
 import { useCurrency } from '@/store/currency';
 import { alpha, spacing, radii, fonts, makeStyles, tracking, useTheme } from '@/theme';
 import { useTabBarClearance } from '@/hooks/useScrollClearance';
@@ -86,7 +87,7 @@ export default function ProfileScreen() {
   const user = useAuth((s) => s.user);
   const logout = useAuth((s) => s.logout);
   const updateUser = useAuth((s) => s.updateUser);
-  const { isCoordinator, isPhotographer, role: customerRole } = useRole();
+  const { isCoordinator, isPhotographer, isCollaboratorWorkspace, role: customerRole } = useRole();
 
   const [coverUploading, setCoverUploading] = useState(false);
   const [avatarUploading, setAvatarUploading] = useState(false);
@@ -483,6 +484,7 @@ export default function ProfileScreen() {
 
             {activeTab === 'settings' && (
               <GlassCard style={styles.listCard}>
+                {isPhotographer && !isCollaboratorWorkspace ? <ServiceAreaRow /> : null}
                 <MenuRow
                   icon="globe-outline"
                   label={t('languagePreference')}
@@ -783,3 +785,18 @@ const useStyles = makeStyles((c) => ({
   deleteLinkRow: { alignItems: 'center', paddingVertical: spacing.md, minHeight: 44, justifyContent: 'center' },
   deleteLinkText: { fontFamily: fonts.medium, fontSize: 14, color: c.error },
 }));
+
+/** Profile settings row for a photographer's service area: where they appear on the map, or that they are not on it. */
+function ServiceAreaRow() {
+  const router = useRouter();
+  const { tr } = useSharedT();
+  const { area, loaded, failed } = useServiceArea();
+  const hint = !loaded || failed
+    ? undefined
+    : area?.set
+      ? [area.name, area.context].filter(Boolean).join(' · ')
+      : tr("Not set · you're not on the map");
+  return (
+    <MenuRow icon="location-outline" label={tr('Service area')} hint={hint} onPress={() => router.push('/service-area' as Href)} />
+  );
+}
