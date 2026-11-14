@@ -173,19 +173,31 @@
       "releaseNotes": {
         "releases": [
           {
-            "id": "2026-11-13-ai-package-upload",
-            "date": "2026-11-13",
-            "title": "Upload your packages with AI or manually",
+            "id": "2026-11-14-maps",
+            "date": "2026-11-14",
+            "title": "Maps that load",
             "items": [
               {
-                "icon": "sparkles-outline",
-                "title": "Scan a PDF or photo of your package menu",
-                "body": "Upload your pricing brochure, PDF, or menu photo and let AI organize your Indoor and Outdoor packages into Diamond, Gold, Silver, Premium, and Basic tiers ready to review and publish."
+                "icon": "map-outline",
+                "title": "The photographer map shows the real map",
+                "body": "The map of nearby photographers no longer has a watermark over it, and your service area preview now appears when you choose an area."
+              }
+            ]
+          },
+          {
+            "id": "2026-11-13-ai-package-upload",
+            "date": "2026-11-13",
+            "title": "Upload or create your photography packages",
+            "items": [
+              {
+                "icon": "document-text-outline",
+                "title": "Upload your package brochure or price list",
+                "body": "Upload your pricing brochure, PDF, or photo to organize your Indoor and Outdoor photography packages, review your items and delivery details, and publish to your profile."
               },
               {
                 "icon": "list-outline",
-                "title": "Custom manual package builder",
-                "body": "You can also build packages manually by choosing Indoor or Outdoor, picking a tier or custom title, adding package items to your list, and setting your delivery policy and price."
+                "title": "Manual package builder",
+                "body": "You can also create packages manually by choosing Indoor or Outdoor, selecting a package title, adding included items to your list, and setting your delivery policy and price."
               }
             ]
           },

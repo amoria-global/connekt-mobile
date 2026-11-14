@@ -600,7 +600,7 @@ export async function extractPackagesWithAi(input: {
       aiProvider: 'client-ai-fallback',
       model: 'gpt-5.6-luna',
       aiConfigured: false,
-      summaryNote: `Extracted ${extractedPackages.length} packages (${studioCount} Indoor, ${outdoorCount} Outdoor) using Connekyt tier policy (Diamond = highest amount).`,
+      summaryNote: `Prepared ${extractedPackages.length} packages (${studioCount} Indoor, ${outdoorCount} Outdoor).`,
     };
   }
 }

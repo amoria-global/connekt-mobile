@@ -134,7 +134,6 @@ export default function NewPackageScreen() {
     params.replace === '1' ? 'REPLACE_ALL' : 'ADD_OR_UPDATE',
   );
   const [extracting, setExtracting] = useState(false);
-  const [aiSummaryNote, setAiSummaryNote] = useState<string | null>(null);
   const [extractedDrafts, setExtractedDrafts] = useState<ExtractedAiPackageDraft[]>([]);
   const [reviewSessionTab, setReviewSessionTab] = useState<ServiceType>('STUDIO');
   const [expandedDraftId, setExpandedDraftId] = useState<string | null>(null);
@@ -197,18 +196,6 @@ export default function NewPackageScreen() {
     [existingPackagesAsync.data],
   );
 
-  // Policy hint for Manual Upload: if the entered price is the largest in its session, recommend "Diamond"
-  const isLargestInManualSession = useMemo(() => {
-    const numPrice = Number(manualPrice);
-    if (!Number.isFinite(numPrice) || numPrice <= 0) return false;
-    const sameSession = existingPackages.filter(
-      (p) => (p.serviceType ?? 'OUTDOOR') === manualServiceType && p.id !== edit?.id,
-    );
-    if (sameSession.length === 0) return true;
-    const maxExisting = Math.max(...sameSession.map((p) => p.price ?? 0));
-    return numPrice >= maxExisting;
-  }, [manualPrice, existingPackages, manualServiceType, edit?.id]);
-
   // ───────── File / Photo / PDF Pickers ─────────
   const handlePickPhotos = async () => {
     setServerError(null);
@@ -270,12 +257,12 @@ export default function NewPackageScreen() {
     setPdfPickerModalOpen(true);
   };
 
-  // ───────── Run AI Extraction ─────────
+  // ───────── Run Document Upload & Extraction ─────────
   const handleRunAiExtract = async () => {
     setServerError(null);
     if (pickedFiles.length === 0 && !brochureText.trim()) {
       setServerError(
-        'Please upload a PDF or photo of your package brochure/menu, or paste your package text below.',
+        'Please upload a PDF or photo of your package brochure, or paste your package text below.',
       );
       return;
     }
@@ -287,7 +274,6 @@ export default function NewPackageScreen() {
         defaultServiceType: defaultSession,
       });
       setExtractedDrafts(res.extractedPackages);
-      setAiSummaryNote(res.summaryNote);
       if (res.hasExistingOnlinePackages && params.replace === '1') {
         setPublishMode('REPLACE_ALL');
       } else if (res.hasExistingOnlinePackages) {
@@ -487,7 +473,7 @@ export default function NewPackageScreen() {
         automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Mode Switcher: Upload Document (AI) vs Manual Upload (Custom) */}
+        {/* Top Mode Switcher: Upload Document vs Manual Upload */}
         {!isEditing ? (
           <View style={styles.modeSwitchContainer}>
             <Pressable
@@ -500,7 +486,7 @@ export default function NewPackageScreen() {
               accessibilityState={{ selected: flowMode === 'ai' }}
             >
               <Ionicons
-                name="sparkles-outline"
+                name="cloud-upload-outline"
                 size={15}
                 color={flowMode === 'ai' ? onFill : colors.primary}
               />
@@ -510,7 +496,7 @@ export default function NewPackageScreen() {
                   flowMode === 'ai' && styles.modeSwitchTextActive,
                 ]}
               >
-                Upload Document (AI)
+                Upload Document
               </Text>
             </Pressable>
 
@@ -534,7 +520,7 @@ export default function NewPackageScreen() {
                   flowMode === 'manual' && styles.modeSwitchTextActive,
                 ]}
               >
-                Manual Upload (Custom)
+                Manual Upload
               </Text>
             </Pressable>
           </View>
@@ -544,14 +530,14 @@ export default function NewPackageScreen() {
 
         {flowMode === 'ai' ? (
           <>
-            {/* 3-Step AI Progress Indicator */}
+            {/* 3-Step Progress Indicator */}
             {aiStep !== 'done' ? (
               <View style={styles.stepBarCard}>
                 {(
                   [
                     [1, '1. Upload Document'],
-                    [2, '2. Organize & Edit'],
-                    [3, '3. Review & Publish'],
+                    [2, '2. Organize Packages'],
+                    [3, '3. Publish Package'],
                   ] as [1 | 2 | 3, string][]
                 ).map(([n, label]) => {
                   const active = aiStep === n;
@@ -583,18 +569,18 @@ export default function NewPackageScreen() {
             ) : null}
 
             {/* ═══════════════════════════════════════════════════════════════════
-                AI STEP 1: UPLOAD DOCUMENT (PDF, JPG, PNG, OR TEXT)
+                STEP 1: UPLOAD DOCUMENT (PDF, JPG, PNG)
                ═══════════════════════════════════════════════════════════════════ */}
             {aiStep === 1 ? (
               <View style={styles.cardBox}>
                 <View style={styles.cardHeaderRow}>
                   <View style={styles.iconCircle}>
-                    <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
+                    <Ionicons name="document-text-outline" size={22} color={colors.primary} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.sectionTitle}>Upload Package Brochure or Menu</Text>
+                    <Text style={styles.sectionTitle}>Upload Document</Text>
                     <Text style={styles.subtitleText}>
-                      OpenAI GPT-5 Luna reads your PDF or photo, extracts packages, ingredients, delivery policy & money, and names tiers (Diamond = highest amount, Gold, Silver, Premium, Basic).
+                      Upload your package brochure or price list (PDF, JPG, PNG).
                     </Text>
                   </View>
                 </View>
@@ -628,7 +614,7 @@ export default function NewPackageScreen() {
                     })
                   : null}
 
-                {/* Dashed Dropzone / Upload Area (Matches Reference Image Step 3) */}
+                {/* Dashed Dropzone / Upload Area */}
                 <Pressable
                   onPress={handlePickPhotos}
                   style={styles.uploadDropzone}
@@ -639,10 +625,10 @@ export default function NewPackageScreen() {
                     <Ionicons name="cloud-upload" size={28} color={colors.primary} />
                   </View>
                   <Text style={styles.dropzoneTitle}>
-                    Tap to upload your package brochure or menu photo
+                    Drag & drop your package brochure or tap to upload
                   </Text>
                   <Text style={styles.dropzoneSub}>
-                    Supports PDF brochures, JPG/PNG price sheets, or camera scan
+                    Upload your package brochure (PDF, JPG, PNG)
                   </Text>
 
                   <View style={styles.formatBadgesRow}>
@@ -857,7 +843,7 @@ export default function NewPackageScreen() {
                 {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
                 <Button
-                  title={extracting ? 'AI Reading Document...' : 'Upload & Extract with AI'}
+                  title={extracting ? 'Uploading...' : 'Upload'}
                   onPress={handleRunAiExtract}
                   loading={extracting}
                 />
@@ -865,20 +851,17 @@ export default function NewPackageScreen() {
             ) : null}
 
             {/* ═══════════════════════════════════════════════════════════════════
-                AI STEP 2: ORGANIZE & REVIEW PACKAGES PER SESSION (INDOOR VS OUTDOOR)
+                STEP 2: ORGANIZE & REVIEW PACKAGES PER SESSION (INDOOR VS OUTDOOR)
                ═══════════════════════════════════════════════════════════════════ */}
             {aiStep === 2 ? (
               <View style={{ gap: spacing.md }}>
-                {/* Policy Banner */}
+                {/* Organize Packages Header */}
                 <View style={styles.policyInfoCard}>
-                  <Ionicons name="diamond-outline" size={18} color={colors.primary} />
+                  <Ionicons name="layers-outline" size={18} color={colors.primary} />
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.policyInfoTitle}>
-                      Connekyt Package Naming Policy Applied
-                    </Text>
+                    <Text style={styles.policyInfoTitle}>Organize Packages</Text>
                     <Text style={styles.policyInfoSub}>
-                      {aiSummaryNote ||
-                        'Packages in each session are sorted by price: Largest amount = Diamond, followed by Gold, Silver, Premium, Basic.'}
+                      Choose Indoor or Outdoor and review your package details before publishing.
                     </Text>
                   </View>
                 </View>
@@ -996,19 +979,7 @@ export default function NewPackageScreen() {
                                 color={isDiamond ? colors.accent : colors.primary}
                               />
                               <Text style={styles.extractedTierName}>{item.packageName}</Text>
-                              {isDiamond ? (
-                                <View style={styles.highestAmountPill}>
-                                  <Text style={styles.highestAmountPillText}>
-                                    HIGHEST AMOUNT · DIAMOND
-                                  </Text>
-                                </View>
-                              ) : null}
                             </View>
-                            {item.originalTitle && item.originalTitle !== item.packageName ? (
-                              <Text style={styles.originalTitleHint}>
-                                {`Extracted from: "${item.originalTitle}"`}
-                              </Text>
-                            ) : null}
                           </View>
 
                           <View style={styles.pricePillPurple}>
@@ -1052,7 +1023,7 @@ export default function NewPackageScreen() {
                           })}
                         </View>
 
-                        {/* Key Summary Metrics (Matches Step 5 Review & Edit Package) */}
+                        {/* Key Summary Metrics */}
                         <View style={styles.metricsSummaryList}>
                           <Text style={styles.metricLine}>
                             {`📷  ${item.durationHours} hours ${
@@ -1069,12 +1040,10 @@ export default function NewPackageScreen() {
                           </Text>
                         </View>
 
-                        {/* Original Extracted vs Enhanced Description (Matches Image 4) */}
+                        {/* Package Items & Description */}
                         <View style={styles.descriptionsComparisonBox}>
                           <View style={styles.descColumn}>
-                            <Text style={styles.descColumnHeader}>
-                              Original Extracted Ingredients
-                            </Text>
+                            <Text style={styles.descColumnHeader}>Included Items</Text>
                             {item.ingredients.map((ing, i) => (
                               <Text key={`${ing}-${i}`} style={styles.descBulletText}>
                                 {`• ${ing}`}
@@ -1082,9 +1051,7 @@ export default function NewPackageScreen() {
                             ))}
                           </View>
                           <View style={styles.descColumn}>
-                            <Text style={styles.descColumnHeader}>
-                              Enhanced Description & Policy
-                            </Text>
+                            <Text style={styles.descColumnHeader}>Description</Text>
                             <Text style={styles.descBodyText}>{item.enhancedDescription}</Text>
                           </View>
                         </View>
@@ -1092,7 +1059,7 @@ export default function NewPackageScreen() {
                         {/* Expandable Inline Editor */}
                         {isExpanded ? (
                           <View style={styles.inlineEditorBox}>
-                            <Text style={styles.label}>Tier Title (Policy Order)</Text>
+                            <Text style={styles.label}>Package Title</Text>
                             <View style={styles.chipsRow}>
                               {POLICY_PACKAGE_TIERS.map((tName) => {
                                 const on = item.packageName === tName;
@@ -1291,7 +1258,7 @@ export default function NewPackageScreen() {
             ) : null}
 
             {/* ═══════════════════════════════════════════════════════════════════
-                AI STEP 3: FINAL REVIEW PER SESSION & PUBLISH PACKAGES
+                STEP 3: FINAL REVIEW PER SESSION & PUBLISH PACKAGES
                ═══════════════════════════════════════════════════════════════════ */}
             {aiStep === 3 ? (
               <View style={styles.cardBox}>
@@ -1300,9 +1267,9 @@ export default function NewPackageScreen() {
                     <Ionicons name="checkmark-done-outline" size={22} color={colors.primary} />
                   </View>
                   <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.sectionTitle}>Review Packaging Per Session & Publish</Text>
+                    <Text style={styles.sectionTitle}>Publish Package</Text>
                     <Text style={styles.subtitleText}>
-                      Confirm your Indoor (Studio) and Outdoor packages below. Largest amount in each session is named Diamond.
+                      Your package is set and can now be published to your profile.
                     </Text>
                   </View>
                 </View>
@@ -1467,10 +1434,10 @@ export default function NewPackageScreen() {
             {/* 2. Tier Name / Package Title */}
             <View style={styles.group}>
               <View style={styles.rowBetween}>
-                <Text style={styles.label}>2. Select Package Title (Policy Tiers)</Text>
+                <Text style={styles.label}>2. Select Package Title</Text>
                 <Pressable onPress={() => setUseCustomTitle((v) => !v)}>
                   <Text style={styles.linkText}>
-                    {useCustomTitle ? 'Use Policy Tiers' : 'Custom Title'}
+                    {useCustomTitle ? 'Select Tier' : 'Custom Title'}
                   </Text>
                 </Pressable>
               </View>
@@ -1497,23 +1464,11 @@ export default function NewPackageScreen() {
               ) : (
                 <Input
                   label="Custom Package Title"
-                  placeholder="e.g. Diamond Studio Portrait"
+                  placeholder="e.g. Studio Basic"
                   value={customTitleText}
                   onChangeText={setCustomTitleText}
                 />
               )}
-
-              {isLargestInManualSession && manualTier !== 'Diamond' && !useCustomTitle ? (
-                <Pressable
-                  onPress={() => setManualTier('Diamond')}
-                  style={styles.policyHintBanner}
-                >
-                  <Ionicons name="diamond-outline" size={14} color={colors.primary} />
-                  <Text style={styles.policyHintText}>
-                    This is your highest-priced package in this session. Tap to name it Diamond per policy.
-                  </Text>
-                </Pressable>
-              ) : null}
             </View>
 
             {/* 3. Pricing & Currency */}

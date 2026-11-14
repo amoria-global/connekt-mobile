@@ -94,9 +94,9 @@ export default function PackagesScreen() {
 
   const headerComponent = (
     <View style={styles.headerBlock}>
-      {/* Action Cards (Step 2 in Connekyt AI Package Management Workflow) */}
+      {/* Action Cards */}
       <View style={styles.actionCardsWrap}>
-        {/* 1. Upload New Packages with AI (PDF / JPG / PNG) */}
+        {/* 1. Add New Package (Upload Document) */}
         <Pressable
           onPress={() => openAiUpload(false)}
           style={({ pressed }) => [
@@ -105,26 +105,26 @@ export default function PackagesScreen() {
             pressed && styles.pressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="Upload New Packages with AI"
+          accessibilityLabel="Add New Package"
         >
           <View style={styles.actionIconCirclePrimary}>
-            <Ionicons name="sparkles" size={20} color={onFill} />
+            <Ionicons name="add-circle-outline" size={20} color={onFill} />
           </View>
           <View style={{ flex: 1, gap: 2 }}>
             <View style={styles.actionTitleRow}>
-              <Text style={styles.actionTitlePrimary}>Upload Packages with AI</Text>
+              <Text style={styles.actionTitlePrimary}>Add New Package</Text>
               <View style={styles.aiBadge}>
-                <Text style={styles.aiBadgeText}>GPT-5 LUNA · PDF / PHOTO</Text>
+                <Text style={styles.aiBadgeText}>PDF · JPG · PNG</Text>
               </View>
             </View>
             <Text style={styles.actionSubtitlePrimary}>
-              Upload your PDF brochure or menu photo. AI extracts Indoor & Outdoor packages, items, delivery policy & prices (Diamond, Gold, Silver, Premium, Basic).
+              Upload your package brochure or create a new Indoor or Outdoor package.
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={onFill} />
         </Pressable>
 
-        {/* 2. Update Packages (Replace Existing) + 3. Add Package Manually */}
+        {/* 2. Update Package (Replace Existing) + 3. Add Package Manually */}
         <View style={styles.secondaryActionsRow}>
           <Pressable
             onPress={() => openAiUpload(true)}
@@ -134,7 +134,7 @@ export default function PackagesScreen() {
               pressed && styles.pressed,
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Update Packages (Replace Existing)"
+            accessibilityLabel="Update Package (Edit or replace existing)"
           >
             <View style={styles.secondaryTopRow}>
               <View style={styles.secondaryIconBox}>
@@ -146,11 +146,11 @@ export default function PackagesScreen() {
                 </View>
               ) : null}
             </View>
-            <Text style={styles.secondaryActionTitle}>Update Packages</Text>
+            <Text style={styles.secondaryActionTitle}>Update Package</Text>
             <Text style={styles.secondaryActionSub}>
               {allPackages.length > 0
-                ? `Replace or compare your ${allPackages.length} online package(s)`
-                : 'Upload new brochure to replace existing'}
+                ? `Edit or replace your ${allPackages.length} existing package(s)`
+                : 'Edit or replace existing packages'}
             </Text>
           </Pressable>
 
@@ -164,15 +164,15 @@ export default function PackagesScreen() {
           >
             <View style={styles.secondaryTopRow}>
               <View style={styles.secondaryIconBox}>
-                <Ionicons name="add-circle-outline" size={17} color={colors.primary} />
+                <Ionicons name="create-outline" size={17} color={colors.primary} />
               </View>
               <View style={[styles.suggestedPill, { backgroundColor: colors.surface }]}>
                 <Text style={[styles.suggestedPillText, { color: colors.textMuted }]}>CUSTOM</Text>
               </View>
             </View>
-            <Text style={styles.secondaryActionTitle}>Add Manually</Text>
+            <Text style={styles.secondaryActionTitle}>Manual Upload</Text>
             <Text style={styles.secondaryActionSub}>
-              Select tier title, add items into list & set pricing
+              Select package title, add items & set pricing
             </Text>
           </Pressable>
         </View>
@@ -212,7 +212,7 @@ export default function PackagesScreen() {
       <ScreenHeader
         duplicatesHeader
         title={t('b2_packagesTitle')}
-        subtitle="Manage your Indoor (Studio) and Outdoor photography packages with AI or manual setup."
+        subtitle="Add, update, organize, and publish your Indoor and Outdoor photography packages."
       />
       <DataList
         data={filteredPackages}
@@ -351,8 +351,8 @@ export default function PackagesScreen() {
         }}
         emptyIcon="pricetags-outline"
         emptyTitle={t('b2_packagesEmptyTitle')}
-        emptyMessage="Upload your package brochure (PDF or photo) with AI or add packages manually."
-        emptyAction={{ label: 'Upload with AI', onPress: () => openAiUpload(false) }}
+        emptyMessage="Upload your package brochure (PDF, JPG, PNG) or create a package manually."
+        emptyAction={{ label: 'Add New Package', onPress: () => openAiUpload(false) }}
       />
       <Stack.Screen
         options={{

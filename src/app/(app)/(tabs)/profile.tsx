@@ -232,6 +232,9 @@ export default function ProfileScreen() {
 
   const highlights = useMemo(
     () => [
+      ...(isPhotographer
+        ? [{ key: 'packages', icon: 'layers-outline' as const, label: 'My Packages', href: '/packages' as Href }]
+        : []),
       { key: 'wallet', icon: 'wallet-outline' as const, label: 'Wallet', href: '/(app)/(tabs)/wallet' as Href },
       { key: 'gallery', icon: 'images-outline' as const, label: 'Gallery', href: '/gallery' as Href },
       { key: 'tv', icon: 'tv-outline' as const, label: 'TV Screens', href: '/tv-devices' as Href },

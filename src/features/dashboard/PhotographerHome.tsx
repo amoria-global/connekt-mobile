@@ -442,7 +442,7 @@ export function PhotographerHome() {
               icon="layers-outline"
               tone="primary"
               title="Package Management"
-              caption="Upload with AI or manage Indoor & Outdoor packages"
+              caption="Manage your Indoor & Outdoor photography packages"
               actionLabel="Manage"
               actionIcon="arrow-forward"
               onAction={() => open('/packages')}
