@@ -28,6 +28,11 @@ import {
   MODE_META,
   modeOf,
 } from '../hybrid/hybridUi';
+import { DEFAULT_OFFER_DRAFT } from '../hybrid/offerBrief';
+import {
+  analyzePackagesForDraft,
+  convertPackageCurrency,
+} from '../hybrid/packagePricingAnalyzer';
 
 describe('BookingModeSelector', () => {
   it('exports BookingModeSelector component function', () => {
@@ -93,6 +98,36 @@ describe('BookingModeSelector', () => {
     it('formats budgets', () => {
       expect(budgetLabel(100000, 200000)).toBe('100,000 - 200,000 RWF');
       expect(budgetLabel(null, null)).toBeNull();
+    });
+  });
+
+  describe('package data analysis (best 3 packages per selected item & currency conversion)', () => {
+    it('selects the best 3 packages for each selected item and computes summation and average', () => {
+      const analysis = analyzePackagesForDraft(DEFAULT_OFFER_DRAFT, 480, [], 'RWF');
+      expect(analysis.totalPackagesSearched).toBeGreaterThanOrEqual(8);
+      expect(analysis.selectedItemsAnalysis.length).toBeGreaterThanOrEqual(3);
+      for (const item of analysis.selectedItemsAnalysis) {
+        expect(item.bestThreePackages.length).toBe(3);
+        expect(item.averagePrice).toBeGreaterThan(0);
+      }
+      expect(analysis.totalSummation).toBe(
+        analysis.digitalItemsSummation + analysis.printItemsSummation,
+      );
+      expect(analysis.recommended).toBeGreaterThan(analysis.low);
+      expect(analysis.priority).toBeGreaterThan(analysis.recommended);
+    });
+
+    it('converts USD and other package currencies into the client currency', () => {
+      const usdToRwf = convertPackageCurrency(450, 'USD', 'RWF');
+      expect(usdToRwf).toBe(450 * 1400);
+
+      const rwfToUsd = convertPackageCurrency(700000, 'RWF', 'USD');
+      expect(rwfToUsd).toBe(500);
+
+      const usdAnalysis = analyzePackagesForDraft(DEFAULT_OFFER_DRAFT, 480, [], 'USD');
+      expect(usdAnalysis.clientCurrency).toBe('USD');
+      expect(usdAnalysis.recommended).toBeGreaterThan(100);
+      expect(usdAnalysis.recommended).toBeLessThan(10000);
     });
   });
 });

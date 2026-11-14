@@ -91,9 +91,17 @@ import {
   type EventSessionType,
   type HybridOfferDraft,
 } from '@/features/hybrid/offerBrief';
+import {
+  analyzePackagesForDraft,
+  convertPackageCurrency,
+  fetchAllPlatformPackagesForPricing,
+  roundForCurrency,
+  type AnalyzedPhotographerPackage,
+} from '@/features/hybrid/packagePricingAnalyzer';
 import { createEvent } from '@/features/events/api';
 import { useRole } from '@/features/auth/role';
 import { useAuth, isApiError } from '@/store/auth';
+import { useCurrency, type CurrencyCode } from '@/store/currency';
 import { useLanguage } from '@/store/language';
 import { translateSharedRw } from '@/i18n/kinyarwanda';
 import { translateSharedSw } from '@/i18n/swahili';
@@ -299,6 +307,8 @@ export function BookingModeSelector({
   const insets = useSafeAreaInsets();
   const { isCoordinator } = useRole();
   const user = useAuth((s) => s.user);
+  const clientCurrency: CurrencyCode = useCurrency((s) => s.currency) || 'RWF';
+  const currenciesMap = useCurrency((s) => s.currencies);
   const scrollRef = useRef<ScrollView>(null);
 
   const [step, setStep] = useState<Step>(initialStep);
@@ -306,6 +316,8 @@ export function BookingModeSelector({
   const [optionsError, setOptionsError] = useState<string | null>(null);
 
   const [draft, setDraft] = useState<HybridOfferDraft>(DEFAULT_OFFER_DRAFT);
+  const [platformPackages, setPlatformPackages] = useState<AnalyzedPhotographerPackage[]>([]);
+  const [packageSearchLoading, setPackageSearchLoading] = useState(false);
   const [moreStyleOpen, setMoreStyleOpen] = useState(false);
   const [policiesOpen, setPoliciesOpen] = useState(false);
   const [openInfo, setOpenInfo] = useState<Record<string, boolean>>({});
@@ -454,7 +466,11 @@ export function BookingModeSelector({
         }
       })
       .catch((e) => setOptionsError(isApiError(e) ? e.message : tr('Could not load the event options.')));
-  }, [visible, initialStep, existingEvent, user, tr]);
+
+    fetchAllPlatformPackagesForPricing(clientCurrency)
+      .then((pkgs) => setPlatformPackages(pkgs))
+      .catch(() => {});
+  }, [visible, initialStep, existingEvent, user, tr, clientCurrency]);
 
   const eventTypeObj = useMemo(() => {
     if (!options?.eventTypes.length) return undefined;
@@ -470,24 +486,38 @@ export function BookingModeSelector({
   const overnight = draft.endTime <= draft.startTime;
   const slots = useMemo(() => timeSlots(options?.timeStepMinutes || 30), [options]);
 
-  const localPriceEstimate = useMemo(
-    () => estimateOfferPriceRwf(draft, minutes, options?.packageBenchmarks),
-    [draft, minutes, options?.packageBenchmarks],
+  // Search through every photographer package, take the best 3 for each item the user selected,
+  // convert any foreign currency (USD, EUR, KES, UGX, TZS, RWF) to clientCurrency, and compute
+  // the recommendation as a summation and average of the package data.
+  const packageAnalysis = useMemo(
+    () => analyzePackagesForDraft(draft, minutes, platformPackages, clientCurrency),
+    [draft, minutes, platformPackages, clientCurrency, currenciesMap],
   );
 
-  // Combine live local scope estimate with server package comparison calibration
-  // so every change in coverage, live stream, wishes, print products, digital deadline,
-  // or print delivery updates the recommended pricing immediately on screen.
+  const localPriceEstimate = packageAnalysis;
+
+  // Combine package data analysis with server match preview package calibration
   const priceEstimate = useMemo(() => {
-    const serverLow = preview?.packagePriceLow;
-    const serverRec = preview?.packagePriceRecommended;
-    const serverPri = preview?.packagePricePriority;
+    const serverLowRaw = preview?.packagePriceLow;
+    const serverRecRaw = preview?.packagePriceRecommended;
+    const serverPriRaw = preview?.packagePricePriority;
+    const serverCurrency = options?.currency || clientCurrency;
+    const serverLow =
+      typeof serverLowRaw === 'number' && serverLowRaw > 0
+        ? convertPackageCurrency(serverLowRaw, serverCurrency, clientCurrency, currenciesMap)
+        : 0;
+    const serverRec =
+      typeof serverRecRaw === 'number' && serverRecRaw > 0
+        ? convertPackageCurrency(serverRecRaw, serverCurrency, clientCurrency, currenciesMap)
+        : 0;
+    const serverPri =
+      typeof serverPriRaw === 'number' && serverPriRaw > 0
+        ? convertPackageCurrency(serverPriRaw, serverCurrency, clientCurrency, currenciesMap)
+        : 0;
+
     if (
-      typeof serverLow === 'number' &&
       serverLow > 0 &&
-      typeof serverRec === 'number' &&
       serverRec > 0 &&
-      typeof serverPri === 'number' &&
       serverPri > 0 &&
       previewBaseline &&
       previewBaseline.low > 0 &&
@@ -495,18 +525,22 @@ export function BookingModeSelector({
       previewBaseline.priority > 0
     ) {
       const floor = localPriceEstimate.minimumAllowedBudget;
-      const ratioLow = Math.max(0.65, Math.min(1.6, serverLow / previewBaseline.low));
-      const ratioRec = Math.max(0.65, Math.min(1.6, serverRec / previewBaseline.recommended));
-      const ratioPri = Math.max(0.65, Math.min(1.6, serverPri / previewBaseline.priority));
+      const ratioLow = Math.max(0.75, Math.min(1.35, serverLow / previewBaseline.low));
+      const ratioRec = Math.max(0.75, Math.min(1.35, serverRec / previewBaseline.recommended));
+      const ratioPri = Math.max(0.75, Math.min(1.35, serverPri / previewBaseline.priority));
+      const minStep = roundForCurrency(
+        convertPackageCurrency(30000, 'RWF', clientCurrency, currenciesMap),
+        clientCurrency,
+      );
 
-      const low = Math.max(floor, Math.round((localPriceEstimate.low * ratioLow) / 10000) * 10000);
+      const low = Math.max(floor, roundForCurrency(localPriceEstimate.low * ratioLow, clientCurrency));
       const recommended = Math.max(
-        low + 40000,
-        Math.round((localPriceEstimate.recommended * ratioRec) / 10000) * 10000,
+        low + minStep,
+        roundForCurrency(localPriceEstimate.recommended * ratioRec, clientCurrency),
       );
       const priority = Math.max(
-        recommended + 60000,
-        Math.round((localPriceEstimate.priority * ratioPri) / 10000) * 10000,
+        recommended + minStep,
+        roundForCurrency(localPriceEstimate.priority * ratioPri, clientCurrency),
       );
       return {
         ...localPriceEstimate,
@@ -522,11 +556,22 @@ export function BookingModeSelector({
     preview?.packagePriceLow,
     preview?.packagePriceRecommended,
     preview?.packagePricePriority,
+    options?.currency,
     previewBaseline,
+    clientCurrency,
+    currenciesMap,
   ]);
 
   // Client's typed/selected min & max budget range
   const hasExplicitZeroMin = draft.minBudgetInput.trim() === '0';
+  const defaultMaxFallback = useMemo(
+    () =>
+      roundForCurrency(
+        convertPackageCurrency(100000, 'RWF', clientCurrency, currenciesMap),
+        clientCurrency,
+      ),
+    [clientCurrency, currenciesMap],
+  );
   const clientMinBudget = useMemo(() => {
     const minP = parseAmountNumber(draft.minBudgetInput);
     const maxP = parseAmountNumber(draft.maxBudgetInput);
@@ -540,9 +585,9 @@ export function BookingModeSelector({
   const clientMaxBudget = useMemo(() => {
     const maxP = parseAmountNumber(draft.maxBudgetInput);
     const minP = parseAmountNumber(draft.minBudgetInput);
-    const raw = maxP || minP || 100000;
+    const raw = maxP || minP || defaultMaxFallback;
     return Math.max(clientMinBudget, raw);
-  }, [draft.minBudgetInput, draft.maxBudgetInput, clientMinBudget]);
+  }, [draft.minBudgetInput, draft.maxBudgetInput, clientMinBudget, defaultMaxFallback]);
 
   const isOpenFlexibleBudget =
     draft.budgetMode === 'FLEXIBLE' &&
@@ -552,13 +597,13 @@ export function BookingModeSelector({
   const clientRangeDisplay = useMemo(() => {
     if (isOpenFlexibleBudget) return tr('Flexible');
     if (clientMinBudget === 0 && clientMaxBudget > 0) {
-      return `Up to RWF ${clientMaxBudget.toLocaleString('en-US')}`;
+      return `Up to ${clientCurrency} ${clientMaxBudget.toLocaleString('en-US')}`;
     }
     if (clientMinBudget === clientMaxBudget) {
-      return `RWF ${clientMaxBudget.toLocaleString('en-US')}`;
+      return `${clientCurrency} ${clientMaxBudget.toLocaleString('en-US')}`;
     }
-    return `RWF ${clientMinBudget.toLocaleString('en-US')} – ${clientMaxBudget.toLocaleString('en-US')}`;
-  }, [isOpenFlexibleBudget, clientMinBudget, clientMaxBudget, tr]);
+    return `${clientCurrency} ${clientMinBudget.toLocaleString('en-US')} – ${clientMaxBudget.toLocaleString('en-US')}`;
+  }, [isOpenFlexibleBudget, clientMinBudget, clientMaxBudget, clientCurrency, tr]);
 
   // Price of whichever matching package card is selected
   const selectedPackagePrice = useMemo(() => {
@@ -586,13 +631,13 @@ export function BookingModeSelector({
     const minVal = effectiveMinBudget ?? 0;
     const maxVal = effectiveMaxBudget ?? minVal;
     if (minVal === 0 && maxVal > 0) {
-      return `Up to RWF ${maxVal.toLocaleString('en-US')}`;
+      return `Up to ${clientCurrency} ${maxVal.toLocaleString('en-US')}`;
     }
     if (minVal === maxVal) {
-      return `RWF ${maxVal.toLocaleString('en-US')}`;
+      return `${clientCurrency} ${maxVal.toLocaleString('en-US')}`;
     }
-    return `RWF ${minVal.toLocaleString('en-US')} – ${maxVal.toLocaleString('en-US')}`;
-  }, [effectiveMinBudget, effectiveMaxBudget, tr]);
+    return `${clientCurrency} ${minVal.toLocaleString('en-US')} – ${maxVal.toLocaleString('en-US')}`;
+  }, [effectiveMinBudget, effectiveMaxBudget, clientCurrency, tr]);
 
   const fetchPreview = useCallback(async () => {
     if (!draft.date) return;
@@ -612,7 +657,7 @@ export function BookingModeSelector({
         longitude: cityInfo?.longitude,
         minBudget: effectiveMinBudget,
         maxBudget: effectiveMaxBudget,
-        currency: 'RWF',
+        currency: clientCurrency,
         photographerType: 'ANY',
         specialty: eventTypeObj?.name || draft.eventTypeKey,
         photographerSpecialty: 'ANY',
@@ -688,9 +733,27 @@ export function BookingModeSelector({
     cityInfo,
     effectiveMinBudget,
     effectiveMaxBudget,
+    clientCurrency,
     eventTypeObj,
     existingEvent,
   ]);
+
+  const runPackageSearchAndAnalysis = useCallback(async () => {
+    setPackageSearchLoading(true);
+    const minDelay = new Promise<void>((resolve) => setTimeout(resolve, 750));
+    try {
+      const [latestPkgs] = await Promise.all([
+        fetchAllPlatformPackagesForPricing(clientCurrency),
+        fetchPreview(),
+        minDelay,
+      ]);
+      setPlatformPackages(latestPkgs);
+    } catch {
+      await minDelay;
+    } finally {
+      setPackageSearchLoading(false);
+    }
+  }, [clientCurrency, fetchPreview]);
 
   useEffect(() => {
     if (!visible || (step !== 3 && step !== 4)) return;
@@ -893,11 +956,15 @@ export function BookingModeSelector({
       setStep(4);
       scrollToTop();
       void persistDraftToServer(draft, 4);
+      void runPackageSearchAndAnalysis();
     }
   };
 
   const back = () => {
     setError(null);
+    if (packageSearchLoading) {
+      setPackageSearchLoading(false);
+    }
     if (step === 'session') setStep('select');
     else if (step === 1) setStep('session');
     else if (step === 2) setStep(1);
@@ -1016,7 +1083,7 @@ export function BookingModeSelector({
           location: fullLocation,
           minBudget: effectiveMinBudget,
           maxBudget: effectiveMaxBudget,
-          currency: 'RWF',
+          currency: clientCurrency,
           photographerType: 'ANY',
           specialty: resolvedEventType,
           photographerSpecialty: 'ANY',
@@ -2134,11 +2201,31 @@ export function BookingModeSelector({
       (p): p is { label: string; min: number; max: number } =>
         typeof p.min === 'number' && typeof p.max === 'number' && p.max > 0,
     );
-    const everydayBudgetRanges = backendBudgetPresets.length > 0 ? backendBudgetPresets : STANDARD_BUDGET_RANGES;
+    const rawEverydayRanges =
+      backendBudgetPresets.length > 0 ? backendBudgetPresets : STANDARD_BUDGET_RANGES;
     // The higher ranges lead when 7,000,000 RWF is recommended; the everyday ones stay available.
-    const budgetRangesList = priceEstimate.isExpressMajorFloor
-      ? [...EXPRESS_MAJOR_BUDGET_RANGES, ...everydayBudgetRanges]
-      : everydayBudgetRanges;
+    const rawCombinedRanges = priceEstimate.isExpressMajorFloor
+      ? [...EXPRESS_MAJOR_BUDGET_RANGES, ...rawEverydayRanges]
+      : rawEverydayRanges;
+    const budgetRangesList = rawCombinedRanges.map((r) => {
+      if (clientCurrency === 'RWF') return r;
+      const cMin =
+        r.min === 0
+          ? 0
+          : roundForCurrency(
+              convertPackageCurrency(r.min, 'RWF', clientCurrency, currenciesMap),
+              clientCurrency,
+            );
+      const cMax = roundForCurrency(
+        convertPackageCurrency(r.max, 'RWF', clientCurrency, currenciesMap),
+        clientCurrency,
+      );
+      const label =
+        cMin === 0
+          ? `Up to ${cMax.toLocaleString('en-US')} ${clientCurrency}`
+          : `${cMin.toLocaleString('en-US')} – ${cMax.toLocaleString('en-US')} ${clientCurrency}`;
+      return { min: cMin, max: cMax, label };
+    });
 
     const plus7Date = addDaysIso(draft.date, 7);
     const plus14Date = addDaysIso(draft.date, 14);
@@ -2439,7 +2526,7 @@ export function BookingModeSelector({
             <InfoPopover
               infoKey="budgetRange"
               text={tr(
-                'Choose one of the suggested budget ranges or select Flexible to enter your own custom minimum and maximum budget in RWF.',
+                `Choose one of the suggested budget ranges or select Flexible to enter your own custom minimum and maximum budget in ${clientCurrency}.`,
               )}
             />
 
@@ -2484,7 +2571,7 @@ export function BookingModeSelector({
                   <Text style={styles.politeBudgetLabel}>{tr('Minimum offer')}</Text>
                   <View style={styles.politeBudgetInputRow}>
                     <View style={styles.currencyBadge}>
-                      <Text style={styles.currencyTag}>RWF</Text>
+                      <Text style={styles.currencyTag}>{clientCurrency}</Text>
                     </View>
                     <TextInput
                       value={draft.minBudgetInput}
@@ -2515,7 +2602,7 @@ export function BookingModeSelector({
                   <Text style={styles.politeBudgetLabel}>{tr('Maximum offer')}</Text>
                   <View style={styles.politeBudgetInputRow}>
                     <View style={styles.currencyBadge}>
-                      <Text style={styles.currencyTag}>RWF</Text>
+                      <Text style={styles.currencyTag}>{clientCurrency}</Text>
                     </View>
                     <TextInput
                       value={draft.maxBudgetInput}
@@ -2546,279 +2633,443 @@ export function BookingModeSelector({
     );
   } else if (step === 4 && options) {
     // ═══════════════════════════════════════════════════════════════════════
-    // STEP 4 OF 5: RECOMMENDED PRICING (its own page)
+    // STEP 4 OF 5: RECOMMENDED PRICING (with Preloader & Package Data Analysis)
     // ═══════════════════════════════════════════════════════════════════════
     const summaryLines = formatOfferDeliverablesSummaryLines(draft, minutes);
     const completeDelta = priceEstimate.recommended - clientMaxBudget;
 
-    body = (
-      <View style={{ gap: spacing.md }}>
-        {/* CARD 2: RECOMMENDED PRICING & COMPARE MATCHING PACKAGES (Cool Vertical Display with Tightened Spacing) */}
+    if (packageSearchLoading) {
+      body = (
         <View style={styles.recPricingContainer}>
-          {/* Header with ⓘ */}
-          <View style={styles.recHeaderCenter}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.recMainTitle}>{tr('Recommended pricing.')}</Text>
-              <InfoBadgeButton infoKey="recPricing" />
-            </View>
-          </View>
-          <InfoPopover
-            infoKey="recPricing"
-            text={tr(
-              'According to your shared event scope and timeline, we compare what you need and in how long against available photographers’ supported packages. Prices are advisory only and require provider agreement.',
-            )}
-          />
-
-          {/* "Your offer" summary card in vertical display */}
-          <View style={styles.yourOfferCard}>
-            <View style={styles.yourOfferIconCircle}>
-              <Ionicons name="calendar" size={20} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1, gap: 2 }}>
-              <Text style={styles.yourOfferTitle}>{tr('Your offer')}</Text>
-              <Text style={styles.yourOfferScopeText}>{summaryLines.digitalLine}</Text>
-              <Text style={styles.yourOfferScopeText}>{summaryLines.printLine}</Text>
-              <Text style={styles.yourOfferBudgetRow}>
-                {tr('Budget:')}{' '}
-                <Text style={styles.yourOfferBudgetHighlight}>{clientRangeDisplay}</Text>
-              </Text>
-            </View>
-          </View>
-
-          {/* Section Title: Compare matching packages. */}
-          <Text style={styles.compareSectionTitle}>{tr('Compare matching packages.')}</Text>
-
-          {/* PACKAGE 1: Essential */}
-          {(() => {
-            const active = draft.packageOption === 'WITHIN_BUDGET';
-            return (
-              <Pressable
-                onPress={() => updateDraft('packageOption', 'WITHIN_BUDGET')}
-                style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: active }}
-              >
-                <View style={styles.pkgLeftCol}>
-                  <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
-                    {active ? <View style={styles.pkgRadioInner} /> : null}
-                  </View>
-                  <View style={styles.pkgIconCircle}>
-                    <Ionicons name="camera" size={18} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <View style={[styles.pkgBadge, styles.pkgBadgeCyan]}>
-                      <Text style={styles.pkgBadgeCyanText}>{tr('Within budget')}</Text>
-                    </View>
-                    <Text style={styles.pkgTitle}>{tr('Essential')}</Text>
-                    <Text style={styles.pkgScopeDesc}>{summaryLines.completeDigitalLine}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.pkgRightCol}>
-                  <Text style={styles.pkgPriceText}>
-                    RWF {priceEstimate.low.toLocaleString('en-US')}
-                  </Text>
-                  <View style={styles.pkgMetaLine}>
-                    <Ionicons name="images-outline" size={12} color={colors.textSoft} />
-                    <Text style={styles.pkgMetaText}>{tr('Digital delivery: 14 days')}</Text>
-                  </View>
-                  <View style={styles.pkgMetaLine}>
-                    <Ionicons name="book-outline" size={12} color={colors.textSoft} />
-                    <Ionicons name="close" size={12} color={colors.error} />
-                    <Text style={styles.pkgMetaText}>
-                      {tr('Photo book & portraits not included')}
-                    </Text>
-                  </View>
-                </View>
-              </Pressable>
-            );
-          })()}
-
-          {/* PACKAGE 2: Complete (Recommended) */}
-          {(() => {
-            const active = draft.packageOption === 'RECOMMENDED';
-            return (
-              <Pressable
-                onPress={() => updateDraft('packageOption', 'RECOMMENDED')}
-                style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: active }}
-              >
-                <View style={styles.pkgLeftCol}>
-                  <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
-                    {active ? <View style={styles.pkgRadioInner} /> : null}
-                  </View>
-                  <View style={[styles.pkgIconCircle, { backgroundColor: 'rgba(139, 92, 246, 0.22)' }]}>
-                    <Ionicons name="book" size={18} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <View style={[styles.pkgBadge, styles.pkgBadgePurple]}>
-                      <Text style={styles.pkgBadgePurpleText}>{tr('Recommended')}</Text>
-                    </View>
-                    <Text style={styles.pkgTitle}>{tr('Complete')}</Text>
-                    <Text style={styles.pkgScopeDesc}>{summaryLines.completeDigitalLine}</Text>
-                    <Text style={styles.pkgScopeDesc}>{summaryLines.completePrintLine}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.pkgRightCol}>
-                  <Text style={styles.pkgPriceText}>
-                    RWF {priceEstimate.recommended.toLocaleString('en-US')}
-                  </Text>
-                  <View style={styles.pkgMetaLine}>
-                    <Ionicons name="images-outline" size={12} color={colors.textSoft} />
-                    <Text style={styles.pkgMetaText}>
-                      {`${tr('Digital delivery')}: ${draft.digitalDeadline}`}
-                    </Text>
-                  </View>
-                  <View style={styles.pkgMetaLine}>
-                    <Ionicons name="book-outline" size={12} color={colors.textSoft} />
-                    <Text style={styles.pkgMetaText}>
-                      {`${
-                        draft.printProductionTime === 'Express production (7–10 days)'
-                          ? tr('Express print (7–10d)')
-                          : draft.printProductionTime === 'Propose production & handover date' &&
-                              draft.printProposedDate
-                            ? `${tr('Print handover')}: ${draft.printProposedDate}`
-                            : tr('Standard print (2–3w)')
-                      } · ${
-                        draft.printCollectionMethod === 'Deliver to my home address'
-                          ? tr('Home delivery')
-                          : draft.printCollectionMethod === 'Ship by courier'
-                            ? tr('Courier shipping')
-                            : tr('Studio pickup')
-                      }`}
-                    </Text>
-                  </View>
-                  {completeDelta > 0 ? (
-                    <View style={styles.pkgMetaLine}>
-                      <Ionicons name="arrow-up" size={12} color={colors.accent} />
-                      <Text style={styles.pkgDeltaAboveText}>
-                        RWF {completeDelta.toLocaleString('en-US')} {tr('above your budget')}
-                      </Text>
-                    </View>
-                  ) : (
-                    <View style={styles.pkgMetaLine}>
-                      <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                      <Text style={[styles.pkgDeltaAboveText, { color: colors.success }]}>
-                        {tr('Within your budget')}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </Pressable>
-            );
-          })()}
-
-          {/* PACKAGE 3: Priority (Faster delivery) */}
-          {(() => {
-            const active = draft.packageOption === 'PRIORITY';
-            return (
-              <Pressable
-                onPress={() => updateDraft('packageOption', 'PRIORITY')}
-                style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: active }}
-              >
-                <View style={styles.pkgLeftCol}>
-                  <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
-                    {active ? <View style={styles.pkgRadioInner} /> : null}
-                  </View>
-                  <View style={styles.pkgIconCircle}>
-                    <Ionicons name="flash" size={18} color={colors.link} />
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <View style={[styles.pkgBadge, styles.pkgBadgeCyan]}>
-                      <Text style={styles.pkgBadgeCyanText}>{tr('Faster delivery')}</Text>
-                    </View>
-                    <Text style={styles.pkgTitle}>{tr('Priority')}</Text>
-                    <Text style={styles.pkgScopeDesc}>{tr('Same deliverables as Complete.')}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.pkgRightCol}>
-                  <Text style={styles.pkgPriceText}>
-                    RWF {priceEstimate.priority.toLocaleString('en-US')}
-                  </Text>
-                  <View style={styles.pkgMetaLine}>
-                    <Ionicons name="images-outline" size={12} color={colors.textSoft} />
-                    <Text style={styles.pkgMetaText}>
-                      {`${tr('Digital delivery')}: ${
-                        getDeadlineCalendarDays(draft.digitalDeadline) < 4
-                          ? draft.digitalDeadline
-                          : tr('4 days (priority)')
-                      }`}
-                    </Text>
-                  </View>
-                  <View style={styles.pkgMetaLine}>
-                    <Ionicons name="book-outline" size={12} color={colors.textSoft} />
-                    <Text style={styles.pkgMetaText}>
-                      {`${tr('Express print (7–10d)')} · ${
-                        draft.printCollectionMethod === 'Deliver to my home address'
-                          ? tr('Home delivery')
-                          : draft.printCollectionMethod === 'Ship by courier'
-                            ? tr('Courier shipping')
-                            : tr('Priority pickup')
-                      }`}
-                    </Text>
-                  </View>
-                  <View style={styles.pkgMetaLine}>
-                    <Ionicons name="time-outline" size={12} color={colors.textMuted} />
-                    <Text style={styles.pkgMetaText}>{tr('Subject to provider availability.')}</Text>
-                  </View>
-                </View>
-              </Pressable>
-            );
-          })()}
-
-          {/* Two Choice Buttons in Vertical Stack */}
-          <View style={{ gap: 8, marginTop: 2 }}>
-            <Pressable
-              onPress={handleUseRecommendedPricing}
-              style={styles.useRecommendedBtn}
-              accessibilityRole="button"
-              accessibilityLabel={tr('Use recommended pricing')}
+          <View
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: spacing['2xl'],
+              paddingHorizontal: spacing.md,
+              gap: spacing.md,
+            }}
+          >
+            <View
+              style={{
+                width: 58,
+                height: 58,
+                borderRadius: 29,
+                backgroundColor: colors.tint,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <View style={styles.useRecommendedCheckCircle}>
-                <Ionicons name="checkmark" size={14} color={colors.primary} />
-              </View>
-              <Text style={styles.useRecommendedBtnText}>{tr('Use recommended pricing')}</Text>
-            </Pressable>
-
-            <Pressable
-              onPress={handlePublishMyOfferAnyway}
-              style={styles.publishAnywayBtn}
-              accessibilityRole="button"
-              accessibilityLabel={tr('Publish my offer anyway')}
-            >
-              <Ionicons name="arrow-forward" size={16} color={colors.link} />
-              <Text style={styles.publishAnywayBtnText}>{tr('Publish my offer anyway')}</Text>
-            </Pressable>
-
-            <View style={styles.recFooterBottomRow}>
-              <Pressable
-                onPress={() => setPoliciesOpen((v) => !v)}
-                hitSlop={8}
-                accessibilityRole="button"
-              >
-                <Text style={styles.viewPoliciesLink}>{tr('View booking policies')}</Text>
-              </Pressable>
+              <ActivityIndicator size="large" color={colors.primary} />
             </View>
-
-            {policiesOpen ? (
-              <View style={styles.policiesBox}>
-                <Text style={styles.policiesBoxTitle}>{tr('Booking & Matching Policies')}</Text>
-                <Text style={styles.policiesBoxText}>
-                  • {tr('Photographers review your full scope, delivery dates, and budget before accepting or countering.')}{'\n'}
-                  • {tr('Print production begins after you select your favorite photos and approve the print proof.')}{'\n'}
-                  • {tr('No payment is charged until you select a responding photographer and confirm final terms.')}
+            <Text
+              style={[
+                styles.recMainTitle,
+                { textAlign: 'center', fontSize: fontSize.md },
+              ]}
+            >
+              {tr('Searching for latest packages updates to recommend...')}
+            </Text>
+            <Text
+              style={[
+                styles.yourOfferScopeText,
+                { textAlign: 'center', maxWidth: 440, lineHeight: 19 },
+              ]}
+            >
+              {tr(
+                `Searching through photographer packages, taking the best 3 packages for each item you selected, converting currencies to ${clientCurrency}, and calculating the summation and average.`,
+              )}
+            </Text>
+            <View
+              style={{
+                width: '100%',
+                marginTop: spacing.xs,
+                padding: spacing.md,
+                borderRadius: radii.md,
+                backgroundColor: colors.surfaceMuted,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                gap: 8,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="search-outline" size={15} color={colors.primary} />
+                <Text style={styles.pkgScopeDesc}>
+                  {tr('Scanning active photographer packages across the platform')}
                 </Text>
               </View>
-            ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="layers-outline" size={15} color={colors.primary} />
+                <Text style={styles.pkgScopeDesc}>
+                  {tr(
+                    `Selecting the best 3 packages for each of your ${packageAnalysis.selectedItemsAnalysis.length} requested items`,
+                  )}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="swap-horizontal-outline" size={15} color={colors.primary} />
+                <Text style={styles.pkgScopeDesc}>
+                  {tr(`Converting package prices (USD & local currencies) into ${clientCurrency}`)}
+                </Text>
+              </View>
+            </View>
           </View>
         </View>
-      </View>
-    );
+      );
+    } else {
+      body = (
+        <View style={{ gap: spacing.md }}>
+          {/* CARD 2: RECOMMENDED PRICING & COMPARE MATCHING PACKAGES (Cool Vertical Display with Tightened Spacing) */}
+          <View style={styles.recPricingContainer}>
+            {/* Header with ⓘ + Refresh packages button */}
+            <View style={styles.rowBetween}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.recMainTitle}>{tr('Recommended pricing.')}</Text>
+                <InfoBadgeButton infoKey="recPricing" />
+              </View>
+              <Pressable
+                onPress={() => void runPackageSearchAndAnalysis()}
+                style={styles.editChipBtn}
+                accessibilityRole="button"
+                accessibilityLabel={tr('Refresh packages')}
+              >
+                <Ionicons name="refresh-outline" size={13} color={colors.primary} />
+                <Text style={styles.editChipText}>{tr('Refresh packages')}</Text>
+              </Pressable>
+            </View>
+            <InfoPopover
+              infoKey="recPricing"
+              text={tr(
+                `Deducted from searching ${packageAnalysis.totalPackagesSearched} photographer packages, taking the best 3 matching packages for each item you selected, converting any foreign currency packages into ${clientCurrency}, and computing their summation and average.`,
+              )}
+            />
+
+            {/* "Your offer" summary card in vertical display */}
+            <View style={styles.yourOfferCard}>
+              <View style={styles.yourOfferIconCircle}>
+                <Ionicons name="calendar" size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.yourOfferTitle}>{tr('Your offer')}</Text>
+                <Text style={styles.yourOfferScopeText}>{summaryLines.digitalLine}</Text>
+                <Text style={styles.yourOfferScopeText}>{summaryLines.printLine}</Text>
+                <Text style={styles.yourOfferBudgetRow}>
+                  {tr('Budget:')}{' '}
+                  <Text style={styles.yourOfferBudgetHighlight}>{clientRangeDisplay}</Text>
+                </Text>
+              </View>
+            </View>
+
+            {/* DATA SEARCH & BEST-3 PER ITEM PACKAGE ANALYSIS SUMMARY */}
+            <View
+              style={{
+                padding: spacing.sm,
+                borderRadius: radii.md,
+                backgroundColor: colors.surfaceMuted,
+                borderWidth: 1,
+                borderColor: colors.borderSoft,
+                gap: 6,
+              }}
+            >
+              <View style={styles.rowBetween}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="analytics-outline" size={15} color={colors.primary} />
+                  <Text style={styles.yourOfferTitle}>
+                    {tr('Package data analysis (Best 3 per item)')}
+                  </Text>
+                </View>
+                <Text style={styles.pkgMetaText}>
+                  {`${packageAnalysis.totalPackagesSearched} ${tr('packages searched')} · ${clientCurrency}`}
+                </Text>
+              </View>
+
+              {packageAnalysis.selectedItemsAnalysis.map((item) => {
+                const topNames = item.bestThreePackages
+                  .map((b) =>
+                    b.originalCurrency !== clientCurrency
+                      ? `${b.packageName} (${b.originalCurrency} ${b.originalPrice.toLocaleString('en-US')} → ${clientCurrency} ${b.convertedPrice.toLocaleString('en-US')})`
+                      : `${b.packageName} (${clientCurrency} ${b.convertedPrice.toLocaleString('en-US')})`,
+                  )
+                  .join(' · ');
+                return (
+                  <View
+                    key={item.itemKey}
+                    style={{
+                      paddingVertical: 4,
+                      borderTopWidth: StyleSheet.hairlineWidth,
+                      borderTopColor: colors.borderSoft,
+                      gap: 2,
+                    }}
+                  >
+                    <View style={styles.rowBetween}>
+                      <Text style={[styles.pkgScopeDesc, { fontWeight: fontWeight.semibold, flex: 1 }]}>
+                        {item.itemLabel}
+                      </Text>
+                      <Text style={[styles.pkgMetaText, { fontWeight: fontWeight.bold, color: colors.text }]}>
+                        {`${tr('Avg')}: ${clientCurrency} ${item.averagePrice.toLocaleString('en-US')}`}
+                      </Text>
+                    </View>
+                    <Text style={styles.pkgMetaText} numberOfLines={1}>
+                      {`${tr('Best 3')}: ${topNames}`}
+                    </Text>
+                  </View>
+                );
+              })}
+
+              <View
+                style={[
+                  styles.rowBetween,
+                  {
+                    paddingTop: 4,
+                    borderTopWidth: 1,
+                    borderTopColor: colors.borderSoft,
+                  },
+                ]}
+              >
+                <Text style={[styles.pkgMetaText, { fontWeight: fontWeight.bold, color: colors.textSoft }]}>
+                  {`${tr('Items summation')}: ${clientCurrency} ${packageAnalysis.totalSummation.toLocaleString('en-US')}`}
+                </Text>
+                <Text style={[styles.pkgMetaText, { fontWeight: fontWeight.bold, color: colors.primary }]}>
+                  {`${tr('Recommended average')}: ${clientCurrency} ${priceEstimate.recommended.toLocaleString('en-US')}`}
+                </Text>
+              </View>
+            </View>
+
+            {/* Section Title: Compare matching packages. */}
+            <Text style={styles.compareSectionTitle}>{tr('Compare matching packages.')}</Text>
+
+            {/* PACKAGE 1: Essential */}
+            {(() => {
+              const active = draft.packageOption === 'WITHIN_BUDGET';
+              return (
+                <Pressable
+                  onPress={() => updateDraft('packageOption', 'WITHIN_BUDGET')}
+                  style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
+                >
+                  <View style={styles.pkgLeftCol}>
+                    <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
+                      {active ? <View style={styles.pkgRadioInner} /> : null}
+                    </View>
+                    <View style={styles.pkgIconCircle}>
+                      <Ionicons name="camera" size={18} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <View style={[styles.pkgBadge, styles.pkgBadgeCyan]}>
+                        <Text style={styles.pkgBadgeCyanText}>{tr('Within budget')}</Text>
+                      </View>
+                      <Text style={styles.pkgTitle}>{tr('Essential')}</Text>
+                      <Text style={styles.pkgScopeDesc}>{summaryLines.completeDigitalLine}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.pkgRightCol}>
+                    <Text style={styles.pkgPriceText}>
+                      {clientCurrency} {priceEstimate.low.toLocaleString('en-US')}
+                    </Text>
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="images-outline" size={12} color={colors.textSoft} />
+                      <Text style={styles.pkgMetaText}>{tr('Digital delivery: 14 days')}</Text>
+                    </View>
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="book-outline" size={12} color={colors.textSoft} />
+                      <Ionicons name="close" size={12} color={colors.error} />
+                      <Text style={styles.pkgMetaText}>
+                        {tr('Photo book & portraits not included')}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })()}
+
+            {/* PACKAGE 2: Complete (Recommended) */}
+            {(() => {
+              const active = draft.packageOption === 'RECOMMENDED';
+              return (
+                <Pressable
+                  onPress={() => updateDraft('packageOption', 'RECOMMENDED')}
+                  style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
+                >
+                  <View style={styles.pkgLeftCol}>
+                    <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
+                      {active ? <View style={styles.pkgRadioInner} /> : null}
+                    </View>
+                    <View style={[styles.pkgIconCircle, { backgroundColor: 'rgba(139, 92, 246, 0.22)' }]}>
+                      <Ionicons name="book" size={18} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <View style={[styles.pkgBadge, styles.pkgBadgePurple]}>
+                        <Text style={styles.pkgBadgePurpleText}>{tr('Recommended')}</Text>
+                      </View>
+                      <Text style={styles.pkgTitle}>{tr('Complete')}</Text>
+                      <Text style={styles.pkgScopeDesc}>{summaryLines.completeDigitalLine}</Text>
+                      <Text style={styles.pkgScopeDesc}>{summaryLines.completePrintLine}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.pkgRightCol}>
+                    <Text style={styles.pkgPriceText}>
+                      {clientCurrency} {priceEstimate.recommended.toLocaleString('en-US')}
+                    </Text>
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="images-outline" size={12} color={colors.textSoft} />
+                      <Text style={styles.pkgMetaText}>
+                        {`${tr('Digital delivery')}: ${draft.digitalDeadline}`}
+                      </Text>
+                    </View>
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="book-outline" size={12} color={colors.textSoft} />
+                      <Text style={styles.pkgMetaText}>
+                        {`${
+                          draft.printProductionTime === 'Express production (7–10 days)'
+                            ? tr('Express print (7–10d)')
+                            : draft.printProductionTime === 'Propose production & handover date' &&
+                                draft.printProposedDate
+                              ? `${tr('Print handover')}: ${draft.printProposedDate}`
+                              : tr('Standard print (2–3w)')
+                        } · ${
+                          draft.printCollectionMethod === 'Deliver to my home address'
+                            ? tr('Home delivery')
+                            : draft.printCollectionMethod === 'Ship by courier'
+                              ? tr('Courier shipping')
+                              : tr('Studio pickup')
+                        }`}
+                      </Text>
+                    </View>
+                    {completeDelta > 0 ? (
+                      <View style={styles.pkgMetaLine}>
+                        <Ionicons name="arrow-up" size={12} color={colors.accent} />
+                        <Text style={styles.pkgDeltaAboveText}>
+                          {clientCurrency} {completeDelta.toLocaleString('en-US')} {tr('above your budget')}
+                        </Text>
+                      </View>
+                    ) : (
+                      <View style={styles.pkgMetaLine}>
+                        <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+                        <Text style={[styles.pkgDeltaAboveText, { color: colors.success }]}>
+                          {tr('Within your budget')}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })()}
+
+            {/* PACKAGE 3: Priority (Faster delivery) */}
+            {(() => {
+              const active = draft.packageOption === 'PRIORITY';
+              return (
+                <Pressable
+                  onPress={() => updateDraft('packageOption', 'PRIORITY')}
+                  style={[styles.pkgRowCard, active && styles.pkgRowCardActive]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: active }}
+                >
+                  <View style={styles.pkgLeftCol}>
+                    <View style={[styles.pkgRadioOuter, active && styles.pkgRadioOuterActive]}>
+                      {active ? <View style={styles.pkgRadioInner} /> : null}
+                    </View>
+                    <View style={styles.pkgIconCircle}>
+                      <Ionicons name="flash" size={18} color={colors.link} />
+                    </View>
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <View style={[styles.pkgBadge, styles.pkgBadgeCyan]}>
+                        <Text style={styles.pkgBadgeCyanText}>{tr('Faster delivery')}</Text>
+                      </View>
+                      <Text style={styles.pkgTitle}>{tr('Priority')}</Text>
+                      <Text style={styles.pkgScopeDesc}>{tr('Same deliverables as Complete.')}</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.pkgRightCol}>
+                    <Text style={styles.pkgPriceText}>
+                      {clientCurrency} {priceEstimate.priority.toLocaleString('en-US')}
+                    </Text>
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="images-outline" size={12} color={colors.textSoft} />
+                      <Text style={styles.pkgMetaText}>
+                        {`${tr('Digital delivery')}: ${
+                          getDeadlineCalendarDays(draft.digitalDeadline) < 4
+                            ? draft.digitalDeadline
+                            : tr('4 days (priority)')
+                        }`}
+                      </Text>
+                    </View>
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="book-outline" size={12} color={colors.textSoft} />
+                      <Text style={styles.pkgMetaText}>
+                        {`${tr('Express print (7–10d)')} · ${
+                          draft.printCollectionMethod === 'Deliver to my home address'
+                            ? tr('Home delivery')
+                            : draft.printCollectionMethod === 'Ship by courier'
+                              ? tr('Courier shipping')
+                              : tr('Priority pickup')
+                        }`}
+                      </Text>
+                    </View>
+                    <View style={styles.pkgMetaLine}>
+                      <Ionicons name="time-outline" size={12} color={colors.textMuted} />
+                      <Text style={styles.pkgMetaText}>{tr('Subject to provider availability.')}</Text>
+                    </View>
+                  </View>
+                </Pressable>
+              );
+            })()}
+
+            {/* Two Choice Buttons in Vertical Stack */}
+            <View style={{ gap: 8, marginTop: 2 }}>
+              <Pressable
+                onPress={handleUseRecommendedPricing}
+                style={styles.useRecommendedBtn}
+                accessibilityRole="button"
+                accessibilityLabel={tr('Use recommended pricing')}
+              >
+                <View style={styles.useRecommendedCheckCircle}>
+                  <Ionicons name="checkmark" size={14} color={colors.primary} />
+                </View>
+                <Text style={styles.useRecommendedBtnText}>{tr('Use recommended pricing')}</Text>
+              </Pressable>
+
+              <Pressable
+                onPress={handlePublishMyOfferAnyway}
+                style={styles.publishAnywayBtn}
+                accessibilityRole="button"
+                accessibilityLabel={tr('Publish my offer anyway')}
+              >
+                <Ionicons name="arrow-forward" size={16} color={colors.link} />
+                <Text style={styles.publishAnywayBtnText}>{tr('Publish my offer anyway')}</Text>
+              </Pressable>
+
+              <View style={styles.recFooterBottomRow}>
+                <Pressable
+                  onPress={() => setPoliciesOpen((v) => !v)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.viewPoliciesLink}>{tr('View booking policies')}</Text>
+                </Pressable>
+              </View>
+
+              {policiesOpen ? (
+                <View style={styles.policiesBox}>
+                  <Text style={styles.policiesBoxTitle}>{tr('Booking & Matching Policies')}</Text>
+                  <Text style={styles.policiesBoxText}>
+                    • {tr('Photographers review your full scope, delivery dates, and budget before accepting or countering.')}{'\n'}
+                    • {tr('Print production begins after you select your favorite photos and approve the print proof.')}{'\n'}
+                    • {tr('No payment is charged until you select a responding photographer and confirm final terms.')}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      );
+    }
   } else if (step === 5 && options) {
     // ═══════════════════════════════════════════════════════════════════════
     // STEP 5 OF 5: CLEAN, EXECUTIVE REVIEW & PUBLISH
