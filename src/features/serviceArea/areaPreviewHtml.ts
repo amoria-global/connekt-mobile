@@ -52,10 +52,15 @@ export function buildAreaPreviewHtml(opts: { lat: number; lng: number; key: stri
       function send(msg) { if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg); }
       var done = false;
       function finish(msg) { if (!done) { done = true; send(msg); } }
+      // Any error in this script ends as "failed", never as a frame that waits for a message that will not come.
+      window.onerror = function () { finish('failed'); return true; };
       if (typeof L === 'undefined') { finish('failed'); return; }
       var lat = ${Number(opts.lat)}, lng = ${Number(opts.lng)};
       var map = L.map('map', { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false,
         touchZoom: false, doubleClickZoom: false, boxZoom: false, keyboard: false, tap: false });
+      // Frame the area from its own size in metres, before any layer is added. A circle can only measure itself on a map that
+      // already has a view, and asking it first throws, which silently ends this script.
+      map.fitBounds(L.latLng(lat, lng).toBounds(${PREVIEW_RADIUS_METERS * 2}), { padding: [22, 22] });
       var errors = 0;
       var tiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png?key=${safeKey}', { maxZoom: 18, subdomains: 'abcd' });
       tiles.on('tileload', function () { finish('ready'); });
@@ -64,7 +69,6 @@ export function buildAreaPreviewHtml(opts: { lat: number; lng: number; key: stri
       var circle = L.circle([lat, lng], { radius: ${PREVIEW_RADIUS_METERS}, color: '${esc(c.circle)}', weight: 2, dashArray: '6 6',
         fillColor: '${esc(c.circleFill)}', fillOpacity: 0.18, interactive: false }).addTo(map);
       L.circleMarker([lat, lng], { radius: 4, color: '${esc(c.centre)}', fillColor: '${esc(c.centre)}', fillOpacity: 1, weight: 1, interactive: false }).addTo(map);
-      map.fitBounds(circle.getBounds(), { padding: [22, 22] });
       setTimeout(function () { finish('failed'); }, ${PREVIEW_TIMEOUT_MS});
     })();
   </script>
