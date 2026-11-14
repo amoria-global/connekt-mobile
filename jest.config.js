@@ -12,6 +12,9 @@
  */
 module.exports = {
   preset: 'jest-expo',
+  // Always use worker processes. On a one-core runner jest goes in band, and there the run exits 1 although every
+  // test passed (jest-expo's lazy global fetch logs after the test environment is gone). Two workers avoid it.
+  maxWorkers: 2,
   // Node's default resolver plus the RN/Expo transform allowances the preset
   // needs. Without transformIgnorePatterns, node_modules ships untranspiled
   // Flow/JSX and every RN import throws a syntax error.
