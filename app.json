@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.3.2",
+    "version": "2.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -178,6 +178,18 @@
       "router": {},
       "releaseNotes": {
         "releases": [
+          {
+            "id": "2026-11-14-nearby-location",
+            "date": "2026-11-14",
+            "title": "Photographers near you, using your location",
+            "items": [
+              {
+                "icon": "navigate-outline",
+                "title": "The map follows where you are",
+                "body": "When you allow it, the Photographers map centres on your phone's location, like the website does. Clients and photographers only ever see a general area, never your exact position."
+              }
+            ]
+          },
           {
             "id": "2026-11-14-map-style",
             "date": "2026-11-14",
