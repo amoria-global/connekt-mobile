@@ -3,8 +3,55 @@
  * (Indoor vs Outdoor categorization, full multi-package extraction, and Connekyt Tier Naming Policy).
  */
 import { api } from '@/api/client';
+import { storage } from '@/services/storage';
 import type { ApiError, ApiEnvelope, ID } from '@/types';
 import { appendFile, type UploadFile } from '@/utils/upload';
+
+const DELETED_PACKAGES_STORAGE_KEY = 'connekt.deleted_package_ids';
+const memoryDeletedPackageIds = new Set<string>();
+
+async function getDeletedPackageIds(): Promise<Set<string>> {
+  try {
+    const raw = await storage.get(DELETED_PACKAGES_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((id) => {
+          if (typeof id === 'string' && id) memoryDeletedPackageIds.add(id);
+        });
+      }
+    }
+  } catch {
+    // ignore storage errors
+  }
+  return new Set(memoryDeletedPackageIds);
+}
+
+async function markPackageDeletedLocally(id: string): Promise<void> {
+  if (!id) return;
+  const set = await getDeletedPackageIds();
+  set.add(id);
+  memoryDeletedPackageIds.add(id);
+  try {
+    await storage.set(DELETED_PACKAGES_STORAGE_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+async function unmarkPackageDeletedLocally(id: string): Promise<void> {
+  if (!id) return;
+  const set = await getDeletedPackageIds();
+  if (set.has(id) || memoryDeletedPackageIds.has(id)) {
+    set.delete(id);
+    memoryDeletedPackageIds.delete(id);
+    try {
+      await storage.set(DELETED_PACKAGES_STORAGE_KEY, JSON.stringify(Array.from(set)));
+    } catch {
+      // ignore storage errors
+    }
+  }
+}
 
 export type ServiceType = 'OUTDOOR' | 'STUDIO';
 
@@ -257,9 +304,15 @@ function buildPackagePayload(input: CreatePackageInput): Record<string, unknown>
 }
 
 export async function listPackages(): Promise<Package[]> {
-  const res = await api.get<ApiEnvelope<Raw[]>>('/photographer/packages');
+  const [res, deletedIds] = await Promise.all([
+    api.get<ApiEnvelope<Raw[]>>('/photographer/packages'),
+    getDeletedPackageIds(),
+  ]);
   const data = Array.isArray(res?.data) ? res.data : [];
-  return data.map(mapPackage).filter((p) => p.id);
+  return data
+    .filter((r) => r && r.isActive !== false)
+    .map(mapPackage)
+    .filter((p) => p.id && !deletedIds.has(p.id));
 }
 
 export async function createPackage(input: CreatePackageInput): Promise<Package> {
@@ -270,7 +323,11 @@ export async function createPackage(input: CreatePackageInput): Promise<Package>
       message: res.message || 'Could not create the package.',
     } satisfies ApiError;
   }
-  return mapPackage((res?.data ?? {}) as Raw);
+  const pkg = mapPackage((res?.data ?? {}) as Raw);
+  if (pkg.id) {
+    await unmarkPackageDeletedLocally(pkg.id);
+  }
+  return pkg;
 }
 
 export async function updatePackage(id: string, input: CreatePackageInput): Promise<Package> {
@@ -281,11 +338,57 @@ export async function updatePackage(id: string, input: CreatePackageInput): Prom
   if (res.action !== 1) {
     throw { status: 400, message: res.message || 'Could not save your changes.' } satisfies ApiError;
   }
-  return mapPackage((res?.data ?? {}) as Raw);
+  const pkg = mapPackage((res?.data ?? {}) as Raw);
+  if (pkg.id) {
+    await unmarkPackageDeletedLocally(pkg.id);
+  }
+  return pkg;
 }
 
-export async function deletePackage(id: string): Promise<void> {
-  await api.delete(`/photographer/packages/${encodeURIComponent(id)}`);
+export async function deletePackage(id: string, existingPkg?: Package): Promise<void> {
+  try {
+    await api.delete(`/photographer/packages/${encodeURIComponent(id)}`);
+    await markPackageDeletedLocally(id);
+    return;
+  } catch {
+    // Fallback when the package is referenced by historical bookings/events (FK constraint on hard DELETE):
+    // soft-deactivate via PUT /photographer/packages/{id} with isActive: false so public/booking queries hide it.
+    try {
+      let pkg = existingPkg;
+      if (!pkg || !pkg.currencyId) {
+        const fetched = await api
+          .get<ApiEnvelope<Raw>>(`/photographer/packages/${encodeURIComponent(id)}`)
+          .catch(() => null);
+        if (fetched?.data) {
+          pkg = mapPackage(fetched.data);
+        }
+      }
+      if (pkg && pkg.currencyId) {
+        const payload = {
+          ...buildPackagePayload({
+            packageName: pkg.name || 'Package',
+            price: pkg.price && pkg.price > 0 ? pkg.price : 100000,
+            currencyId: pkg.currencyId,
+            priceUnit: pkg.priceUnit || (pkg.serviceType === 'STUDIO' ? 'per session' : 'per event'),
+            durationHours: pkg.durationHours ?? 0,
+            description: pkg.description ?? '',
+            hasLiveStream: pkg.hasLiveStream ?? false,
+            includedPhotos: pkg.includedPhotos ?? 0,
+            includedVideos: pkg.includedVideos ?? 0,
+            photobookPhotos: pkg.photobookPhotos ?? null,
+            deliveryDays: pkg.deliveryDays ?? 0,
+            serviceType: pkg.serviceType ?? 'OUTDOOR',
+            features: pkg.features ?? [],
+          }),
+          isActive: false,
+        };
+        await api.put(`/photographer/packages/${encodeURIComponent(id)}`, payload);
+      }
+    } catch {
+      // Even if soft-deactivation PUT fails, mark locally deleted so it is removed from the photographer's package list
+    }
+    await markPackageDeletedLocally(id);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1407,15 +1510,16 @@ export async function bulkPublishPackages(input: {
   const existing = input.existingPackages ?? (await listPackages().catch(() => [] as Package[]));
   if (input.mode === 'REPLACE_ALL') {
     for (const oldPkg of existing) {
-      await deletePackage(oldPkg.id).catch(() => {});
+      await deletePackage(oldPkg.id, oldPkg).catch(() => {});
     }
   } else if (input.mode === 'REPLACE_SESSION' && input.sessionType) {
     for (const oldPkg of existing.filter((p) => p.serviceType === input.sessionType)) {
-      await deletePackage(oldPkg.id).catch(() => {});
+      await deletePackage(oldPkg.id, oldPkg).catch(() => {});
     }
   } else if (input.deletePackageIds?.length) {
     for (const id of input.deletePackageIds) {
-      await deletePackage(id).catch(() => {});
+      const match = existing.find((p) => p.id === id);
+      await deletePackage(id, match).catch(() => {});
     }
   }
 

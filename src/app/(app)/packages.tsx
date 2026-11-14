@@ -63,7 +63,7 @@ export default function PackagesScreen() {
         onPress: async () => {
           setBusyId(p.id);
           try {
-            await deletePackage(p.id);
+            await deletePackage(p.id, p);
             await refresh();
           } catch {
             Alert.alert(t('b2_packagesDeleteErrorTitle'), t('b2_packagesTryAgain'));
@@ -336,15 +336,27 @@ export default function PackagesScreen() {
 
               <View style={styles.cardActions}>
                 <Text style={styles.editHint}>Edit Details</Text>
-                <Text
-                  style={styles.geoLink}
-                  onPress={() => router.push(`/event/geo-pricing?packageId=${item.id}` as never)}
+                <Pressable
+                  onPress={(e) => {
+                    e?.stopPropagation?.();
+                    router.push(`/event/geo-pricing?packageId=${item.id}` as never);
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
                 >
-                  {t('b2_packagesGeoPricing')}
-                </Text>
-                <Text style={styles.delete} onPress={() => onDelete(item)}>
-                  {t('b2_packagesDelete')}
-                </Text>
+                  <Text style={styles.geoLink}>{t('b2_packagesGeoPricing')}</Text>
+                </Pressable>
+                <Pressable
+                  onPress={(e) => {
+                    e?.stopPropagation?.();
+                    onDelete(item);
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t('b2_packagesDelete')} ${item.name}`}
+                >
+                  <Text style={styles.delete}>{t('b2_packagesDelete')}</Text>
+                </Pressable>
               </View>
             </Pressable>
           );
