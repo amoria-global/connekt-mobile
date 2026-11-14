@@ -21,7 +21,13 @@ import {
   setKeepReady,
 } from './incomingCall';
 
-const FULL_SCREEN_INTENT_ENABLED = true;
+/**
+ * PLAY-REJECTION-DISABLED (2026-11-04): the full-screen alert step is off because the USE_FULL_SCREEN_INTENT permission
+ * was removed from the manifest (plugins/withIncomingCall.js) after Google Play rejected the 2.3.2 submission over the
+ * undeclared permission. Without the permission the setting it opens does nothing. The step below is kept intact. Set this
+ * to true together with the plugin flag once the Play Console declaration is approved and a new store build ships.
+ */
+const FULL_SCREEN_INTENT_ENABLED = false;
 
 type Step = {
   key: string;

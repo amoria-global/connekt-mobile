@@ -2,7 +2,7 @@
   "expo": {
     "name": "Connekyt",
     "slug": "connekt-mobile",
-    "version": "2.3.2",
+    "version": "2.4.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "connekt",
@@ -71,9 +71,12 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.ACCESS_COARSE_LOCATION"
       ],
       "blockedPermissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
         "android.permission.FOREGROUND_SERVICE",
         "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
         "android.permission.FOREGROUND_SERVICE_SPECIAL_USE",
@@ -133,6 +136,12 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Connekyt uses your location while the app is open to show photographers near you. It is never shown to anyone, and clients only ever see a general area."
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library.",
@@ -172,6 +181,30 @@
       "router": {},
       "releaseNotes": {
         "releases": [
+          {
+            "id": "2026-11-14-tv-one-tap",
+            "date": "2026-11-14",
+            "title": "Send to your TV in one tap",
+            "items": [
+              {
+                "icon": "tv-outline",
+                "title": "Watch on TV goes straight to your TV",
+                "body": "If you have one TV, or used one before, tapping the TV icon on a live stream sends it there right away. TVs that are on now show as On."
+              }
+            ]
+          },
+          {
+            "id": "2026-11-14-nearby-location",
+            "date": "2026-11-14",
+            "title": "Photographers near you, using your location",
+            "items": [
+              {
+                "icon": "navigate-outline",
+                "title": "The map follows where you are",
+                "body": "When you allow it, the Photographers map centres on your phone's location, like the website does. Clients and photographers only ever see a general area, never your exact position."
+              }
+            ]
+          },
           {
             "id": "2026-11-14-map-style",
             "date": "2026-11-14",

@@ -2,7 +2,7 @@
   "name": "connekt-mobile",
   "packageManager": "yarn@1.22.22",
   "main": "index.js",
-  "version": "2.3.1",
+  "version": "2.4.0",
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/pragati-narrow": "^0.4.1",
@@ -31,6 +31,7 @@
     "expo-image-picker": "~57.0.20",
     "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.12",
+    "expo-location": "~57.0.23",
     "expo-media-library": "~57.0.5",
     "expo-notifications": "~57.0.22",
     "expo-print": "~57.0.2",

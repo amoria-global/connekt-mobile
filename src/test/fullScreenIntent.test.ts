@@ -1,34 +1,19 @@
 /**
- * Verifies that plugins/withIncomingCall.js adds USE_FULL_SCREEN_INTENT, WAKE_LOCK, VIBRATE,
- * and sets showWhenLocked="true" and turnScreenOn="true" on .MainActivity so incoming calls
- * wake and override the lock screen.
+ * USE_FULL_SCREEN_INTENT is switched off on purpose: Google Play rejected the 2.3.2 submission until the permission is
+ * declared in Play Console. See PLAY-REJECTION-DISABLED in plugins/withIncomingCall.js and useCallReadiness.ts. When the
+ * declaration is approved and the flags are turned back on, update this test with them.
  */
 jest.mock('expo/config-plugins', () => ({
   withAndroidManifest: (config: any, mod: (c: any) => any) => mod(config),
 }));
 
-describe('full-screen intent and lock-screen wake in withIncomingCall', () => {
-  it('adds USE_FULL_SCREEN_INTENT, WAKE_LOCK, VIBRATE and enables showWhenLocked/turnScreenOn on MainActivity', () => {
+describe('full-screen intent is held back for Play', () => {
+  it('does not add the permission to the manifest', () => {
     const withIncomingCall = require('../../plugins/withIncomingCall');
-    const mainActivity: any = { $: { 'android:name': '.MainActivity' } };
-    const config = {
-      modResults: {
-        manifest: {
-          'uses-permission': [],
-          application: [{ activity: [mainActivity] }],
-        },
-      },
-    };
+    const config = { modResults: { manifest: { 'uses-permission': [], application: [{ activity: [] }] } } };
     withIncomingCall(config);
     const names = config.modResults.manifest['uses-permission'].map((p: any) => p.$['android:name']);
-    expect(names).toEqual(
-      expect.arrayContaining([
-        'android.permission.USE_FULL_SCREEN_INTENT',
-        'android.permission.WAKE_LOCK',
-        'android.permission.VIBRATE',
-      ]),
-    );
-    expect(mainActivity.$['android:showWhenLocked']).toBe('true');
-    expect(mainActivity.$['android:turnScreenOn']).toBe('true');
+    expect(names).not.toContain('android.permission.USE_FULL_SCREEN_INTENT');
+    expect(names).toEqual(expect.arrayContaining(['android.permission.WAKE_LOCK', 'android.permission.VIBRATE']));
   });
 });
