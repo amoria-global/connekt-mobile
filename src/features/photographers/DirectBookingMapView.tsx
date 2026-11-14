@@ -145,7 +145,7 @@ export function DirectBookingMapView({
     const tileKey = env.cartoKey.trim() ? `?key=${encodeURIComponent(env.cartoKey.trim())}` : '';
     const tileTheme = isDark
       ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png${tileKey}`
-      : `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${tileKey}`;
+      : `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png${tileKey}`;
     const bgColor = isDark ? colors.background : colors.surfaceMuted;
     const primaryColor = colors.primary;
     const accentColor = colors.accent;
