@@ -173,6 +173,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-14-map-style",
+            "date": "2026-11-14",
+            "title": "A brighter photographer map",
+            "items": [
+              {
+                "icon": "map-outline",
+                "title": "More colour and landmarks in light mode",
+                "body": "The map of nearby photographers now shows parks, water, buildings and place names in clearer colours when your phone is in light mode."
+              }
+            ]
+          },
+          {
             "id": "2026-11-14-maps",
             "date": "2026-11-14",
             "title": "Maps that load",
