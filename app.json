@@ -133,6 +133,12 @@
         }
       ],
       [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Connekyt uses your location while the app is open to show photographers near you. It is never shown to anyone, and clients only ever see a general area."
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Allow Connekyt to save your purchased high-resolution photos directly to your Photos library.",

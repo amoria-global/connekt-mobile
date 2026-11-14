@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { env } from '@/config/env';
+import { useDeviceLocation } from './useDeviceLocation';
 import BottomSheet from '@gorhom/bottom-sheet';
 import {
   fetchDirectBookingMap,
@@ -68,10 +69,17 @@ export function DirectBookingMapView({
     setSearch(initialSearch);
   }, [initialSearch]);
 
+  // The phone's own position, as the website does with the browser's. Until it answers the first request waits, so the map does
+  // not draw the default area and then jump.
+  const { coords, status: locationStatus, retry: retryLocation } = useDeviceLocation();
+
   const loadMap = useCallback(async () => {
+    if (locationStatus === 'pending') return;
     setLoading(true);
     try {
       const data = await fetchDirectBookingMap({
+        lat: coords?.lat,
+        lng: coords?.lng,
         radiusKm,
         specialty: specialty === 'All' ? undefined : specialty,
         search: search.trim() || undefined,
@@ -85,7 +93,7 @@ export function DirectBookingMapView({
     } finally {
       setLoading(false);
     }
-  }, [radiusKm, specialty, search]);
+  }, [radiusKm, specialty, search, coords, locationStatus]);
 
   useEffect(() => {
     loadMap();
@@ -100,6 +108,8 @@ export function DirectBookingMapView({
   };
 
   const handleRecenter = () => {
+    // With no position yet (permission was refused, or no fix), ask again rather than recentre on the default area.
+    if (!coords) retryLocation();
     const js = `window.recenterToClient && window.recenterToClient(); true;`;
     webViewRef.current?.injectJavaScript(js);
   };
