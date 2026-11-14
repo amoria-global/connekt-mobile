@@ -1186,9 +1186,6 @@ export function BookingModeSelector({
                   <Text style={[styles.modeTypePillText, { color: colors.textMuted }]}>{tr('Direct')}</Text>
                 </View>
               </View>
-              <Text style={styles.modeCardDesc}>
-                {tr('Look through portfolios, compare packages, and reach out directly to the photographer you want.')}
-              </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </View>
@@ -1213,9 +1210,6 @@ export function BookingModeSelector({
               <View style={styles.modeTitleRow}>
                 <Text style={styles.modeCardTitle}>{tr('Create Your Event Offer')}</Text>
               </View>
-              <Text style={styles.modeCardDesc}>
-                {tr('Select event details, digital coverage, print products & delivery schedule. Available photographers accept or counter.')}
-              </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </View>
@@ -1225,12 +1219,6 @@ export function BookingModeSelector({
   } else if (step === 'session') {
     body = (
       <View style={{ gap: spacing.md }}>
-        <Text style={styles.hint}>
-          {tr(
-            'Choose your session setting to get started. Indoor sessions cover studio & small events, while Outdoor sessions cover outside-studio & large events for individuals or organizations.',
-          )}
-        </Text>
-
         {/* Option A: Indoor Session (Studio session) */}
         <Pressable
           onPress={() => handleSelectSessionType('INDOOR', true)}
@@ -1260,11 +1248,6 @@ export function BookingModeSelector({
                   </Text>
                 </View>
               </View>
-              <Text style={styles.modeCardDesc}>
-                {tr(
-                  'Small events & studio sessions for individuals or organizations — portraits, birthday shoots, family & baby, headshots, product studio, or small office sessions.',
-                )}
-              </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </View>
@@ -1299,11 +1282,6 @@ export function BookingModeSelector({
                   </Text>
                 </View>
               </View>
-              <Text style={styles.modeCardDesc}>
-                {tr(
-                  'Outside-studio & large events for individuals or organizations — weddings, conferences, corporate events, graduations, concerts, or cultural ceremonies.',
-                )}
-              </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
           </View>
@@ -1718,7 +1696,6 @@ export function BookingModeSelector({
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardHeading}>{tr('Digital coverage')}</Text>
-              <Text style={styles.cardSubheading}>{tr('What do you need?')}</Text>
             </View>
           </View>
 
@@ -2584,9 +2561,6 @@ export function BookingModeSelector({
               <Text style={styles.recMainTitle}>{tr('Recommended pricing.')}</Text>
               <InfoBadgeButton infoKey="recPricing" />
             </View>
-            <Text style={styles.recSubtitle}>
-              {tr('According to your shared data, this may fit (advisory only).')}
-            </Text>
           </View>
           <InfoPopover
             infoKey="recPricing"
@@ -2822,10 +2796,6 @@ export function BookingModeSelector({
             </Pressable>
 
             <View style={styles.recFooterBottomRow}>
-              <Text style={styles.publishAnywayNote}>
-                {tr('Publishing anyway keeps your')} {clientRangeDisplay}{' '}
-                {tr('budget and original requirements.')}
-              </Text>
               <Pressable
                 onPress={() => setPoliciesOpen((v) => !v)}
                 hitSlop={8}

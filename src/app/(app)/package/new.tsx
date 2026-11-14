@@ -578,11 +578,8 @@ export default function NewPackageScreen() {
                   <View style={styles.iconCircle}>
                     <Ionicons name="document-text-outline" size={22} color={colors.primary} />
                   </View>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.sectionTitle}>Upload Document</Text>
-                    <Text style={styles.subtitleText}>
-                      Upload your package brochure or price list (PDF, JPG, PNG).
-                    </Text>
                   </View>
                 </View>
 
@@ -859,11 +856,8 @@ export default function NewPackageScreen() {
                 {/* Organize Packages Header */}
                 <View style={styles.policyInfoCard}>
                   <Ionicons name="layers-outline" size={18} color={colors.primary} />
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.policyInfoTitle}>Organize Packages</Text>
-                    <Text style={styles.policyInfoSub}>
-                      Choose Indoor or Outdoor and review your package details before publishing.
-                    </Text>
                   </View>
                 </View>
 
@@ -1293,11 +1287,8 @@ export default function NewPackageScreen() {
                   <View style={styles.iconCircle}>
                     <Ionicons name="checkmark-done-outline" size={22} color={colors.primary} />
                   </View>
-                  <View style={{ flex: 1, gap: 2 }}>
+                  <View style={{ flex: 1 }}>
                     <Text style={styles.sectionTitle}>Publish Package</Text>
-                    <Text style={styles.subtitleText}>
-                      Your package is set and can now be published to your profile.
-                    </Text>
                   </View>
                 </View>
 
