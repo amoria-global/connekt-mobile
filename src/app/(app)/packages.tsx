@@ -317,7 +317,36 @@ export default function PackagesScreen() {
                     <Text style={styles.metricChipText}>{t('b2_packagesLiveStream')}</Text>
                   </View>
                 ) : null}
+                {(item.addons ?? [])
+                  .filter((a) => a.enabled && a.price > 0)
+                  .map((addon) => (
+                    <View key={addon.key} style={styles.metricChip}>
+                      <Ionicons
+                        name={addon.key === 'drone_capturing' ? 'airplane' : 'sparkles-outline'}
+                        size={12}
+                        color={colors.primary}
+                      />
+                      <Text style={styles.metricChipText}>
+                        {`${addon.name}: +${formatPrice(addon.price, addon.currencyCode || item.currency)}`}
+                      </Text>
+                    </View>
+                  ))}
               </View>
+
+              {item.deliveryPolicy || (item.otherPolicies && item.otherPolicies.length > 0) ? (
+                <View style={styles.ingredientsBox}>
+                  {item.deliveryPolicy ? (
+                    <Text style={styles.ingredientLine} numberOfLines={2}>
+                      {`⏱️ Delivery Policy: ${item.deliveryPolicy}`}
+                    </Text>
+                  ) : null}
+                  {(item.otherPolicies ?? []).slice(0, 2).map((pol, pIdx) => (
+                    <Text key={`pol-${pIdx}`} style={styles.ingredientLine} numberOfLines={2}>
+                      {`📋 Policy: ${pol}`}
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
 
               {featureNames.length > 0 ? (
                 <View style={styles.ingredientsBox}>

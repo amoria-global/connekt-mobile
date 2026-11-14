@@ -22,6 +22,8 @@ export interface AnalyzedPhotographerPackage {
   includedVideos: number;
   photobookPhotos: number;
   hasLiveStream: boolean;
+  hasDroneCapturing?: boolean;
+  droneCapturingPrice?: number;
   deliveryDays: number;
   description: string;
   features: string[];
@@ -43,6 +45,7 @@ export interface SelectedItemPackageAnalysis {
     | 'PHOTOS'
     | 'VIDEOS'
     | 'LIVE_STREAM'
+    | 'DRONE_CAPTURING'
     | 'INSTANT_UPDATES'
     | 'WISHES_AND_MEMORIES'
     | 'PHOTO_BOOKS'
@@ -166,6 +169,8 @@ const BASELINE_PLATFORM_PACKAGES: Omit<
     includedVideos: 2,
     photobookPhotos: 300,
     hasLiveStream: true,
+    hasDroneCapturing: true,
+    droneCapturingPrice: 150000,
     deliveryDays: 5,
     description:
       'Photobook, Traditional Photoshoot, Wedding Video Shoot & highlights, Frame 1 = A1, Full Video & Photos soft on flash disk, Live Streaming, 2 Photographers, 2 Videographers',
@@ -175,6 +180,7 @@ const BASELINE_PLATFORM_PACKAGES: Omit<
       'Frame 1 = A1 wall portrait',
       'Full Video & Photos soft on flash disk',
       'Live Streaming',
+      'Add-on: Drone Capturing (+150,000 RWF)',
       'Instant wishes & guest memories',
     ],
   },
@@ -190,6 +196,8 @@ const BASELINE_PLATFORM_PACKAGES: Omit<
     includedVideos: 1,
     photobookPhotos: 200,
     hasLiveStream: false,
+    hasDroneCapturing: false,
+    droneCapturingPrice: 0,
     deliveryDays: 7,
     description:
       'Civil Wedding package: Photobook, 1 A2 Frame, Soft Photos on Flash Disk, Video highlight, 1 Videographer, 1 Photographer',
@@ -212,6 +220,8 @@ const BASELINE_PLATFORM_PACKAGES: Omit<
     includedVideos: 2,
     photobookPhotos: 250,
     hasLiveStream: true,
+    hasDroneCapturing: true,
+    droneCapturingPrice: 120,
     deliveryDays: 7,
     description:
       'Full day outdoor event coverage with 350 edited photos, 2 highlight & ceremony videos, live stream, A4 photo book & photo album, and 1 framed wall portrait.',
@@ -219,6 +229,7 @@ const BASELINE_PLATFORM_PACKAGES: Omit<
       '350 edited high-resolution photos',
       '2 highlight & full ceremony videos',
       'Multi-camera live stream',
+      'Add-on: Drone Capturing (+120 USD)',
       'A4 Photo book & Photo album',
       '1 Framed wall portrait (60x90 cm)',
       'Same-day instant updates',
@@ -236,12 +247,15 @@ const BASELINE_PLATFORM_PACKAGES: Omit<
     includedVideos: 1,
     photobookPhotos: 150,
     hasLiveStream: false,
+    hasDroneCapturing: true,
+    droneCapturingPrice: 120000,
     deliveryDays: 7,
     description:
       'Ceremony & reception coverage with 200 edited photos, video highlights, photo album, and same-day social media teasers.',
     features: [
       '200 edited photos',
       '1 video highlight',
+      'Add-on: Drone Capturing (+120,000 RWF)',
       'Photo album included',
       'Same-day instant updates',
     ],
@@ -401,6 +415,24 @@ function parseRawPackage(
   const hasLiveStream =
     Boolean(raw.hasLiveStream) || /live\s*stream|livestream/i.test(combinedText);
 
+  let droneCapturingPrice =
+    typeof raw.droneCapturingPrice === 'number' && raw.droneCapturingPrice > 0
+      ? raw.droneCapturingPrice
+      : 0;
+  if (!droneCapturingPrice) {
+    for (const fStr of features) {
+      const m = fStr.match(/^Add-on:\s*Drone[^()]*\(\+?([\d,.\s]+)\s*([A-Za-z]{3})?\)/i);
+      if (m) {
+        const parsedDrone = parseFloat(m[1].replace(/[,\s]/g, ''));
+        if (Number.isFinite(parsedDrone) && parsedDrone > 0) {
+          droneCapturingPrice = Math.round(parsedDrone);
+          break;
+        }
+      }
+    }
+  }
+  const hasDroneCapturing = droneCapturingPrice > 0;
+
   const durationHours =
     typeof raw.durationHours === 'number' && raw.durationHours > 0
       ? raw.durationHours
@@ -425,6 +457,8 @@ function parseRawPackage(
     includedVideos,
     photobookPhotos,
     hasLiveStream,
+    hasDroneCapturing,
+    droneCapturingPrice,
     deliveryDays,
     description,
     features,
@@ -655,6 +689,37 @@ export function analyzePackagesForDraft(
     selectedItemsAnalysis.push({
       itemKey: 'LIVE_STREAM',
       itemLabel: 'Live stream coverage',
+      category: 'DIGITAL',
+      bestThreePackages: bestThree,
+      averagePrice: roundForCurrency(
+        avgOf(bestThree.map((b) => b.derivedItemContribution)),
+        clientCurrency,
+      ),
+    });
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // 3B. DRONE CAPTURING (Unique Self-Priced Add-on — Only Photographers With Amount > 0)
+  // ─────────────────────────────────────────────────────────────────────────
+  if (draft.droneCapturing) {
+    const droneEnabledPool = [...normalizedPackages]
+      .filter((p) => p.hasDroneCapturing && (p.droneCapturingPrice ?? 0) > 0)
+      .sort((a, b) => (a.droneCapturingPrice ?? 0) - (b.droneCapturingPrice ?? 0));
+    const bestThreeDronePkgs = (
+      droneEnabledPool.length >= 3 ? droneEnabledPool : [...droneEnabledPool, ...normalizedPackages]
+    ).slice(0, 3);
+
+    const bestThree = bestThreeDronePkgs.map((pkg) => {
+      const selfDroneAmount =
+        pkg.droneCapturingPrice && pkg.droneCapturingPrice > 0
+          ? convertPackageCurrency(pkg.droneCapturingPrice, pkg.currency, clientCurrency, currencies)
+          : pkg.convertedPrice * 0.14;
+      return toBestMatchRef(pkg, selfDroneAmount);
+    });
+
+    selectedItemsAnalysis.push({
+      itemKey: 'DRONE_CAPTURING',
+      itemLabel: 'Drone Capturing (Self-priced aerial 4K coverage)',
       category: 'DIGITAL',
       bestThreePackages: bestThree,
       averagePrice: roundForCurrency(
