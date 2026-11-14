@@ -22,6 +22,7 @@ import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { OptionsNote } from '@/components/ui/OptionsNote';
 import {
+  EXTENDED_POLICY_TIERS,
   POLICY_PACKAGE_TIERS,
   applyPackageTierNamingPolicy,
   bulkPublishPackages,
@@ -980,6 +981,9 @@ export default function NewPackageScreen() {
                               />
                               <Text style={styles.extractedTierName}>{item.packageName}</Text>
                             </View>
+                            {item.originalTitle && item.originalTitle !== item.packageName ? (
+                              <Text style={styles.originalTitleHint}>{item.originalTitle}</Text>
+                            ) : null}
                           </View>
 
                           <View style={styles.pricePillPurple}>
@@ -1023,22 +1027,42 @@ export default function NewPackageScreen() {
                           })}
                         </View>
 
-                        {/* Key Summary Metrics */}
-                        <View style={styles.metricsSummaryList}>
-                          <Text style={styles.metricLine}>
-                            {`📷  ${item.durationHours} hours ${
-                              item.serviceType === 'STUDIO' ? 'studio session' : 'outdoor coverage'
-                            }`}
-                          </Text>
-                          <Text style={styles.metricLine}>
-                            {`🖼️  ${item.includedPhotos} edited photos${
-                              item.includedVideos > 0 ? ` · ${item.includedVideos} video(s)` : ''
-                            }`}
-                          </Text>
-                          <Text style={styles.metricLine}>
-                            {`⏱️  Delivery in ${item.deliveryDays} days (${item.deliveryPolicy})`}
-                          </Text>
-                        </View>
+                        {/* Key Summary Metrics (only shown when present in brochure) */}
+                        {(item.durationHours > 0 ||
+                          item.includedPhotos > 0 ||
+                          item.includedVideos > 0 ||
+                          item.deliveryDays > 0 ||
+                          Boolean(item.deliveryPolicy)) ? (
+                          <View style={styles.metricsSummaryList}>
+                            {item.durationHours > 0 ? (
+                              <Text style={styles.metricLine}>
+                                {`📷  ${item.durationHours} ${
+                                  item.durationHours === 1 ? 'hour' : 'hours'
+                                } ${
+                                  item.serviceType === 'STUDIO' ? 'studio session' : 'outdoor coverage'
+                                }`}
+                              </Text>
+                            ) : null}
+                            {item.includedPhotos > 0 || item.includedVideos > 0 ? (
+                              <Text style={styles.metricLine}>
+                                {`🖼️  ${
+                                  item.includedPhotos > 0
+                                    ? `${item.includedPhotos} edited photos`
+                                    : ''
+                                }${
+                                  item.includedPhotos > 0 && item.includedVideos > 0 ? ' · ' : ''
+                                }${item.includedVideos > 0 ? `${item.includedVideos} video(s)` : ''}`}
+                              </Text>
+                            ) : null}
+                            {item.deliveryDays > 0 || item.deliveryPolicy ? (
+                              <Text style={styles.metricLine}>
+                                {item.deliveryDays > 0
+                                  ? `⏱️  Delivery in ${item.deliveryDays} days (${item.deliveryPolicy})`
+                                  : `⏱️  ${item.deliveryPolicy}`}
+                              </Text>
+                            ) : null}
+                          </View>
+                        ) : null}
 
                         {/* Package Items & Description */}
                         <View style={styles.descriptionsComparisonBox}>
@@ -1061,7 +1085,10 @@ export default function NewPackageScreen() {
                           <View style={styles.inlineEditorBox}>
                             <Text style={styles.label}>Package Title</Text>
                             <View style={styles.chipsRow}>
-                              {POLICY_PACKAGE_TIERS.map((tName) => {
+                              {EXTENDED_POLICY_TIERS.slice(
+                                0,
+                                Math.max(POLICY_PACKAGE_TIERS.length, activeSessionDrafts.length),
+                              ).map((tName) => {
                                 const on = item.packageName === tName;
                                 return (
                                   <Pressable
@@ -1288,9 +1315,13 @@ export default function NewPackageScreen() {
                     studioDrafts.map((d) => (
                       <View key={d.tempId} style={styles.compactReviewRow}>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.compactReviewName}>{d.packageName}</Text>
-                          <Text style={styles.compactReviewMeta}>
-                            {`${d.durationHours}h · ${d.includedPhotos} photos · Delivery in ${d.deliveryDays}d`}
+                          <Text style={styles.compactReviewName}>
+                            {d.originalTitle && d.originalTitle !== d.packageName
+                              ? `${d.packageName} · ${d.originalTitle}`
+                              : d.packageName}
+                          </Text>
+                          <Text style={styles.compactReviewMeta} numberOfLines={1}>
+                            {d.ingredients.slice(0, 3).join(' · ')}
                           </Text>
                         </View>
                         <Text style={styles.compactReviewPrice}>
@@ -1315,9 +1346,13 @@ export default function NewPackageScreen() {
                     outdoorDrafts.map((d) => (
                       <View key={d.tempId} style={styles.compactReviewRow}>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.compactReviewName}>{d.packageName}</Text>
-                          <Text style={styles.compactReviewMeta}>
-                            {`${d.durationHours}h · ${d.includedPhotos} photos · Delivery in ${d.deliveryDays}d`}
+                          <Text style={styles.compactReviewName}>
+                            {d.originalTitle && d.originalTitle !== d.packageName
+                              ? `${d.packageName} · ${d.originalTitle}`
+                              : d.packageName}
+                          </Text>
+                          <Text style={styles.compactReviewMeta} numberOfLines={1}>
+                            {d.ingredients.slice(0, 3).join(' · ')}
                           </Text>
                         </View>
                         <Text style={styles.compactReviewPrice}>
