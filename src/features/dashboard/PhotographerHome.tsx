@@ -438,6 +438,18 @@ export function PhotographerHome() {
             </TileRow>
           ) : null}
           {isCollab ? null : (
+            <ActionRow
+              icon="layers-outline"
+              tone="primary"
+              title="Package Management"
+              caption="Upload with AI or manage Indoor & Outdoor packages"
+              actionLabel="Manage"
+              actionIcon="arrow-forward"
+              onAction={() => open('/packages')}
+              accessibilityLabel="Package Management"
+            />
+          )}
+          {isCollab ? null : (
           <ActionRow
             icon="share-social-outline"
             tone="primary"
