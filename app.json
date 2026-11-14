@@ -173,6 +173,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-14-maps",
+            "date": "2026-11-14",
+            "title": "Maps that load",
+            "items": [
+              {
+                "icon": "map-outline",
+                "title": "The photographer map shows the real map",
+                "body": "The map of nearby photographers no longer has a watermark over it, and your service area preview now appears when you choose an area."
+              }
+            ]
+          },
+          {
             "id": "2026-11-13-ai-package-upload",
             "date": "2026-11-13",
             "title": "Upload your packages with AI or manually",

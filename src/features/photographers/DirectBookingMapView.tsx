@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { WebView, type WebViewMessageEvent } from 'react-native-webview';
+import { env } from '@/config/env';
 import BottomSheet from '@gorhom/bottom-sheet';
 import {
   fetchDirectBookingMap,
@@ -139,9 +140,12 @@ export function DirectBookingMapView({
       message: 'You are here',
     };
     const photographers = mapData?.photographers ?? [];
+    // CARTO answers a keyless request with an "API KEY REQUIRED" watermark. The key is restricted to our own sites, and the page
+    // is loaded with our web address as its base (see the WebView below) so the request is recognised.
+    const tileKey = env.cartoKey.trim() ? `?key=${encodeURIComponent(env.cartoKey.trim())}` : '';
     const tileTheme = isDark
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
+      ? `https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png${tileKey}`
+      : `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${tileKey}`;
     const bgColor = isDark ? colors.background : colors.surfaceMuted;
     const primaryColor = colors.primary;
     const accentColor = colors.accent;
@@ -407,7 +411,7 @@ export function DirectBookingMapView({
       <WebView
         ref={webViewRef}
         originWhitelist={['*']}
-        source={{ html: htmlContent }}
+        source={{ html: htmlContent, baseUrl: env.webBaseUrl }}
         style={styles.webview}
         javaScriptEnabled
         domStorageEnabled
