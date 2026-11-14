@@ -47,8 +47,8 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     Accept: 'application/json',
     // Names this app and its version to the server, which logs it where an old client behaves differently.
     'X-Client': `connekt-mobile/${Constants.expoConfig?.version ?? 'unknown'}`,
-    // For multipart, let fetch set Content-Type (it adds the boundary).
-    ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+    // For multipart, let fetch set Content-Type (it adds the boundary). Only attach JSON Content-Type when a body is sent.
+    ...(isForm || body === undefined ? {} : { 'Content-Type': 'application/json' }),
     ...(headers as Record<string, string>),
   };
 

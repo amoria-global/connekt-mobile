@@ -1,9 +1,12 @@
+import { api } from '@/api/client';
 import {
   applyPackageTierNamingPolicy,
+  deletePackage,
   extractPackagesFromTextLocally,
   LEGACY_STUDIO_CEREMONY_TEXT,
   LEGACY_STUDIO_INDOOR_TEXT,
   LEGACY_STUDIO_WEDDING_TEXT,
+  listPackages,
   POLICY_PACKAGE_TIERS,
   type ExtractedAiPackageDraft,
 } from './api';
@@ -230,5 +233,59 @@ Outdoor Birthday Event - 500,000 RWF
     expect(extracted[12].price).toBe(35000);
     expect(extracted[12].includedPhotos).toBe(5);
     expect(extracted[0].deliveryPolicy).toContain('2,500 RWF per photo');
+  });
+
+  it('deletes a package cleanly via soft-deactivation fallback when hard DELETE fails due to booking/event foreign keys', async () => {
+    const delSpy = jest.spyOn(api, 'delete').mockRejectedValueOnce({
+      status: 500,
+      message: 'violates foreign key constraint fk_bookings_on_package',
+    });
+    const putSpy = jest.spyOn(api, 'put').mockResolvedValueOnce({ action: 1, data: {} });
+    const getSpy = jest.spyOn(api, 'get').mockResolvedValueOnce({
+      action: 1,
+      data: [
+        {
+          id: 'pkg-fk-locked',
+          packageName: 'Diamond',
+          price: 1000000,
+          currencyId: 'curr-rwf',
+          currencyAbbreviation: 'RWF',
+          serviceType: 'OUTDOOR',
+          isActive: true,
+        },
+        {
+          id: 'pkg-active-2',
+          packageName: 'Gold',
+          price: 700000,
+          currencyId: 'curr-rwf',
+          currencyAbbreviation: 'RWF',
+          serviceType: 'OUTDOOR',
+          isActive: true,
+        },
+      ],
+    });
+
+    await expect(
+      deletePackage('pkg-fk-locked', {
+        id: 'pkg-fk-locked',
+        name: 'Diamond',
+        price: 1000000,
+        currencyId: 'curr-rwf',
+        serviceType: 'OUTDOOR',
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(delSpy).toHaveBeenCalledWith('/photographer/packages/pkg-fk-locked');
+    expect(putSpy).toHaveBeenCalledWith(
+      '/photographer/packages/pkg-fk-locked',
+      expect.objectContaining({ isActive: false }),
+    );
+
+    const remaining = await listPackages();
+    expect(remaining.map((p) => p.id)).toEqual(['pkg-active-2']);
+
+    delSpy.mockRestore();
+    putSpy.mockRestore();
+    getSpy.mockRestore();
   });
 });
