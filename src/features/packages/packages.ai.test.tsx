@@ -1,6 +1,9 @@
 import {
   applyPackageTierNamingPolicy,
   extractPackagesFromTextLocally,
+  LEGACY_STUDIO_CEREMONY_TEXT,
+  LEGACY_STUDIO_INDOOR_TEXT,
+  LEGACY_STUDIO_WEDDING_TEXT,
   POLICY_PACKAGE_TIERS,
   type ExtractedAiPackageDraft,
 } from './api';
@@ -165,5 +168,67 @@ Outdoor Birthday Event - 500,000 RWF
 
     expect(outdoor[1].packageName).toBe('Gold');
     expect(outdoor[1].price).toBe(500000);
+  });
+
+  it('extracts all 6 Wedding Plan packages (4.5M, 3.5M, 2.5M, 2M, 1.5M, 700K) and applies the naming policy', () => {
+    const extracted = extractPackagesFromTextLocally(LEGACY_STUDIO_WEDDING_TEXT, 'OUTDOOR');
+    expect(extracted.length).toBe(6);
+    expect(extracted.every((p) => p.serviceType === 'OUTDOOR')).toBe(true);
+
+    expect(extracted.map((p) => p.price)).toEqual([
+      4500000,
+      3500000,
+      2500000,
+      2000000,
+      1500000,
+      700000,
+    ]);
+    expect(extracted.map((p) => p.packageName)).toEqual([
+      'Diamond',
+      'Gold',
+      'Silver',
+      'Premium',
+      'Basic',
+      'Standard',
+    ]);
+    expect(extracted[0].originalTitle).toBe('ULTIMATE');
+    expect(extracted[0].ingredients).toContain('2 Photobooks');
+    expect(extracted[0].ingredients).toContain('Drone in Marriage');
+    expect(extracted[0].hasLiveStream).toBe(true);
+
+    expect(extracted[5].originalTitle).toBe('CIVIL WEDDING');
+    expect(extracted[5].price).toBe(700000);
+  });
+
+  it('extracts all 17 Ceremony Plan packages (Birthdays, Baptism, Bridal Shower, Baby Shower, Proposal, Funeral, Graduation)', () => {
+    const extracted = extractPackagesFromTextLocally(LEGACY_STUDIO_CEREMONY_TEXT, 'OUTDOOR');
+    expect(extracted.length).toBe(17);
+    expect(extracted[0].packageName).toBe('Diamond');
+    expect(extracted[0].price).toBe(1000000);
+    expect(extracted[1].packageName).toBe('Gold');
+    expect(extracted[1].price).toBe(700000);
+    expect(extracted[16].price).toBe(100000);
+  });
+
+  it('extracts all 13 Indoor Package tiers (Gold, Platinum, Arts Photoshoot, Creative Photos) and express delivery policy', () => {
+    const extracted = extractPackagesFromTextLocally(LEGACY_STUDIO_INDOOR_TEXT, 'STUDIO');
+    expect(extracted.length).toBe(13);
+    expect(extracted.every((p) => p.serviceType === 'STUDIO')).toBe(true);
+
+    // Highest amount is Creative Photos (300k = 300,000 RWF) -> Diamond
+    expect(extracted[0].packageName).toBe('Diamond');
+    expect(extracted[0].price).toBe(300000);
+    expect(extracted[0].originalTitle).toBe('CREATIVE PHOTOS');
+
+    // Second highest is Arts Photoshoot 25 Photos (260k = 260,000 RWF) -> Gold
+    expect(extracted[1].packageName).toBe('Gold');
+    expect(extracted[1].price).toBe(260000);
+    expect(extracted[1].includedPhotos).toBe(25);
+    expect(extracted[1].ingredients).toContain('Bonus: 1 A2 Frame');
+
+    // Lowest is Gold 5 Photos (35k = 35,000 RWF)
+    expect(extracted[12].price).toBe(35000);
+    expect(extracted[12].includedPhotos).toBe(5);
+    expect(extracted[0].deliveryPolicy).toContain('2,500 RWF per photo');
   });
 });
