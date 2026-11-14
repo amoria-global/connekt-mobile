@@ -366,8 +366,14 @@ export function MoreSheet({
       });
     }
 
-    // Post My Event opportunities: their own entry, as on the web sidebar.
+    // Post My Event opportunities & Package Management for photographers
     if (isPhotographer) {
+      list.push({
+        id: 'packages',
+        label: t('b2_packagesTitle'),
+        icon: 'layers-outline',
+        href: '/packages' as Href,
+      });
       list.push({
         id: 'opportunities',
         label: t('menuOpportunities'),
