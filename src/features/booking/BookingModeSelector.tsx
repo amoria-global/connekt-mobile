@@ -2022,6 +2022,39 @@ export function BookingModeSelector({
               </View>
             </View>
           </View>
+
+          {/* 3. DRONE CAPTURING (Yes / No — Unique Self-Priced Add-on per Photographer) */}
+          <View style={styles.printProductCard}>
+            <View style={styles.rowBetween}>
+              <View style={[styles.printProductTop, { flex: 1 }]}>
+                <View style={styles.printIconBox}>
+                  <Ionicons name="airplane-outline" size={18} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.printProductTitle}>{tr('DRONE CAPTURING')}</Text>
+                  <Text style={styles.printProductSub}>
+                    {tr('Aerial 4K drone coverage (matched with photographers who have Drone Capturing enabled & priced)')}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.qtyPillRow}>
+                {([false, true] as const).map((flag) => {
+                  const active = Boolean(draft.droneCapturing) === flag;
+                  return (
+                    <Pressable
+                      key={String(flag)}
+                      onPress={() => updateDraft('droneCapturing', flag)}
+                      style={[styles.qtyPill, { minWidth: 64 }, active && styles.qtyPillActive]}
+                    >
+                      <Text style={[styles.qtyPillText, active && styles.qtyPillTextActive]}>
+                        {flag ? tr('Yes') : tr('No')}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* CARD 3: PHOTO BOOKS, ALBUMS & PORTRAITS */}

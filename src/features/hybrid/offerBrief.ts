@@ -238,6 +238,7 @@ export type HybridOfferDraft = {
 
   liveStream: boolean;
   instantWishesAndMemories: boolean;
+  droneCapturing?: boolean;
 
   photoBooksQty: number;
   photoBookSize: string;
@@ -288,6 +289,7 @@ export const DEFAULT_OFFER_DRAFT: HybridOfferDraft = {
 
   liveStream: false,
   instantWishesAndMemories: false,
+  droneCapturing: false,
 
   photoBooksQty: 1,
   photoBookSize: 'A4 (21 × 29.7 cm)',

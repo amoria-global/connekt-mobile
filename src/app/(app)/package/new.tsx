@@ -22,18 +22,23 @@ import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { OptionsNote } from '@/components/ui/OptionsNote';
 import {
+  DEFAULT_PACKAGE_ADDON_TEMPLATES,
   EXTENDED_POLICY_TIERS,
   POLICY_PACKAGE_TIERS,
+  QUICK_DELIVERY_POLICY_PRESETS,
+  QUICK_OTHER_POLICY_PRESETS,
   applyPackageTierNamingPolicy,
   bulkPublishPackages,
   createPackage,
   extractPackagesWithAi,
   listPackages,
+  normalizePackageAddons,
   updatePackage,
   type BulkPublishMode,
   type CreatePackageInput,
   type ExtractedAiPackageDraft,
   type Package,
+  type PackageAddonItem,
   type PackageFeatureItem,
   type ServiceType,
 } from '@/features/packages/api';
@@ -143,6 +148,25 @@ export default function NewPackageScreen() {
   const [pdfPickerModalOpen, setPdfPickerModalOpen] = useState(false);
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // ───────── Studio / Menu-Upload Policies & Self-Priced Add-ons State ─────────
+  const [studioDeliveryPolicy, setStudioDeliveryPolicy] = useState<string>('');
+  const [studioOtherPolicies, setStudioOtherPolicies] = useState<string[]>([]);
+  const [newStudioPolicyText, setNewStudioPolicyText] = useState<string>('');
+  const [policyReadFromMenu, setPolicyReadFromMenu] = useState<boolean>(false);
+  const [detectedDroneInMenu, setDetectedDroneInMenu] = useState<boolean>(false);
+  const [studioAddonPrices, setStudioAddonPrices] = useState<Record<string, string>>({
+    drone_capturing: '',
+    express_delivery: '',
+    extra_hour: '',
+    fog_machine: '',
+    extra_crew: '',
+  });
+  const [studioCustomAddons, setStudioCustomAddons] = useState<
+    { key: string; name: string; priceText: string }[]
+  >([]);
+  const [newStudioAddonName, setNewStudioAddonName] = useState('');
+  const [newStudioAddonPrice, setNewStudioAddonPrice] = useState('');
+
   // ───────── Manual Custom Upload / Edit State ─────────
   const [manualServiceType, setManualServiceType] = useState<ServiceType>(
     edit?.serviceType ?? (params.serviceType === 'STUDIO' ? 'STUDIO' : 'OUTDOOR'),
@@ -178,6 +202,45 @@ export default function NewPackageScreen() {
   const [manualDeliveryPolicy, setManualDeliveryPolicy] = useState<string>(
     edit?.deliveryPolicy ?? 'Delivery via online gallery; 50% booking deposit required.',
   );
+  const [manualOtherPolicies, setManualOtherPolicies] = useState<string[]>(
+    () => edit?.otherPolicies ?? [],
+  );
+  const [newManualPolicyText, setNewManualPolicyText] = useState<string>('');
+  const [manualAddonPrices, setManualAddonPrices] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {
+      drone_capturing:
+        edit?.droneCapturingPrice && edit.droneCapturingPrice > 0
+          ? String(edit.droneCapturingPrice)
+          : '',
+      express_delivery: '',
+      extra_hour: '',
+      fog_machine: '',
+      extra_crew: '',
+    };
+    for (const addon of edit?.addons ?? []) {
+      if (addon.price > 0 && addon.key in initial) {
+        initial[addon.key] = String(addon.price);
+      }
+    }
+    return initial;
+  });
+  const [manualCustomAddons, setManualCustomAddons] = useState<
+    { key: string; name: string; priceText: string }[]
+  >(() =>
+    (edit?.addons ?? [])
+      .filter(
+        (a) =>
+          a.price > 0 &&
+          !DEFAULT_PACKAGE_ADDON_TEMPLATES.some((t) => t.key === a.key),
+      )
+      .map((a) => ({
+        key: a.key,
+        name: a.name,
+        priceText: String(a.price),
+      })),
+  );
+  const [newManualAddonName, setNewManualAddonName] = useState('');
+  const [newManualAddonPrice, setNewManualAddonPrice] = useState('');
   const [manualDescription, setManualDescription] = useState<string>(edit?.description ?? '');
   const [manualItems, setManualItems] = useState<string[]>(() => {
     const fromFeatures = (edit?.features ?? [])
@@ -258,6 +321,55 @@ export default function NewPackageScreen() {
     setPdfPickerModalOpen(true);
   };
 
+  const buildAddonsListFromInputs = useCallback(
+    (
+      priceMap: Record<string, string>,
+      customList: { key: string; name: string; priceText: string }[],
+      currencyCode = 'RWF',
+    ): PackageAddonItem[] => {
+      const items: PackageAddonItem[] = [];
+      for (const tpl of DEFAULT_PACKAGE_ADDON_TEMPLATES) {
+        const raw = (priceMap[tpl.key] || '').replace(/[^\d.]/g, '');
+        const numVal = raw ? Math.round(Number(raw)) : 0;
+        const price = Number.isFinite(numVal) && numVal > 0 ? numVal : 0;
+        items.push({
+          key: tpl.key,
+          name: tpl.name,
+          price,
+          currencyCode,
+          // Having an amount (> 0) toggles the add-on ON for this photographer; 0/empty leaves it OFF
+          enabled: price > 0,
+        });
+      }
+      for (const c of customList) {
+        const raw = (c.priceText || '').replace(/[^\d.]/g, '');
+        const numVal = raw ? Math.round(Number(raw)) : 0;
+        const price = Number.isFinite(numVal) && numVal > 0 ? numVal : 0;
+        if (c.name.trim()) {
+          items.push({
+            key: c.key,
+            name: c.name.trim(),
+            price,
+            currencyCode,
+            enabled: price > 0,
+          });
+        }
+      }
+      return normalizePackageAddons(items, undefined, currencyCode);
+    },
+    [],
+  );
+
+  const studioAddonsList = useMemo(
+    () => buildAddonsListFromInputs(studioAddonPrices, studioCustomAddons, 'RWF'),
+    [buildAddonsListFromInputs, studioAddonPrices, studioCustomAddons],
+  );
+
+  const manualAddonsList = useMemo(
+    () => buildAddonsListFromInputs(manualAddonPrices, manualCustomAddons, edit?.currency || 'RWF'),
+    [buildAddonsListFromInputs, edit?.currency, manualAddonPrices, manualCustomAddons],
+  );
+
   // ───────── Run Document Upload & Extraction ─────────
   const handleRunAiExtract = async () => {
     setServerError(null);
@@ -274,14 +386,47 @@ export default function NewPackageScreen() {
         rawText: brochureText.trim() || undefined,
         defaultServiceType: defaultSession,
       });
-      setExtractedDrafts(res.extractedPackages);
+
+      const menuDeliv = (res.extractedDeliveryPolicy || '').trim();
+      const menuOthers = res.extractedOtherPolicies ?? [];
+      const hasMenuPolicies = Boolean(menuDeliv || menuOthers.length > 0);
+      setPolicyReadFromMenu(hasMenuPolicies);
+      setDetectedDroneInMenu(Boolean(res.detectedDroneInMenu));
+
+      const effectiveDeliveryPolicy = studioDeliveryPolicy.trim() || menuDeliv;
+      if (!studioDeliveryPolicy.trim() && menuDeliv) {
+        setStudioDeliveryPolicy(menuDeliv);
+      }
+
+      const mergedOtherPolicies = Array.from(
+        new Set([...studioOtherPolicies, ...menuOthers].map((p) => p.trim()).filter(Boolean)),
+      );
+      if (mergedOtherPolicies.length !== studioOtherPolicies.length) {
+        setStudioOtherPolicies(mergedOtherPolicies);
+      }
+
+      const activeAddons = studioAddonsList.filter((a) => a.enabled && a.price > 0);
+      const droneAddon = activeAddons.find((a) => a.key === 'drone_capturing');
+      const dronePrice = droneAddon && droneAddon.price > 0 ? droneAddon.price : null;
+
+      const enrichedDrafts = res.extractedPackages.map((d) => ({
+        ...d,
+        deliveryPolicy: effectiveDeliveryPolicy || d.deliveryPolicy,
+        otherPolicies:
+          mergedOtherPolicies.length > 0 ? mergedOtherPolicies : (d.otherPolicies ?? []),
+        addons: activeAddons,
+        droneCapturingPrice: dronePrice,
+        hasDroneCapturing: Boolean(dronePrice && dronePrice > 0),
+      }));
+
+      setExtractedDrafts(enrichedDrafts);
       if (res.hasExistingOnlinePackages && params.replace === '1') {
         setPublishMode('REPLACE_ALL');
       } else if (res.hasExistingOnlinePackages) {
         setPublishMode(res.suggestedMode);
       }
-      const hasStudio = res.extractedPackages.some((p) => p.serviceType === 'STUDIO');
-      const hasOutdoor = res.extractedPackages.some((p) => p.serviceType === 'OUTDOOR');
+      const hasStudio = enrichedDrafts.some((p) => p.serviceType === 'STUDIO');
+      const hasOutdoor = enrichedDrafts.some((p) => p.serviceType === 'OUTDOOR');
       setReviewSessionTab(hasStudio && !hasOutdoor ? 'STUDIO' : hasOutdoor ? 'OUTDOOR' : 'STUDIO');
       setAiStep(2);
     } catch (err) {
@@ -325,7 +470,16 @@ export default function NewPackageScreen() {
         photobookPhotos: null,
         hasLiveStream: false,
         deliveryDays: studio ? 3 : 7,
-        deliveryPolicy: `Delivery within ${studio ? 3 : 7} days via online gallery; 50% booking deposit.`,
+        deliveryPolicy:
+          studioDeliveryPolicy.trim() ||
+          `Delivery within ${studio ? 3 : 7} days via online gallery; 50% booking deposit.`,
+        otherPolicies: studioOtherPolicies,
+        addons: studioAddonsList.filter((a) => a.enabled && a.price > 0),
+        droneCapturingPrice:
+          studioAddonsList.find((a) => a.key === 'drone_capturing' && a.price > 0)?.price ?? null,
+        hasDroneCapturing: Boolean(
+          studioAddonsList.find((a) => a.key === 'drone_capturing' && a.price > 0),
+        ),
         originalDescription: `${studio ? '2 hours studio session • 50 edited photos' : '6 hours outdoor coverage • 200 edited photos'}`,
         enhancedDescription: `${
           studio ? 'Professional indoor studio session' : 'Complete outdoor event coverage'
@@ -336,7 +490,7 @@ export default function NewPackageScreen() {
       };
       return applyPackageTierNamingPolicy([...prev, newDraft]);
     });
-  }, []);
+  }, [studioAddonsList, studioDeliveryPolicy, studioOtherPolicies]);
 
   const studioDrafts = useMemo(
     () => extractedDrafts.filter((d) => d.serviceType === 'STUDIO'),
@@ -364,26 +518,49 @@ export default function NewPackageScreen() {
 
     setPublishingBatch(true);
     try {
+      const activeStudioAddons = studioAddonsList.filter((a) => a.enabled && a.price > 0);
+      const studioDronePrice =
+        activeStudioAddons.find((a) => a.key === 'drone_capturing')?.price ?? null;
       const normalized = applyPackageTierNamingPolicy(extractedDrafts);
-      const inputs: CreatePackageInput[] = normalized.map((d) => ({
-        packageName: d.packageName,
-        price: Math.max(1000, Number(d.price) || 100000),
-        currencyId: d.currencyId || resolvedCurrencyId,
-        priceUnit: d.priceUnit || (d.serviceType === 'STUDIO' ? 'per session' : 'per event'),
-        durationHours: d.durationHours,
-        includedPhotos: d.includedPhotos,
-        includedVideos: d.includedVideos,
-        photobookPhotos: d.photobookPhotos ?? null,
-        hasLiveStream: d.hasLiveStream,
-        deliveryDays: d.deliveryDays,
-        serviceType: d.serviceType,
-        description: d.enhancedDescription || d.originalDescription,
-        features: d.ingredients.map((itemName, idx) => ({
-          featureName: itemName,
-          isIncluded: true,
-          displayOrder: idx,
-        })),
-      }));
+      const inputs: CreatePackageInput[] = normalized.map((d) => {
+        const pkgAddons =
+          d.addons && d.addons.some((a) => a.enabled && a.price > 0)
+            ? d.addons.filter((a) => a.enabled && a.price > 0)
+            : activeStudioAddons;
+        const pkgDronePrice =
+          d.droneCapturingPrice && d.droneCapturingPrice > 0
+            ? d.droneCapturingPrice
+            : studioDronePrice;
+        const pkgDeliveryPolicy = studioDeliveryPolicy.trim() || d.deliveryPolicy;
+        const pkgOtherPolicies =
+          d.otherPolicies && d.otherPolicies.length > 0 ? d.otherPolicies : studioOtherPolicies;
+
+        return {
+          packageName: d.packageName,
+          price: Math.max(1000, Number(d.price) || 100000),
+          currencyId: d.currencyId || resolvedCurrencyId,
+          currencyCode: d.currencyCode || 'RWF',
+          priceUnit: d.priceUnit || (d.serviceType === 'STUDIO' ? 'per session' : 'per event'),
+          durationHours: d.durationHours,
+          includedPhotos: d.includedPhotos,
+          includedVideos: d.includedVideos,
+          photobookPhotos: d.photobookPhotos ?? null,
+          hasLiveStream: d.hasLiveStream,
+          deliveryDays: d.deliveryDays,
+          serviceType: d.serviceType,
+          deliveryPolicy: pkgDeliveryPolicy,
+          otherPolicies: pkgOtherPolicies,
+          addons: pkgAddons,
+          droneCapturingPrice: pkgDronePrice,
+          hasDroneCapturing: Boolean(pkgDronePrice && pkgDronePrice > 0),
+          description: d.enhancedDescription || d.originalDescription,
+          features: d.ingredients.map((itemName, idx) => ({
+            featureName: itemName,
+            isIncluded: true,
+            displayOrder: idx,
+          })),
+        };
+      });
 
       await bulkPublishPackages({
         mode: publishMode,
@@ -428,6 +605,12 @@ export default function NewPackageScreen() {
         displayOrder: idx,
       }));
 
+    const activeManualAddons = manualAddonsList.filter((a) => a.enabled && a.price > 0);
+    const manualDronePrice =
+      activeManualAddons.find((a) => a.key === 'drone_capturing')?.price ?? null;
+    const selectedCurrCode =
+      currencies.data?.find((c) => c.id === resolvedCurrencyId)?.code || edit?.currency || 'RWF';
+
     const combinedDescription = [
       manualDescription.trim(),
       manualDeliveryPolicy.trim() ? `Delivery policy: ${manualDeliveryPolicy.trim()}` : '',
@@ -439,6 +622,7 @@ export default function NewPackageScreen() {
       packageName: chosenName,
       price: priceNum,
       currencyId: resolvedCurrencyId,
+      currencyCode: selectedCurrCode,
       priceUnit: manualPriceUnit,
       durationHours: Number(manualDurationHours) || 0,
       includedPhotos: Number(manualIncludedPhotos) || 0,
@@ -446,6 +630,11 @@ export default function NewPackageScreen() {
       hasLiveStream: manualHasLiveStream,
       deliveryDays: Number(manualDeliveryDays) || 0,
       serviceType: manualServiceType,
+      deliveryPolicy: manualDeliveryPolicy.trim(),
+      otherPolicies: manualOtherPolicies.filter((p) => p.trim().length > 0),
+      addons: activeManualAddons,
+      droneCapturingPrice: manualDronePrice,
+      hasDroneCapturing: Boolean(manualDronePrice && manualDronePrice > 0),
       description: combinedDescription || features.map((f) => f.featureName).join(' • '),
       features,
     };
@@ -463,6 +652,472 @@ export default function NewPackageScreen() {
     } finally {
       setManualSubmitting(false);
     }
+  };
+
+  const renderPoliciesAndAddonsSection = (target: 'studio' | 'manual') => {
+    const isStudio = target === 'studio';
+    const deliveryVal = isStudio ? studioDeliveryPolicy : manualDeliveryPolicy;
+    const setDeliveryVal = isStudio
+      ? (val: string) => {
+          setStudioDeliveryPolicy(val);
+          setExtractedDrafts((prev) =>
+            prev.map((d) => ({ ...d, deliveryPolicy: val || d.deliveryPolicy })),
+          );
+        }
+      : setManualDeliveryPolicy;
+
+    const otherList = isStudio ? studioOtherPolicies : manualOtherPolicies;
+    const setOtherList = isStudio
+      ? (updater: (prev: string[]) => string[]) => {
+          setStudioOtherPolicies((prev) => {
+            const next = updater(prev);
+            setExtractedDrafts((drafts) =>
+              drafts.map((d) => ({ ...d, otherPolicies: next })),
+            );
+            return next;
+          });
+        }
+      : setManualOtherPolicies;
+
+    const newPolicyInput = isStudio ? newStudioPolicyText : newManualPolicyText;
+    const setNewPolicyInput = isStudio ? setNewStudioPolicyText : setNewManualPolicyText;
+
+    const addonPrices = isStudio ? studioAddonPrices : manualAddonPrices;
+    const updateAddonPrice = (key: string, rawVal: string) => {
+      const cleanDigits = rawVal.replace(/[^\d]/g, '');
+      if (isStudio) {
+        setStudioAddonPrices((prev) => {
+          const next = { ...prev, [key]: cleanDigits };
+          const updatedAddons = buildAddonsListFromInputs(next, studioCustomAddons, 'RWF');
+          const activeOnly = updatedAddons.filter((a) => a.enabled && a.price > 0);
+          const dronePrice =
+            activeOnly.find((a) => a.key === 'drone_capturing')?.price ?? null;
+          setExtractedDrafts((drafts) =>
+            drafts.map((d) => ({
+              ...d,
+              addons: activeOnly,
+              droneCapturingPrice: dronePrice,
+              hasDroneCapturing: Boolean(dronePrice && dronePrice > 0),
+            })),
+          );
+          return next;
+        });
+      } else {
+        setManualAddonPrices((prev) => ({ ...prev, [key]: cleanDigits }));
+      }
+    };
+
+    const customAddons = isStudio ? studioCustomAddons : manualCustomAddons;
+    const newAddonName = isStudio ? newStudioAddonName : newManualAddonName;
+    const setNewAddonName = isStudio ? setNewStudioAddonName : setNewManualAddonName;
+    const newAddonPrice = isStudio ? newStudioAddonPrice : newManualAddonPrice;
+    const setNewAddonPrice = isStudio ? setNewStudioAddonPrice : setNewManualAddonPrice;
+
+    const handleAddCustomAddon = () => {
+      const cleanName = newAddonName.trim();
+      const cleanDigits = newAddonPrice.replace(/[^\d]/g, '');
+      if (!cleanName) return;
+      const newEntry = {
+        key: `custom_${cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${Date.now()}`,
+        name: cleanName,
+        priceText: cleanDigits,
+      };
+      if (isStudio) {
+        setStudioCustomAddons((prev) => {
+          const next = [...prev, newEntry];
+          const updatedAddons = buildAddonsListFromInputs(studioAddonPrices, next, 'RWF').filter(
+            (a) => a.enabled && a.price > 0,
+          );
+          setExtractedDrafts((drafts) =>
+            drafts.map((d) => ({ ...d, addons: updatedAddons })),
+          );
+          return next;
+        });
+      } else {
+        setManualCustomAddons((prev) => [...prev, newEntry]);
+      }
+      setNewAddonName('');
+      setNewAddonPrice('');
+    };
+
+    const handleUpdateCustomAddonPrice = (key: string, val: string) => {
+      const cleanDigits = val.replace(/[^\d]/g, '');
+      if (isStudio) {
+        setStudioCustomAddons((prev) => {
+          const next = prev.map((c) => (c.key === key ? { ...c, priceText: cleanDigits } : c));
+          const updatedAddons = buildAddonsListFromInputs(studioAddonPrices, next, 'RWF').filter(
+            (a) => a.enabled && a.price > 0,
+          );
+          setExtractedDrafts((drafts) =>
+            drafts.map((d) => ({ ...d, addons: updatedAddons })),
+          );
+          return next;
+        });
+      } else {
+        setManualCustomAddons((prev) =>
+          prev.map((c) => (c.key === key ? { ...c, priceText: cleanDigits } : c)),
+        );
+      }
+    };
+
+    const handleRemoveCustomAddon = (key: string) => {
+      if (isStudio) {
+        setStudioCustomAddons((prev) => {
+          const next = prev.filter((c) => c.key !== key);
+          const updatedAddons = buildAddonsListFromInputs(studioAddonPrices, next, 'RWF').filter(
+            (a) => a.enabled && a.price > 0,
+          );
+          setExtractedDrafts((drafts) =>
+            drafts.map((d) => ({ ...d, addons: updatedAddons })),
+          );
+          return next;
+        });
+      } else {
+        setManualCustomAddons((prev) => prev.filter((c) => c.key !== key));
+      }
+    };
+
+    const dronePriceNum = Number((addonPrices.drone_capturing || '').replace(/[^\d]/g, '')) || 0;
+    const isDroneEnabled = dronePriceNum > 0;
+    const activeAddonsCount = (isStudio ? studioAddonsList : manualAddonsList).filter(
+      (a) => a.enabled && a.price > 0,
+    ).length;
+
+    return (
+      <View style={styles.policiesAndAddonsContainer}>
+        {/* ─── PART A: DELIVERY POLICY & OTHER STUDIO POLICIES ─── */}
+        <View style={styles.policySectionBox}>
+          <View style={styles.rowBetween}>
+            <View style={styles.tierTitleRow}>
+              <Ionicons name="shield-checkmark-outline" size={17} color={colors.primary} />
+              <Text style={styles.label}>Delivery Policy & Studio Policies</Text>
+            </View>
+            {isStudio && policyReadFromMenu ? (
+              <View style={styles.menuReadBadge}>
+                <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
+                <Text style={styles.menuReadBadgeText}>Read from menu picture</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.subtitleText}>
+            {isStudio
+              ? 'Policies found on your uploaded menu picture are auto-filled below. If your menu does not list a delivery or booking policy, add or pick one below.'
+              : 'Set your delivery turnaround policy and any other booking policies (deposit, rescheduling, transport).'}
+          </Text>
+
+          <Input
+            label="Delivery Policy"
+            placeholder="e.g. Standard delivery within 5 days; express 48h delivery incurs 2,500 RWF per photo."
+            value={deliveryVal}
+            onChangeText={setDeliveryVal}
+          />
+
+          {/* Quick Delivery Policy Presets */}
+          <View style={styles.chipsRow}>
+            {QUICK_DELIVERY_POLICY_PRESETS.map((preset) => {
+              const active = deliveryVal.trim() === preset;
+              return (
+                <Pressable
+                  key={preset}
+                  onPress={() => setDeliveryVal(preset)}
+                  style={[styles.quickAddChip, active && styles.chipActive]}
+                >
+                  <Ionicons
+                    name={active ? 'checkmark' : 'add'}
+                    size={12}
+                    color={active ? onFill : colors.primary}
+                  />
+                  <Text
+                    style={[styles.quickAddChipText, active && styles.chipTextActive]}
+                    numberOfLines={1}
+                  >
+                    {preset}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Other Studio / Booking Policies */}
+          <Text style={[styles.label, { marginTop: spacing.xs }]}>
+            Other Policies (Deposit, Rescheduling, Transport, Raw Files)
+          </Text>
+          <View style={styles.addItemInputRow}>
+            <TextInput
+              value={newPolicyInput}
+              onChangeText={setNewPolicyInput}
+              placeholder="Add another policy (e.g. 50% deposit required to lock date)..."
+              placeholderTextColor={colors.textMuted}
+              style={styles.addItemTextInput}
+              onSubmitEditing={() => {
+                const clean = newPolicyInput.trim();
+                if (!clean) return;
+                setOtherList((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
+                setNewPolicyInput('');
+              }}
+            />
+            <Pressable
+              onPress={() => {
+                const clean = newPolicyInput.trim();
+                if (!clean) return;
+                setOtherList((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
+                setNewPolicyInput('');
+              }}
+              style={styles.addItemBtn}
+            >
+              <Text style={styles.addItemBtnText}>+ Add Policy</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.chipsRow}>
+            {QUICK_OTHER_POLICY_PRESETS.filter((p) => !otherList.includes(p)).map((preset) => (
+              <Pressable
+                key={preset}
+                onPress={() =>
+                  setOtherList((prev) => (prev.includes(preset) ? prev : [...prev, preset]))
+                }
+                style={styles.quickAddChip}
+              >
+                <Ionicons name="add" size={12} color={colors.primary} />
+                <Text style={styles.quickAddChipText} numberOfLines={1}>
+                  {preset}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+
+          {otherList.length > 0 ? (
+            <View style={styles.manualItemsListBox}>
+              {otherList.map((pol, idx) => (
+                <View key={`${pol}-${idx}`} style={styles.manualItemRow}>
+                  <Ionicons name="document-text-outline" size={15} color={colors.primary} />
+                  <Text style={styles.manualItemText}>{pol}</Text>
+                  <Pressable
+                    onPress={() => setOtherList((prev) => prev.filter((_, i) => i !== idx))}
+                    hitSlop={8}
+                  >
+                    <Ionicons name="trash-outline" size={15} color={colors.error} />
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </View>
+
+        {/* ─── PART B: SELF-PRICED ADD-ONS (DRONE CAPTURING & EXTRAS) ─── */}
+        <View style={styles.policySectionBox}>
+          <View style={styles.rowBetween}>
+            <View style={styles.tierTitleRow}>
+              <Ionicons name="airplane-outline" size={17} color={colors.primary} />
+              <Text style={styles.label}>Self-Priced Add-ons (Drone Capturing & Extras)</Text>
+            </View>
+            <View
+              style={[
+                styles.addonStatusPill,
+                activeAddonsCount > 0 ? styles.addonStatusPillOn : styles.addonStatusPillOff,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.addonStatusPillText,
+                  activeAddonsCount > 0
+                    ? styles.addonStatusPillTextOn
+                    : styles.addonStatusPillTextOff,
+                ]}
+              >
+                {activeAddonsCount > 0 ? `${activeAddonsCount} Enabled` : '0 Enabled'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.subtitleText}>
+            Entering an amount automatically toggles that add-on ON for your photographer profile. Leaving the amount empty or 0 keeps it OFF.
+          </Text>
+
+          {/* Featured Unique Add-on: Drone Capturing */}
+          <View
+            style={[
+              styles.droneFeatureCard,
+              isDroneEnabled && styles.droneFeatureCardActive,
+            ]}
+          >
+            <View style={styles.rowBetween}>
+              <View style={{ flex: 1, gap: 2 }}>
+                <View style={styles.tierTitleRow}>
+                  <Ionicons
+                    name="airplane"
+                    size={16}
+                    color={isDroneEnabled ? colors.primary : colors.textSoft}
+                  />
+                  <Text style={styles.droneFeatureTitle}>Drone Capturing</Text>
+                  <View style={styles.uniqueFeatureBadge}>
+                    <Text style={styles.uniqueFeatureBadgeText}>UNIQUE SELF-PRICED</Text>
+                  </View>
+                </View>
+                <Text style={styles.droneFeatureSub}>
+                  {isDroneEnabled
+                    ? `Toggled ON for your profile at +${dronePriceNum.toLocaleString()} RWF`
+                    : detectedDroneInMenu
+                      ? 'Drone was spotted on your menu — enter your self-pricing amount to toggle it ON'
+                      : 'Enter your self-pricing amount to toggle Drone Capturing ON (leave empty if not offered)'}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.addonToggleIndicator,
+                  isDroneEnabled ? styles.addonToggleIndicatorOn : styles.addonToggleIndicatorOff,
+                ]}
+              >
+                <Ionicons
+                  name={isDroneEnabled ? 'checkmark-circle' : 'close-circle-outline'}
+                  size={14}
+                  color={isDroneEnabled ? onFill : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.addonToggleIndicatorText,
+                    isDroneEnabled
+                      ? styles.addonToggleIndicatorTextOn
+                      : styles.addonToggleIndicatorTextOff,
+                  ]}
+                >
+                  {isDroneEnabled ? 'ON' : 'OFF'}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.addonAmountInputRow}>
+              <Text style={styles.addonAmountPrefix}>Self-Price (RWF):</Text>
+              <TextInput
+                value={addonPrices.drone_capturing || ''}
+                onChangeText={(v) => updateAddonPrice('drone_capturing', v)}
+                placeholder="0 (OFF) — e.g. 150000 to enable"
+                placeholderTextColor={colors.textMuted}
+                keyboardType="number-pad"
+                style={styles.addonAmountInput}
+                testID={`drone-capturing-price-${target}`}
+              />
+              {isDroneEnabled ? (
+                <Pressable
+                  onPress={() => updateAddonPrice('drone_capturing', '')}
+                  style={styles.clearAddonBtn}
+                >
+                  <Text style={styles.clearAddonBtnText}>Clear (Turn OFF)</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Other Standard Self-Priced Add-ons */}
+          {DEFAULT_PACKAGE_ADDON_TEMPLATES.filter((tItem) => !tItem.isDrone).map((tpl) => {
+            const rawVal = addonPrices[tpl.key] || '';
+            const priceVal = Number(rawVal.replace(/[^\d]/g, '')) || 0;
+            const enabled = priceVal > 0;
+            return (
+              <View
+                key={tpl.key}
+                style={[styles.addonRowCard, enabled && styles.addonRowCardActive]}
+              >
+                <View style={{ flex: 1, gap: 2 }}>
+                  <View style={styles.tierTitleRow}>
+                    <Text style={styles.addonRowTitle}>{tpl.name}</Text>
+                    <View
+                      style={[
+                        styles.addonMiniBadge,
+                        enabled ? styles.addonMiniBadgeOn : styles.addonMiniBadgeOff,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.addonMiniBadgeText,
+                          enabled ? styles.addonMiniBadgeTextOn : styles.addonMiniBadgeTextOff,
+                        ]}
+                      >
+                        {enabled ? `ON · +${priceVal.toLocaleString()} RWF` : 'OFF'}
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={styles.addonRowDesc}>{tpl.description}</Text>
+                </View>
+                <TextInput
+                  value={rawVal}
+                  onChangeText={(v) => updateAddonPrice(tpl.key, v)}
+                  placeholder="Amount (RWF)"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="number-pad"
+                  style={styles.addonCompactInput}
+                />
+              </View>
+            );
+          })}
+
+          {/* Custom Self-Priced Add-ons added by Photographer */}
+          {customAddons.map((c) => {
+            const pVal = Number((c.priceText || '').replace(/[^\d]/g, '')) || 0;
+            const enabled = pVal > 0;
+            return (
+              <View
+                key={c.key}
+                style={[styles.addonRowCard, enabled && styles.addonRowCardActive]}
+              >
+                <View style={{ flex: 1, gap: 2 }}>
+                  <View style={styles.tierTitleRow}>
+                    <Text style={styles.addonRowTitle}>{c.name}</Text>
+                    <View
+                      style={[
+                        styles.addonMiniBadge,
+                        enabled ? styles.addonMiniBadgeOn : styles.addonMiniBadgeOff,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.addonMiniBadgeText,
+                          enabled ? styles.addonMiniBadgeTextOn : styles.addonMiniBadgeTextOff,
+                        ]}
+                      >
+                        {enabled ? `ON · +${pVal.toLocaleString()} RWF` : 'OFF'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                <TextInput
+                  value={c.priceText}
+                  onChangeText={(v) => handleUpdateCustomAddonPrice(c.key, v)}
+                  placeholder="Amount"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="number-pad"
+                  style={styles.addonCompactInput}
+                />
+                <Pressable onPress={() => handleRemoveCustomAddon(c.key)} hitSlop={8}>
+                  <Ionicons name="trash-outline" size={16} color={colors.error} />
+                </Pressable>
+              </View>
+            );
+          })}
+
+          {/* Add Custom Self-Priced Add-on Row */}
+          <View style={styles.addItemInputRow}>
+            <TextInput
+              value={newAddonName}
+              onChangeText={setNewAddonName}
+              placeholder="Custom add-on name (e.g. Crane / 360 Booth)..."
+              placeholderTextColor={colors.textMuted}
+              style={[styles.addItemTextInput, { flex: 1.4 }]}
+            />
+            <TextInput
+              value={newAddonPrice}
+              onChangeText={(v) => setNewAddonPrice(v.replace(/[^\d]/g, ''))}
+              placeholder="Amount (RWF)"
+              placeholderTextColor={colors.textMuted}
+              keyboardType="number-pad"
+              style={[styles.addItemTextInput, { flex: 0.9 }]}
+            />
+            <Pressable onPress={handleAddCustomAddon} style={styles.addItemBtn}>
+              <Text style={styles.addItemBtnText}>+ Add</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    );
   };
 
   return (
@@ -785,6 +1440,9 @@ export default function NewPackageScreen() {
                   </View>
                 </View>
 
+                {/* Delivery Policy, Other Studio Policies & Self-Priced Add-ons (Drone Capturing & Extras) */}
+                {renderPoliciesAndAddonsSection('studio')}
+
                 {/* Existing Online Packages Suggestion Banner */}
                 {existingPackages.length > 0 ? (
                   <View style={styles.existingBanner}>
@@ -859,6 +1517,11 @@ export default function NewPackageScreen() {
                   <View style={{ flex: 1 }}>
                     <Text style={styles.policyInfoTitle}>Organize Packages</Text>
                   </View>
+                </View>
+
+                {/* Studio Policies & Self-Priced Add-ons (Read from menu or customized here) */}
+                <View style={styles.cardBox}>
+                  {renderPoliciesAndAddonsSection('studio')}
                 </View>
 
                 {/* Organize Packages: Indoor vs Outdoor Cards (Matches Step 4 in Reference Image) */}
@@ -1055,6 +1718,18 @@ export default function NewPackageScreen() {
                                   : `⏱️  ${item.deliveryPolicy}`}
                               </Text>
                             ) : null}
+                            {(item.otherPolicies ?? []).map((pol, pIdx) => (
+                              <Text key={`pol-${pIdx}`} style={styles.metricLine}>
+                                {`📋  ${pol}`}
+                              </Text>
+                            ))}
+                            {(item.addons ?? [])
+                              .filter((a) => a.enabled && a.price > 0)
+                              .map((addon) => (
+                                <Text key={addon.key} style={styles.metricLine}>
+                                  {`${addon.key === 'drone_capturing' ? '🚁' : '✨'}  ${addon.name} (Self-priced): +${addon.price.toLocaleString()} ${addon.currencyCode || item.currencyCode || 'RWF'}`}
+                                </Text>
+                              ))}
                           </View>
                         ) : null}
 
@@ -1651,12 +2326,8 @@ export default function NewPackageScreen() {
               />
             </View>
 
-            <Input
-              label="Delivery Policy & Booking Conditions"
-              placeholder="e.g. Delivery within 3 days via online gallery; 50% deposit required."
-              value={manualDeliveryPolicy}
-              onChangeText={setManualDeliveryPolicy}
-            />
+            {/* 6. Delivery Policy, Studio Policies & Self-Priced Add-ons (Drone Capturing & Extras) */}
+            {renderPoliciesAndAddonsSection('manual')}
 
             <Input
               label={t('b2_pkgNewDescription')}
@@ -2488,5 +3159,213 @@ const useStyles = makeStyles((c) => ({
   modalSheet: {
     padding: spacing.lg,
     gap: spacing.md,
+  },
+  policiesAndAddonsContainer: {
+    gap: spacing.md,
+  },
+  policySectionBox: {
+    backgroundColor: c.card,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  menuReadBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    backgroundColor: c.tint,
+    borderWidth: 1,
+    borderColor: c.primary,
+  },
+  menuReadBadgeText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: c.primary,
+  },
+  addonStatusPill: {
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    borderWidth: 1,
+  },
+  addonStatusPillOn: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  addonStatusPillOff: {
+    backgroundColor: c.card,
+    borderColor: c.borderSoft,
+  },
+  addonStatusPillText: {
+    fontSize: 10,
+    fontWeight: fontWeight.extrabold,
+  },
+  addonStatusPillTextOn: {
+    color: onFill,
+  },
+  addonStatusPillTextOff: {
+    color: c.textMuted,
+  },
+  droneFeatureCard: {
+    backgroundColor: c.card,
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  droneFeatureCardActive: {
+    backgroundColor: c.tint,
+    borderColor: c.primary,
+    borderWidth: 1.5,
+  },
+  droneFeatureTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  droneFeatureSub: {
+    fontSize: 11,
+    color: c.textSoft,
+    lineHeight: 15,
+  },
+  uniqueFeatureBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+    backgroundColor: c.primary,
+  },
+  uniqueFeatureBadgeText: {
+    fontSize: 9,
+    fontWeight: fontWeight.extrabold,
+    color: onFill,
+    letterSpacing: 0.3,
+  },
+  addonToggleIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: radii.full,
+    borderWidth: 1,
+  },
+  addonToggleIndicatorOn: {
+    backgroundColor: c.primary,
+    borderColor: c.primary,
+  },
+  addonToggleIndicatorOff: {
+    backgroundColor: c.card,
+    borderColor: c.borderSoft,
+  },
+  addonToggleIndicatorText: {
+    fontSize: 11,
+    fontWeight: fontWeight.extrabold,
+  },
+  addonToggleIndicatorTextOn: {
+    color: onFill,
+  },
+  addonToggleIndicatorTextOff: {
+    color: c.textMuted,
+  },
+  addonAmountInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: 2,
+  },
+  addonAmountPrefix: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  addonAmountInput: {
+    flex: 1,
+    minHeight: 38,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.sm,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+    backgroundColor: c.card,
+  },
+  clearAddonBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    backgroundColor: c.card,
+  },
+  clearAddonBtnText: {
+    fontSize: 10,
+    fontWeight: fontWeight.bold,
+    color: c.textSoft,
+  },
+  addonRowCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    backgroundColor: c.card,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  addonRowCardActive: {
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+  },
+  addonRowTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+  },
+  addonRowDesc: {
+    fontSize: 10,
+    color: c.textMuted,
+  },
+  addonMiniBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radii.full,
+  },
+  addonMiniBadgeOn: {
+    backgroundColor: c.primary,
+  },
+  addonMiniBadgeOff: {
+    backgroundColor: c.card,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.borderSoft,
+  },
+  addonMiniBadgeText: {
+    fontSize: 9,
+    fontWeight: fontWeight.extrabold,
+  },
+  addonMiniBadgeTextOn: {
+    color: onFill,
+  },
+  addonMiniBadgeTextOff: {
+    color: c.textMuted,
+  },
+  addonCompactInput: {
+    width: 112,
+    minHeight: 36,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.xs,
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: c.text,
+    backgroundColor: c.card,
+    textAlign: 'right',
   },
 }));

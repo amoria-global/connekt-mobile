@@ -93,6 +93,102 @@ export type PackageFeatureItem = {
   displayOrder?: number;
 };
 
+export type PackageAddonItem = {
+  key: string;
+  name: string;
+  price: number;
+  currencyCode?: string;
+  /** Automatically true when price > 0, false when price <= 0 */
+  enabled: boolean;
+};
+
+export const DEFAULT_PACKAGE_ADDON_TEMPLATES: {
+  key: string;
+  name: string;
+  description: string;
+  isDrone?: boolean;
+}[] = [
+  {
+    key: 'drone_capturing',
+    name: 'Drone Capturing',
+    description:
+      'Aerial 4K drone photo & video coverage (unique self-priced feature — enter amount to toggle ON for your profile)',
+    isDrone: true,
+  },
+  {
+    key: 'express_delivery',
+    name: 'Express 48h Delivery',
+    description: 'Priority editing & turnaround within 48 hours',
+  },
+  {
+    key: 'extra_hour',
+    name: 'Extra Hour Coverage',
+    description: 'Additional hour of session or event coverage',
+  },
+  {
+    key: 'fog_machine',
+    name: 'Smoke / Fog Machine',
+    description: 'Special effects fog/smoke machine for ceremony or reception',
+  },
+  {
+    key: 'extra_crew',
+    name: 'Extra Photographer / Videographer',
+    description: 'Additional shooter added to your coverage team',
+  },
+];
+
+export const QUICK_DELIVERY_POLICY_PRESETS: string[] = [
+  'Express work within 2 days incurs 2,500 RWF per photo. Schedule sessions in advance.',
+  'Standard edited photos delivered within 5–7 business days via online gallery.',
+  'Same-day preview highlights (5–10 photos) + full delivery within 7 days.',
+  'Wedding & large event full films and photobooks delivered within 14–21 days.',
+];
+
+export const QUICK_OTHER_POLICY_PRESETS: string[] = [
+  '50% non-refundable deposit required to confirm and lock booking date.',
+  'Free rescheduling up to 48 hours before the scheduled session.',
+  'Transport & accommodation outside the city are covered by the client.',
+  'Raw unedited files are not included unless purchased as an add-on.',
+];
+
+export function normalizePackageAddons(
+  addons?: PackageAddonItem[],
+  explicitDronePrice?: number | null,
+  defaultCurrencyCode = 'RWF',
+): PackageAddonItem[] {
+  const map = new Map<string, PackageAddonItem>();
+  (addons ?? []).forEach((item) => {
+    const cleanName = (item.name || '').trim();
+    if (!cleanName) return;
+    const price = Number.isFinite(item.price) && item.price > 0 ? Math.round(item.price) : 0;
+    const key =
+      item.key ||
+      (cleanName.toLowerCase().includes('drone')
+        ? 'drone_capturing'
+        : cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '_'));
+    map.set(key, {
+      key,
+      name: cleanName,
+      price,
+      currencyCode: item.currencyCode || defaultCurrencyCode,
+      enabled: price > 0,
+    });
+  });
+
+  if (typeof explicitDronePrice === 'number' && Number.isFinite(explicitDronePrice)) {
+    const dronePrice = explicitDronePrice > 0 ? Math.round(explicitDronePrice) : 0;
+    map.set('drone_capturing', {
+      key: 'drone_capturing',
+      name: 'Drone Capturing',
+      price: dronePrice,
+      currencyCode: defaultCurrencyCode,
+      enabled: dronePrice > 0,
+    });
+  }
+
+  return Array.from(map.values());
+}
+
 export type Package = {
   id: ID;
   name: string; // packageName / tier (Diamond, Gold, Silver, Premium, Basic, etc.)
@@ -101,6 +197,10 @@ export type Package = {
   originalDescription?: string;
   enhancedDescription?: string;
   deliveryPolicy?: string;
+  otherPolicies?: string[];
+  addons?: PackageAddonItem[];
+  droneCapturingPrice?: number | null;
+  hasDroneCapturing?: boolean;
   price?: number;
   currency?: string; // code, for display
   currencyId?: string; // UUID, for edit
@@ -119,9 +219,15 @@ export type CreatePackageInput = {
   packageName: string;
   price: number;
   currencyId: string;
+  currencyCode?: string;
   priceUnit?: string;
   durationHours?: number;
   description?: string;
+  deliveryPolicy?: string;
+  otherPolicies?: string[];
+  addons?: PackageAddonItem[];
+  droneCapturingPrice?: number | null;
+  hasDroneCapturing?: boolean;
   hasLiveStream?: boolean;
   includedPhotos?: number;
   includedVideos?: number;
@@ -147,6 +253,10 @@ export type ExtractedAiPackageDraft = {
   hasLiveStream: boolean;
   deliveryDays: number;
   deliveryPolicy: string;
+  otherPolicies?: string[];
+  addons?: PackageAddonItem[];
+  droneCapturingPrice?: number | null;
+  hasDroneCapturing?: boolean;
   originalDescription: string;
   enhancedDescription: string;
   ingredients: string[];
@@ -162,6 +272,9 @@ export type AiPackageExtractionResponse = {
   model?: string;
   aiConfigured: boolean;
   summaryNote: string;
+  extractedDeliveryPolicy?: string;
+  extractedOtherPolicies?: string[];
+  detectedDroneInMenu?: boolean;
 };
 
 export type BulkPublishMode = 'REPLACE_ALL' | 'REPLACE_SESSION' | 'ADD_OR_UPDATE';
@@ -203,7 +316,83 @@ function mapFeatures(rawFeatures: unknown): PackageFeatureItem[] {
 
 function mapPackage(r: Raw): Package {
   const currency = (r.currency ?? {}) as Raw;
-  const features = mapFeatures(r.features);
+  const rawFeatures = mapFeatures(r.features);
+  const currencyCode =
+    str(r.currencyAbbreviation) ??
+    str(r.currencyCode) ??
+    str(currency.abbreviation) ??
+    str(r.currency as string) ??
+    'RWF';
+
+  let parsedDeliveryPolicy = str(r.deliveryPolicy);
+  const otherPolicies: string[] = Array.isArray(r.otherPolicies)
+    ? r.otherPolicies.filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+    : [];
+  const parsedAddons: PackageAddonItem[] = Array.isArray(r.addons)
+    ? normalizePackageAddons(r.addons as PackageAddonItem[], num(r.droneCapturingPrice) ?? null, currencyCode)
+    : [];
+  const cleanFeatures: PackageFeatureItem[] = [];
+
+  const addonRegex = /^Add-on:\s*(.+?)\s*\(\+?([\d,.\s]+)\s*([A-Za-z]{3})?\)$/i;
+  const deliveryPolicyRegex = /^Delivery Policy:\s*(.+)$/i;
+  const otherPolicyRegex = /^Policy:\s*(.+)$/i;
+
+  for (const f of rawFeatures) {
+    const name = f.featureName.trim();
+    const addonMatch = name.match(addonRegex);
+    if (addonMatch) {
+      const addonName = addonMatch[1].trim();
+      const rawPrice = parseFloat(addonMatch[2].replace(/[,\s]/g, ''));
+      const addonCurrency = addonMatch[3]?.toUpperCase() || currencyCode;
+      if (Number.isFinite(rawPrice) && rawPrice > 0) {
+        const key = addonName.toLowerCase().includes('drone')
+          ? 'drone_capturing'
+          : addonName.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+        if (!parsedAddons.some((a) => a.key === key)) {
+          parsedAddons.push({
+            key,
+            name: addonName,
+            price: Math.round(rawPrice),
+            currencyCode: addonCurrency,
+            enabled: true,
+          });
+        }
+      }
+      continue;
+    }
+
+    const delivMatch = name.match(deliveryPolicyRegex);
+    if (delivMatch) {
+      if (!parsedDeliveryPolicy) {
+        parsedDeliveryPolicy = delivMatch[1].trim();
+      }
+      continue;
+    }
+
+    const polMatch = name.match(otherPolicyRegex);
+    if (polMatch) {
+      const polText = polMatch[1].trim();
+      if (polText && !otherPolicies.includes(polText)) {
+        otherPolicies.push(polText);
+      }
+      continue;
+    }
+
+    cleanFeatures.push(f);
+  }
+
+  const droneAddon = parsedAddons.find(
+    (a) => a.key === 'drone_capturing' || a.name.toLowerCase().includes('drone'),
+  );
+  const explicitDronePrice = num(r.droneCapturingPrice);
+  const droneCapturingPrice =
+    explicitDronePrice && explicitDronePrice > 0
+      ? explicitDronePrice
+      : droneAddon && droneAddon.price > 0
+        ? droneAddon.price
+        : null;
+  const hasDroneCapturing = Boolean(droneCapturingPrice && droneCapturingPrice > 0);
+
   return {
     id: String(r.id ?? ''),
     name: str(r.packageName) ?? str(r.name) ?? 'Package',
@@ -211,13 +400,13 @@ function mapPackage(r: Raw): Package {
     description: str(r.description),
     originalDescription: str(r.originalDescription),
     enhancedDescription: str(r.enhancedDescription),
-    deliveryPolicy: str(r.deliveryPolicy),
+    deliveryPolicy: parsedDeliveryPolicy,
+    otherPolicies,
+    addons: parsedAddons,
+    droneCapturingPrice,
+    hasDroneCapturing,
     price: num(r.price),
-    currency:
-      str(r.currencyAbbreviation) ??
-      str(r.currencyCode) ??
-      str(currency.abbreviation) ??
-      str(r.currency as string),
+    currency: currencyCode,
     currencyId: str(r.currencyId) ?? str(currency.id),
     priceUnit: str(r.priceUnit),
     durationHours: num(r.durationHours),
@@ -227,7 +416,7 @@ function mapPackage(r: Raw): Package {
     hasLiveStream: r.hasLiveStream === true,
     deliveryDays: num(r.deliveryDays),
     serviceType: str(r.serviceType) === 'STUDIO' ? 'STUDIO' : 'OUTDOOR',
-    features,
+    features: cleanFeatures,
   };
 }
 
@@ -275,13 +464,63 @@ export function applyPackageTierNamingPolicy<
 
 /** Full web-parity payload for create + update. */
 function buildPackagePayload(input: CreatePackageInput): Record<string, unknown> {
-  const features = (input.features ?? [])
-    .filter((f) => f.featureName && f.featureName.trim().length > 0)
-    .map((f, idx) => ({
+  const currencyCode = input.currencyCode || 'RWF';
+  const baseFeatures = (input.features ?? [])
+    .filter((f) => {
+      const name = (f.featureName || '').trim();
+      if (!name) return false;
+      // Avoid duplicating structured metadata lines when re-saving a package
+      return (
+        !/^Add-on:\s*/i.test(name) &&
+        !/^Delivery Policy:\s*/i.test(name) &&
+        !/^Policy:\s*/i.test(name)
+      );
+    })
+    .map((f) => ({
       featureName: f.featureName.trim(),
       isIncluded: f.isIncluded !== false,
-      displayOrder: f.displayOrder ?? idx,
     }));
+
+  const normalizedAddons = normalizePackageAddons(
+    input.addons,
+    input.droneCapturingPrice,
+    currencyCode,
+  );
+  // Having an amount (> 0) toggles the add-on ON for this photographer; 0/empty leaves it OFF
+  const activeAddons = normalizedAddons.filter((a) => a.enabled && a.price > 0);
+  const droneAddon = activeAddons.find(
+    (a) => a.key === 'drone_capturing' || a.name.toLowerCase().includes('drone'),
+  );
+
+  for (const addon of activeAddons) {
+    baseFeatures.push({
+      featureName: `Add-on: ${addon.name} (+${addon.price.toLocaleString()} ${addon.currencyCode || currencyCode})`,
+      isIncluded: true,
+    });
+  }
+
+  if (input.deliveryPolicy && input.deliveryPolicy.trim()) {
+    baseFeatures.push({
+      featureName: `Delivery Policy: ${input.deliveryPolicy.trim()}`,
+      isIncluded: true,
+    });
+  }
+
+  for (const pol of input.otherPolicies ?? []) {
+    const cleanPol = (pol || '').trim();
+    if (cleanPol) {
+      baseFeatures.push({
+        featureName: `Policy: ${cleanPol}`,
+        isIncluded: true,
+      });
+    }
+  }
+
+  const features = baseFeatures.map((f, idx) => ({
+    featureName: f.featureName,
+    isIncluded: f.isIncluded,
+    displayOrder: idx,
+  }));
 
   return {
     packageName: input.packageName,
@@ -290,6 +529,11 @@ function buildPackagePayload(input: CreatePackageInput): Record<string, unknown>
     priceUnit: input.priceUnit || (input.serviceType === 'STUDIO' ? 'per session' : 'per event'),
     durationHours: input.durationHours ?? 0,
     description: input.description ?? '',
+    deliveryPolicy: input.deliveryPolicy ?? '',
+    otherPolicies: (input.otherPolicies ?? []).filter((p) => p && p.trim().length > 0),
+    addons: activeAddons,
+    droneCapturingPrice: droneAddon ? droneAddon.price : null,
+    hasDroneCapturing: Boolean(droneAddon && droneAddon.price > 0),
     isActive: true,
     hasLiveStream: input.hasLiveStream ?? false,
     includedPhotos: input.includedPhotos ?? 0,
@@ -493,6 +737,64 @@ function inferServiceTypeFromText(
   return documentLevelDefault;
 }
 
+export function extractPoliciesFromBrochureText(rawText: string): {
+  deliveryPolicy: string;
+  otherPolicies: string[];
+  detectedDroneInMenu: boolean;
+} {
+  const text = (rawText || '').trim();
+  const lower = text.toLowerCase();
+  let deliveryPolicy = '';
+  const otherPolicies: string[] = [];
+
+  if (
+    lower.includes('express work') ||
+    lower.includes('2.5k per 1 photo') ||
+    lower.includes('within 2 days')
+  ) {
+    deliveryPolicy =
+      'Express work expected within 2 days incurs an additional charge of 2,500 RWF per photo.';
+    otherPolicies.push(
+      'Schedule photo sessions at least 2 days in advance before expected dates (birthday, graduation, baby shower) for seamless editing.',
+    );
+  } else {
+    const daysMatch = text.match(
+      /(?:delivery|delivered|turnaround)\s*(?:in|within)?\s*(\d{1,2})\s*days?/i,
+    );
+    if (daysMatch) {
+      deliveryPolicy = `Delivery within ${daysMatch[1]} days.`;
+    }
+  }
+
+  const lines = text.split(/\r?\n/).map((l) => l.trim());
+  for (const line of lines) {
+    if (!line) continue;
+    const l = line.toLowerCase();
+    if (
+      (l.includes('deposit') ||
+        l.includes('reschedul') ||
+        l.includes('cancellation') ||
+        l.includes('policy:') ||
+        l.includes('note:') ||
+        l.includes('terms:')) &&
+      !isContactOrFooterLine(line)
+    ) {
+      const cleaned = line.replace(/^(?:policy|note|terms)\s*:\s*/i, '').trim();
+      if (cleaned && !otherPolicies.includes(cleaned) && cleaned !== deliveryPolicy) {
+        otherPolicies.push(cleaned);
+      }
+    }
+  }
+
+  const detectedDroneInMenu = /\bdrone\b/i.test(text);
+
+  return {
+    deliveryPolicy,
+    otherPolicies,
+    detectedDroneInMenu,
+  };
+}
+
 function createDraftFromParsedFields(params: {
   idx: number;
   originalTitle: string;
@@ -506,6 +808,9 @@ function createDraftFromParsedFields(params: {
   hasLiveStream?: boolean;
   deliveryDays?: number;
   deliveryPolicy?: string;
+  otherPolicies?: string[];
+  addons?: PackageAddonItem[];
+  droneCapturingPrice?: number | null;
   ingredients: string[];
 }): ExtractedAiPackageDraft {
   const {
@@ -569,6 +874,17 @@ function createDraftFromParsedFields(params: {
   const originalDescription = cleanIngredients.join(' • ');
   const enhancedDescription = `${originalTitle}: ${cleanIngredients.join(', ')}.`;
 
+  const normalizedAddons = normalizePackageAddons(
+    params.addons,
+    params.droneCapturingPrice ?? null,
+    'RWF',
+  );
+  const droneAddon = normalizedAddons.find(
+    (a) => a.key === 'drone_capturing' || a.name.toLowerCase().includes('drone'),
+  );
+  const droneCapturingPrice =
+    droneAddon && droneAddon.price > 0 ? droneAddon.price : null;
+
   return {
     tempId: `pkg-${idx}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     packageName: originalTitle,
@@ -584,6 +900,10 @@ function createDraftFromParsedFields(params: {
     hasLiveStream,
     deliveryDays,
     deliveryPolicy,
+    otherPolicies: params.otherPolicies ?? [],
+    addons: normalizedAddons,
+    droneCapturingPrice,
+    hasDroneCapturing: Boolean(droneCapturingPrice && droneCapturingPrice > 0),
     originalDescription,
     enhancedDescription,
     ingredients: cleanIngredients,
@@ -639,23 +959,10 @@ function extractSingleDocumentPackages(
         ? 'OUTDOOR'
         : defaultServiceType;
 
-  // Extract document-level delivery / express policy if present
-  let docDeliveryPolicy = '';
-  if (
-    lowerAll.includes('express work') ||
-    lowerAll.includes('2.5k per 1 photo') ||
-    lowerAll.includes('within 2 days')
-  ) {
-    docDeliveryPolicy =
-      'Express work expected within 2 days incurs an additional charge of 2,500 RWF per photo. Please schedule sessions a few days in advance.';
-  } else {
-    const daysMatch = text.match(
-      /(?:delivery|delivered|turnaround)\s*(?:in|within)?\s*(\d{1,2})\s*days?/i,
-    );
-    if (daysMatch) {
-      docDeliveryPolicy = `Delivery within ${daysMatch[1]} days.`;
-    }
-  }
+  // Extract document-level delivery / express policy and other policies if present
+  const parsedDocPolicies = extractPoliciesFromBrochureText(text);
+  const docDeliveryPolicy = parsedDocPolicies.deliveryPolicy;
+  const docOtherPolicies = parsedDocPolicies.otherPolicies;
 
   const rawLines = text
     .split(/\r?\n/)
@@ -1041,12 +1348,17 @@ function extractSingleDocumentPackages(
         price: card.price,
         serviceType: card.serviceType,
         deliveryPolicy: docDeliveryPolicy,
+        otherPolicies: docOtherPolicies,
         ingredients: card.features.length > 0 ? card.features : [card.title],
       }),
     );
   }
 
-  return drafts;
+  return drafts.map((d) => ({
+    ...d,
+    otherPolicies:
+      d.otherPolicies && d.otherPolicies.length > 0 ? d.otherPolicies : docOtherPolicies,
+  }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1352,11 +1664,26 @@ function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
   const ingredients = Array.isArray(r.ingredients)
     ? r.ingredients.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
     : [];
+  const otherPolicies = Array.isArray(r.otherPolicies)
+    ? r.otherPolicies.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+    : [];
   const durationHours = num(r.durationHours) ?? 0;
   const includedPhotos = num(r.includedPhotos) ?? 0;
   const includedVideos = num(r.includedVideos) ?? 0;
   const deliveryDays = num(r.deliveryDays) ?? 0;
   const originalTitle = str(r.originalTitle) ?? str(r.packageName) ?? `Package ${idx + 1}`;
+  const currencyCode = str(r.currencyCode) ?? 'RWF';
+  const explicitDronePrice = num(r.droneCapturingPrice);
+  const normalizedAddons = normalizePackageAddons(
+    Array.isArray(r.addons) ? (r.addons as PackageAddonItem[]) : undefined,
+    explicitDronePrice ?? null,
+    currencyCode,
+  );
+  const droneAddon = normalizedAddons.find(
+    (a) => a.key === 'drone_capturing' || a.name.toLowerCase().includes('drone'),
+  );
+  const droneCapturingPrice =
+    droneAddon && droneAddon.price > 0 ? droneAddon.price : null;
 
   return {
     tempId: str(r.tempId) ?? `pkg-${idx}-${Date.now()}`,
@@ -1364,7 +1691,7 @@ function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
     originalTitle,
     serviceType,
     price: num(r.price) ?? 100000,
-    currencyCode: str(r.currencyCode) ?? 'RWF',
+    currencyCode,
     currencyId: str(r.currencyId),
     priceUnit: str(r.priceUnit) ?? (serviceType === 'STUDIO' ? 'per session' : 'per event'),
     durationHours,
@@ -1378,6 +1705,10 @@ function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
       (deliveryDays > 0
         ? `Delivery within ${deliveryDays} days.`
         : 'Standard studio delivery policy applies.'),
+    otherPolicies,
+    addons: normalizedAddons,
+    droneCapturingPrice,
+    hasDroneCapturing: Boolean(droneCapturingPrice && droneCapturingPrice > 0),
     originalDescription:
       str(r.originalDescription) ??
       (ingredients.length > 0 ? ingredients.join(' • ') : originalTitle),
@@ -1410,6 +1741,7 @@ export async function extractPackagesWithAi(input: {
     }
   }
   const combinedLocalText = textParts.join('\n===DOCUMENT_BREAK===\n');
+  const docPolicies = extractPoliciesFromBrochureText(combinedLocalText);
 
   // 2. Try backend endpoint if reachable
   try {
@@ -1434,6 +1766,25 @@ export async function extractPackagesWithAi(input: {
       const extractedPackages = applyPackageTierNamingPolicy(rawExtracted.map(mapExtractedDraft));
       const studioCount = extractedPackages.filter((p) => p.serviceType === 'STUDIO').length;
       const outdoorCount = extractedPackages.filter((p) => p.serviceType === 'OUTDOOR').length;
+      const extractedDeliveryPolicy =
+        str(data.extractedDeliveryPolicy) ||
+        docPolicies.deliveryPolicy ||
+        extractedPackages.find(
+          (p) =>
+            p.deliveryPolicy &&
+            p.deliveryPolicy !== 'Standard studio delivery policy applies.',
+        )?.deliveryPolicy ||
+        '';
+      const extractedOtherPolicies = Array.isArray(data.extractedOtherPolicies)
+        ? data.extractedOtherPolicies.filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
+        : docPolicies.otherPolicies;
+      const detectedDroneInMenu =
+        data.detectedDroneInMenu === true ||
+        docPolicies.detectedDroneInMenu ||
+        extractedPackages.some((p) =>
+          p.ingredients.some((i) => /\bdrone\b/i.test(i)),
+        );
+
       return {
         extractedPackages,
         existingPackages,
@@ -1444,6 +1795,9 @@ export async function extractPackagesWithAi(input: {
         model: str(data.model) ?? 'gpt-5.6-luna',
         aiConfigured: data.aiConfigured !== false,
         summaryNote: `Prepared ${extractedPackages.length} packages (${studioCount} Indoor, ${outdoorCount} Outdoor).`,
+        extractedDeliveryPolicy,
+        extractedOtherPolicies,
+        detectedDroneInMenu,
       };
     }
   } catch {
@@ -1466,6 +1820,20 @@ export async function extractPackagesWithAi(input: {
 
   const studioCount = extractedPackages.filter((p) => p.serviceType === 'STUDIO').length;
   const outdoorCount = extractedPackages.filter((p) => p.serviceType === 'OUTDOOR').length;
+  const extractedDeliveryPolicy =
+    docPolicies.deliveryPolicy ||
+    extractedPackages.find(
+      (p) =>
+        p.deliveryPolicy &&
+        p.deliveryPolicy !== 'Standard studio delivery policy applies.',
+    )?.deliveryPolicy ||
+    '';
+  const detectedDroneInMenu =
+    docPolicies.detectedDroneInMenu ||
+    extractedPackages.some((p) =>
+      p.ingredients.some((i) => /\bdrone\b/i.test(i)),
+    );
+
   return {
     extractedPackages,
     existingPackages,
@@ -1476,6 +1844,9 @@ export async function extractPackagesWithAi(input: {
     model: 'gpt-5.6-luna',
     aiConfigured: true,
     summaryNote: `Prepared ${extractedPackages.length} packages (${studioCount} Indoor, ${outdoorCount} Outdoor).`,
+    extractedDeliveryPolicy,
+    extractedOtherPolicies: docPolicies.otherPolicies,
+    detectedDroneInMenu,
   };
 }
 
