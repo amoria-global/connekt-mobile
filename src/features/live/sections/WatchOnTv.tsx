@@ -1,17 +1,19 @@
-import { memo, useCallback, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, type Href } from 'expo-router';
 import { Sheet } from '@/components/ui/Sheet';
 import { listTvDevices, sendEventToTv } from '@/features/tv/api';
 import type { TvDevice } from '@/features/tv/types';
+import { isTvOnline, pickDefaultTv, readLastTvId, rememberLastTvId } from '@/features/tv/pick';
 import { useAuth, isApiError } from '@/store/auth';
 import { makeStyles, spacing, fontSize, fontWeight, radii, useTheme } from '@/theme';
 import { V } from '@/features/streams/viewer/viewerTheme';
 
 /**
- * Send to TV: a TV icon in the live page header. It opens a sheet where the viewer picks one of their connected TVs
- * and the Connekyt TV app opens this stream. Needs an account, because the TVs belong to one. With no TV connected
+ * Send to TV: a TV icon in the live page header. With an obvious TV (the only one, or the one used last) it sends in one
+ * tap and the sheet confirms where it went; otherwise the viewer picks one of their connected TVs, with the ones seen in the
+ * last two minutes marked as on, and the Connekyt TV app opens this stream. Needs an account, because the TVs belong to one. With no TV connected
  * the sheet leads to the pairing screen.
  */
 export const WatchOnTv = memo(function WatchOnTv({ eventId, title }: { eventId: string; title: string }) {
@@ -65,32 +67,41 @@ function TvPickerSheet({
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
 
-  const fetchDevices = useCallback(async () => {
-    setLoad({ state: 'loading' });
-    try {
-      setLoad({ state: 'ready', devices: await listTvDevices() });
-    } catch (err) {
-      setLoad({ state: 'error', message: isApiError(err) ? err.message : 'Could not load your TVs.' });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (signedIn) void fetchDevices();
-  }, [fetchDevices, signedIn]);
-
-  const send = async (device: TvDevice) => {
+  const send = useCallback(async (device: TvDevice) => {
     setSendingId(device.id);
     setProblem(null);
     setSentTo(null);
     try {
       await sendEventToTv(device.id, eventId);
       setSentTo(device.deviceLabel);
+      void rememberLastTvId(device.id);
     } catch (err) {
       setProblem(isApiError(err) ? err.message : 'Could not send it to your TV. Please try again.');
     } finally {
       setSendingId(null);
     }
-  };
+  }, [eventId]);
+
+  // One tap: the first load sends straight to the obvious TV. A retry after an error only lists, so a failing TV is not
+  // sent to again without the viewer choosing it.
+  const autoSend = useRef(true);
+  const fetchDevices = useCallback(async () => {
+    setLoad({ state: 'loading' });
+    try {
+      const [devices, lastId] = await Promise.all([listTvDevices(), readLastTvId()]);
+      setLoad({ state: 'ready', devices });
+      const pick = autoSend.current ? pickDefaultTv(devices, lastId) : null;
+      autoSend.current = false;
+      if (pick) await send(pick);
+    } catch (err) {
+      autoSend.current = false;
+      setLoad({ state: 'error', message: isApiError(err) ? err.message : 'Could not load your TVs.' });
+    }
+  }, [send]);
+
+  useEffect(() => {
+    if (signedIn) void fetchDevices();
+  }, [fetchDevices, signedIn]);
 
   return (
     <Sheet title="Send to your TV" subtitle={title} onClose={onClose} busy={sendingId !== null}>
@@ -138,12 +149,13 @@ function TvPickerSheet({
               <Text style={styles.deviceName} numberOfLines={1}>
                 {d.deviceLabel}
               </Text>
+              {isTvOnline(d) ? <Text style={styles.on}>On</Text> : null}
               {sendingId === d.id ? <ActivityIndicator color={colors.primary} /> : <Ionicons name="paper-plane-outline" size={18} color={colors.textMuted} />}
             </Pressable>
           ))}
           {sentTo ? (
             <Text style={styles.ok} accessibilityLiveRegion="polite">
-              Sent to {sentTo}. It opens on your TV in a few seconds.
+              Sent to {sentTo}. It opens on your TV in a couple of seconds.
             </Text>
           ) : null}
           {problem ? (
@@ -185,6 +197,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.card,
   },
   deviceName: { flex: 1, fontSize: fontSize.md, fontWeight: fontWeight.semibold, color: c.text },
+  on: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: c.active },
   ok: { fontSize: fontSize.sm, color: c.success, lineHeight: 20 },
   err: { fontSize: fontSize.sm, color: c.error, lineHeight: 20 },
   hint: { fontSize: fontSize.xs, color: c.textMuted, lineHeight: 17, marginTop: spacing.xs },

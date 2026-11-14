@@ -26,7 +26,15 @@ jest.mock('@/features/tv/api', () => ({
   sendEventToTv: (...a: unknown[]) => mockSend(...a),
 }));
 
+let mockLastTv: string | null = null;
+const mockRemember = jest.fn();
+jest.mock('expo-secure-store', () => ({
+  getItemAsync: async () => mockLastTv,
+  setItemAsync: async (...a: unknown[]) => mockRemember(...a),
+}));
+
 import { WatchOnTv } from './WatchOnTv';
+import { isTvOnline, pickDefaultTv } from '@/features/tv/pick';
 
 const text = (r: TestRenderer.ReactTestRenderer) => r.root.findAllByType(Text).map((t) => [t.props.children].flat().join('')).join(' | ');
 const press = async (n: ReactTestInstance) => { await act(async () => { n.props.onPress(); }); };
@@ -44,7 +52,12 @@ async function openSheet() {
 beforeEach(() => {
   mockPush.mockReset(); mockList.mockReset(); mockSend.mockReset();
   mockStatus = 'authenticated';
+  mockLastTv = null;
+  mockRemember.mockReset();
 });
+
+const tvA = { id: 'tv-1', deviceLabel: 'Living room TV', pairedAt: '2026-10-01' };
+const tvB = { id: 'tv-2', deviceLabel: 'Bedroom TV', pairedAt: '2026-10-02' };
 
 describe('Watch on TV', () => {
   it('asks a signed-out viewer to sign in and does not look for TVs', async () => {
@@ -63,21 +76,45 @@ describe('Watch on TV', () => {
     expect(mockPush).toHaveBeenCalledWith('/connect-to-tv');
   });
 
-  it('sends this event to the TV the viewer picks and says so', async () => {
-    mockList.mockResolvedValue([{ id: 'tv-1', deviceLabel: 'Living room TV', pairedAt: '2026-10-01' }]);
+  it('sends in one tap to the only TV, says so, and remembers it', async () => {
+    mockList.mockResolvedValue([tvA]);
     mockSend.mockResolvedValue(undefined);
     const r = await openSheet();
-    await press(byLabel(r, 'Send to Living room TV'));
     expect(mockSend).toHaveBeenCalledWith('tv-1', 'evt-1');
     expect(text(r)).toContain('Sent to Living room TV');
+    expect(mockRemember).toHaveBeenCalledWith('connekyt.lastTvId', 'tv-1');
   });
 
-  it('shows why when the backend refuses', async () => {
-    mockList.mockResolvedValue([{ id: 'tv-1', deviceLabel: 'Living room TV', pairedAt: '2026-10-01' }]);
+  it('with several TVs sends to the one used last, and otherwise waits for a pick', async () => {
+    mockList.mockResolvedValue([tvA, tvB]);
+    mockSend.mockResolvedValue(undefined);
+    mockLastTv = 'tv-2';
+    let r = await openSheet();
+    expect(mockSend).toHaveBeenCalledWith('tv-2', 'evt-1');
+    expect(text(r)).toContain('Sent to Bedroom TV');
+
+    mockSend.mockReset().mockResolvedValue(undefined);
+    mockLastTv = null;
+    r = await openSheet();
+    expect(mockSend).not.toHaveBeenCalled();
+    await press(byLabel(r, 'Send to Living room TV'));
+    expect(mockSend).toHaveBeenCalledWith('tv-1', 'evt-1');
+  });
+
+  it('marks a TV seen in the last two minutes as on', async () => {
+    mockList.mockResolvedValue([{ ...tvA, lastSeenAt: new Date().toISOString() }, tvB]);
+    const r = await openSheet();
+    expect(text(r)).toContain('On');
+    expect(isTvOnline({ lastSeenAt: new Date(Date.now() - 10 * 60 * 1000).toISOString() })).toBe(false);
+    expect(pickDefaultTv([tvA, tvB], 'gone')).toBeNull();
+  });
+
+  it('shows why when the backend refuses, and a retry only lists', async () => {
+    mockList.mockResolvedValue([tvA]);
     mockSend.mockRejectedValue({ status: 400, message: 'This stream has ended.' });
     const r = await openSheet();
-    await press(byLabel(r, 'Send to Living room TV'));
     expect(text(r)).toContain('This stream has ended.');
     expect(text(r)).not.toContain('Sent to');
+    expect(mockSend).toHaveBeenCalledTimes(1);
   });
 });

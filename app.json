@@ -182,6 +182,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-14-tv-one-tap",
+            "date": "2026-11-14",
+            "title": "Send to your TV in one tap",
+            "items": [
+              {
+                "icon": "tv-outline",
+                "title": "Watch on TV goes straight to your TV",
+                "body": "If you have one TV, or used one before, tapping the TV icon on a live stream sends it there right away. TVs that are on now show as On."
+              }
+            ]
+          },
+          {
             "id": "2026-11-14-nearby-location",
             "date": "2026-11-14",
             "title": "Photographers near you, using your location",
