@@ -635,24 +635,19 @@ export function PerformanceWaveCard({
               />
             );
           })}
-
-          {/* Layer 7: Interactive tap hit regions for each column */}
-          {points.map((pt, idx) => {
-            const colWidth = SVG_WIDTH / points.length;
-            const colX = pt.x - colWidth / 2;
-            return (
-              <Rect
-                key={`hit-${idx}`}
-                x={colX}
-                y={0}
-                width={colWidth}
-                height={SVG_HEIGHT}
-                fill="transparent"
-                onPress={() => setActiveIndex(idx)}
-              />
-            );
-          })}
         </Svg>
+        {/* Layer 7: Interactive tap hit regions for each column (Pressable overlay avoids react-native-svg web onResponderTerminate warning on <rect>) */}
+        <View style={[StyleSheet.absoluteFill, { flexDirection: 'row' }]} pointerEvents="box-none">
+          {points.map((pt, idx) => (
+            <Pressable
+              key={`hit-${idx}`}
+              style={{ flex: 1 }}
+              onPress={() => setActiveIndex(idx)}
+              accessibilityRole="button"
+              accessibilityLabel={`Inspect ${pt.label}`}
+            />
+          ))}
+        </View>
         {hasSeries ? null : (
           <Text style={styles.noSeries} accessibilityLiveRegion="polite">
             {emptyText}
