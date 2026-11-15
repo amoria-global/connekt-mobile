@@ -467,6 +467,9 @@ export const batch2En = {
   b2_pkgl_replaceBody_one: 'This replaces your {count} package once you publish the new ones. Bookings already made are kept, but they no longer link to a package. Geo pricing rules are removed.',
   b2_pkgl_replaceBody_other: 'This replaces your {count} packages once you publish the new ones. Bookings already made are kept, but they no longer link to a package. Geo pricing rules are removed.',
   b2_pkgl_replaceConfirm: 'Choose a brochure',
+  b2_pkgl_priceNeeded: 'Price needed',
+  b2_pkgl_priceNeededBlock_one: 'Enter a price for {count} package before publishing.',
+  b2_pkgl_priceNeededBlock_other: 'Enter a price for {count} packages before publishing.',
 } as const;
 
 export const batch2Fr: Record<keyof typeof batch2En, string> = {
@@ -941,6 +944,9 @@ export const batch2Fr: Record<keyof typeof batch2En, string> = {
   b2_pkgl_replaceBody_one: 'Cela remplace votre {count} forfait dès que vous publiez les nouveaux. Les réservations déjà faites sont conservées, mais ne sont plus liées à un forfait. Les règles de tarification géo sont supprimées.',
   b2_pkgl_replaceBody_other: 'Cela remplace vos {count} forfaits dès que vous publiez les nouveaux. Les réservations déjà faites sont conservées, mais ne sont plus liées à un forfait. Les règles de tarification géo sont supprimées.',
   b2_pkgl_replaceConfirm: 'Choisir une brochure',
+  b2_pkgl_priceNeeded: 'Prix requis',
+  b2_pkgl_priceNeededBlock_one: 'Saisissez un prix pour {count} forfait avant de publier.',
+  b2_pkgl_priceNeededBlock_other: 'Saisissez un prix pour {count} forfaits avant de publier.',
 } as const;
 
 export const batch2Es: Record<keyof typeof batch2En, string> = {
@@ -1416,4 +1422,7 @@ export const batch2Es: Record<keyof typeof batch2En, string> = {
   b2_pkgl_replaceBody_one: 'Esto reemplaza tu {count} paquete cuando publiques los nuevos. Las reservas ya hechas se conservan, pero ya no se vinculan a un paquete. Las reglas de precios geográficos se eliminan.',
   b2_pkgl_replaceBody_other: 'Esto reemplaza tus {count} paquetes cuando publiques los nuevos. Las reservas ya hechas se conservan, pero ya no se vinculan a un paquete. Las reglas de precios geográficos se eliminan.',
   b2_pkgl_replaceConfirm: 'Elegir un folleto',
+  b2_pkgl_priceNeeded: 'Falta el precio',
+  b2_pkgl_priceNeededBlock_one: 'Ingresa un precio para {count} paquete antes de publicar.',
+  b2_pkgl_priceNeededBlock_other: 'Ingresa un precio para {count} paquetes antes de publicar.',
 } as const;

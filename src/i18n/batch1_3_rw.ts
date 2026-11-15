@@ -669,6 +669,9 @@ export const batch2Rw: Record<keyof typeof batch2En, string> = {
   b2_pkgl_replaceBody_one: 'Ibi bisimbuza ipaki yawe {count} umaze gutangaza nshya. Ibyemezo byamaze gukorwa birabikwa, ariko ntibizongera guhuzwa n’ipaki. Amategeko y’ibiciro by’uturere arakurwaho.',
   b2_pkgl_replaceBody_other: 'Ibi bisimbuza amapaki yawe {count} umaze gutangaza amashya. Ibyemezo byamaze gukorwa birabikwa, ariko ntibizongera guhuzwa n’ipaki. Amategeko y’ibiciro by’uturere arakurwaho.',
   b2_pkgl_replaceConfirm: 'Hitamo brochure',
+  b2_pkgl_priceNeeded: 'Igiciro kirakenewe',
+  b2_pkgl_priceNeededBlock_one: 'Andika igiciro cy’ipaki {count} mbere yo gutangaza.',
+  b2_pkgl_priceNeededBlock_other: 'Andika ibiciro by’amapaki {count} mbere yo gutangaza.',
 };
 
 export const batch3Rw: Record<keyof typeof batch3En, string> = {

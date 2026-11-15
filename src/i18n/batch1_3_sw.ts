@@ -602,6 +602,9 @@ export const batch2Sw: Record<keyof typeof batch2En, string> = {
   b2_pkgl_replaceBody_one: 'Hii inabadilisha kifurushi chako {count} ukishachapisha vipya. Uhifadhi uliokwisha kufanywa unabaki, lakini hautaunganishwa tena na kifurushi. Kanuni za bei kulingana na eneo zinaondolewa.',
   b2_pkgl_replaceBody_other: 'Hii inabadilisha vifurushi vyako {count} ukishachapisha vipya. Uhifadhi uliokwisha kufanywa unabaki, lakini hautaunganishwa tena na kifurushi. Kanuni za bei kulingana na eneo zinaondolewa.',
   b2_pkgl_replaceConfirm: 'Chagua brosha',
+  b2_pkgl_priceNeeded: 'Bei inahitajika',
+  b2_pkgl_priceNeededBlock_one: 'Weka bei ya kifurushi {count} kabla ya kuchapisha.',
+  b2_pkgl_priceNeededBlock_other: 'Weka bei za vifurushi {count} kabla ya kuchapisha.',
 };
 
 export const batch3Sw: Record<keyof typeof batch3En, string> = {

@@ -211,7 +211,8 @@ export type ExtractedAiPackageDraft = {
   packageName: string;
   originalTitle: string;
   serviceType: ServiceType; // 'STUDIO' = Indoor, 'OUTDOOR' = Outdoor
-  price: number;
+  /** null when the brochure gave no usable price: the photographer must enter one before publishing. */
+  price: number | null;
   currencyCode: string;
   currencyId?: string;
   priceUnit: string;
@@ -401,7 +402,7 @@ function mapPackage(r: Raw): Package {
  * Never drops any package even if 10, 15, or 30 packages are uploaded.
  */
 export function applyPackageTierNamingPolicy<
-  T extends { packageName: string; originalTitle?: string; serviceType?: ServiceType; price?: number }
+  T extends { packageName: string; originalTitle?: string; serviceType?: ServiceType; price?: number | null }
 >(items: T[]): T[] {
   const studio = items
     .filter((i) => i.serviceType === 'STUDIO')
@@ -1582,6 +1583,16 @@ async function runBrowserOcrIfAvailable(imageUri: string): Promise<string> {
   return '';
 }
 
+/** A usable price is a finite number above zero; anything else is "no price". */
+export function positivePrice(v: number | null | undefined): number | null {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : null;
+}
+
+/** The drafts that cannot be published yet because they have no price. */
+export function draftsMissingPrice<T extends { price?: number | null }>(drafts: T[]): T[] {
+  return drafts.filter((d) => positivePrice(d.price) === null);
+}
+
 function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
   const serviceType: ServiceType = str(r.serviceType) === 'STUDIO' ? 'STUDIO' : 'OUTDOOR';
   const ingredients = Array.isArray(r.ingredients)
@@ -1613,7 +1624,8 @@ function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
     packageName: str(r.packageName) ?? originalTitle,
     originalTitle,
     serviceType,
-    price: num(r.price) ?? 100000,
+    // A missing or zero price stays empty. It is never invented: the review step marks it "Price needed" and blocks publishing.
+    price: positivePrice(num(r.price)),
     currencyCode,
     currencyId: str(r.currencyId),
     priceUnit: str(r.priceUnit) ?? (serviceType === 'STUDIO' ? 'per session' : 'per event'),
@@ -1792,11 +1804,16 @@ export async function bulkPublishPackages(input: {
       deletePackageIds: input.deletePackageIds ?? [],
       packages: orderedInputs.map(buildPackagePayload),
     });
-    if (res.action === 1 && Array.isArray(res.data)) {
-      return res.data.map(mapPackage).filter((p) => p.id);
+    // The server answered. HTTP 200 with action 0 is a refusal: stop here, because it may already have changed things.
+    if (res.action !== 1) {
+      throw { status: 400, message: res.message || 'Could not publish your packages.' } satisfies ApiError;
     }
-  } catch {
-    // Fallback to sequential delete + create if `/bulk-publish` is not yet deployed on the remote host
+    return Array.isArray(res.data) ? res.data.map(mapPackage).filter((p) => p.id) : [];
+  } catch (e) {
+    // Only a missing route (404, an old host without /bulk-publish) may fall back to delete-then-create. Any other
+    // failure could come after the server already deleted or created some packages, so replaying it by hand would
+    // duplicate or lose packages: stop, change nothing more, and let the caller show the error with Try again.
+    if ((e as { status?: number } | null)?.status !== 404) throw e;
   }
 
   const existing = input.existingPackages ?? (await listPackages().catch(() => [] as Package[]));
