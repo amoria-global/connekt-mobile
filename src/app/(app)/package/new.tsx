@@ -149,6 +149,8 @@ export default function NewPackageScreen() {
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // ───────── Studio / Menu-Upload Policies & Self-Priced Add-ons State ─────────
+  const [policyModalTarget, setPolicyModalTarget] = useState<'studio' | 'manual' | null>(null);
+  const [addonsModalTarget, setAddonsModalTarget] = useState<'studio' | 'manual' | null>(null);
   const [studioDeliveryPolicy, setStudioDeliveryPolicy] = useState<string>('');
   const [studioOtherPolicies, setStudioOtherPolicies] = useState<string[]>([]);
   const [newStudioPolicyText, setNewStudioPolicyText] = useState<string>('');
@@ -200,7 +202,7 @@ export default function NewPackageScreen() {
     edit?.hasLiveStream ?? false,
   );
   const [manualDeliveryPolicy, setManualDeliveryPolicy] = useState<string>(
-    edit?.deliveryPolicy ?? 'Delivery via online gallery; 50% booking deposit required.',
+    edit?.deliveryPolicy ?? '',
   );
   const [manualOtherPolicies, setManualOtherPolicies] = useState<string[]>(
     () => edit?.otherPolicies ?? [],
@@ -502,9 +504,30 @@ export default function NewPackageScreen() {
   );
   const activeSessionDrafts = reviewSessionTab === 'STUDIO' ? studioDrafts : outdoorDrafts;
 
+  const handleProceedToStep3 = () => {
+    setServerError(null);
+    const hasDeliveryPolicy =
+      Boolean(studioDeliveryPolicy.trim()) ||
+      extractedDrafts.some((d) => Boolean(d.deliveryPolicy && d.deliveryPolicy.trim()));
+    if (!hasDeliveryPolicy) {
+      setServerError('Delivery Policy is required. Please add your delivery policy to continue.');
+      setPolicyModalTarget('studio');
+      return;
+    }
+    setAiStep(3);
+  };
+
   // ───────── Publish Batch in Step 3 ─────────
   const handlePublishBatch = async () => {
     setServerError(null);
+    const hasDeliveryPolicy =
+      Boolean(studioDeliveryPolicy.trim()) ||
+      extractedDrafts.some((d) => Boolean(d.deliveryPolicy && d.deliveryPolicy.trim()));
+    if (!hasDeliveryPolicy) {
+      setServerError('Delivery Policy is required before publishing.');
+      setPolicyModalTarget('studio');
+      return;
+    }
     const resolvedCurrencyId =
       currencyId || currencies.data?.[0]?.id || extractedDrafts.find((d) => d.currencyId)?.currencyId;
     if (!resolvedCurrencyId) {
@@ -580,6 +603,11 @@ export default function NewPackageScreen() {
   // ───────── Submit Manual Custom Package ─────────
   const handleManualSubmit = async () => {
     setServerError(null);
+    if (!manualDeliveryPolicy.trim()) {
+      setServerError('Delivery Policy is required. Please add your delivery policy.');
+      setPolicyModalTarget('manual');
+      return;
+    }
     const resolvedCurrencyId = currencyId || currencies.data?.[0]?.id;
     if (!resolvedCurrencyId) {
       setServerError(t('b2_pkgNewErrCurrency'));
@@ -656,6 +684,131 @@ export default function NewPackageScreen() {
 
   const renderPoliciesAndAddonsSection = (target: 'studio' | 'manual') => {
     const isStudio = target === 'studio';
+    const deliveryVal = (isStudio ? studioDeliveryPolicy : manualDeliveryPolicy).trim();
+    const otherList = isStudio ? studioOtherPolicies : manualOtherPolicies;
+    const hasDelivery = Boolean(deliveryVal);
+    const activeAddons = (isStudio ? studioAddonsList : manualAddonsList).filter(
+      (a) => a.enabled && a.price > 0,
+    );
+    const droneAddon = activeAddons.find((a) => a.key === 'drone_capturing');
+
+    return (
+      <View style={styles.stageActionTriggersRow}>
+        {/* 1. REQUIRED: Add Delivery Policy Button (Opens Delivery Policy Modal) */}
+        <Pressable
+          onPress={() => {
+            setServerError(null);
+            setPolicyModalTarget(target);
+          }}
+          style={[
+            styles.stageTriggerCard,
+            hasDelivery ? styles.stageTriggerCardDone : styles.stageTriggerCardRequired,
+          ]}
+          accessibilityRole="button"
+          testID={`open-delivery-policy-modal-${target}`}
+        >
+          <View style={styles.rowBetween}>
+            <View style={styles.stageTriggerIconWrap}>
+              <Ionicons
+                name={hasDelivery ? 'shield-checkmark' : 'alert-circle'}
+                size={18}
+                color={hasDelivery ? colors.primary : colors.error}
+              />
+            </View>
+            <View
+              style={[
+                styles.stageTriggerBadge,
+                hasDelivery ? styles.stageTriggerBadgeSaved : styles.stageTriggerBadgeRequired,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.stageTriggerBadgeText,
+                  hasDelivery
+                    ? styles.stageTriggerBadgeTextSaved
+                    : styles.stageTriggerBadgeTextRequired,
+                ]}
+              >
+                {hasDelivery
+                  ? isStudio && policyReadFromMenu
+                    ? '✓ FROM MENU'
+                    : '✓ SAVED'
+                  : 'REQUIRED'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.stageTriggerTitle}>
+            {hasDelivery ? 'Delivery Policy' : 'Add Delivery Policy'}
+          </Text>
+          <Text style={styles.stageTriggerSub} numberOfLines={1}>
+            {hasDelivery
+              ? `${deliveryVal}${otherList.length > 0 ? ` (+${otherList.length} more)` : ''}`
+              : 'Required · Tap to set turnaround & rules'}
+          </Text>
+        </Pressable>
+
+        {/* 2. Add-ons & Drone Capturing Button (Opens Add-ons Modal) */}
+        <Pressable
+          onPress={() => {
+            setServerError(null);
+            setAddonsModalTarget(target);
+          }}
+          style={[
+            styles.stageTriggerCard,
+            activeAddons.length > 0 && styles.stageTriggerCardDone,
+          ]}
+          accessibilityRole="button"
+          testID={`open-addons-modal-${target}`}
+        >
+          <View style={styles.rowBetween}>
+            <View style={styles.stageTriggerIconWrap}>
+              <Ionicons
+                name="airplane"
+                size={18}
+                color={activeAddons.length > 0 ? colors.primary : colors.textSoft}
+              />
+            </View>
+            <View
+              style={[
+                styles.stageTriggerBadge,
+                activeAddons.length > 0
+                  ? styles.stageTriggerBadgeSaved
+                  : styles.stageTriggerBadgeNeutral,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.stageTriggerBadgeText,
+                  activeAddons.length > 0
+                    ? styles.stageTriggerBadgeTextSaved
+                    : styles.stageTriggerBadgeTextNeutral,
+                ]}
+              >
+                {droneAddon
+                  ? `DRONE ON · +${Math.round(droneAddon.price / 1000)}K`
+                  : activeAddons.length > 0
+                    ? `${activeAddons.length} ACTIVE`
+                    : 'ADD-ONS'}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.stageTriggerTitle}>Add-ons & Drone</Text>
+          <Text style={styles.stageTriggerSub} numberOfLines={1}>
+            {activeAddons.length > 0
+              ? activeAddons.map((a) => `${a.name} (+${a.price.toLocaleString()})`).join(' · ')
+              : detectedDroneInMenu
+                ? 'Drone spotted in menu · Tap to price'
+                : 'Drone Capturing & self-priced extras'}
+          </Text>
+        </Pressable>
+      </View>
+    );
+  };
+
+  const renderPolicyAndAddonsModals = () => {
+    const activeTarget = policyModalTarget || addonsModalTarget || 'studio';
+    const isStudio = activeTarget === 'studio';
+
     const deliveryVal = isStudio ? studioDeliveryPolicy : manualDeliveryPolicy;
     const setDeliveryVal = isStudio
       ? (val: string) => {
@@ -779,344 +932,354 @@ export default function NewPackageScreen() {
 
     const dronePriceNum = Number((addonPrices.drone_capturing || '').replace(/[^\d]/g, '')) || 0;
     const isDroneEnabled = dronePriceNum > 0;
-    const activeAddonsCount = (isStudio ? studioAddonsList : manualAddonsList).filter(
-      (a) => a.enabled && a.price > 0,
-    ).length;
 
     return (
-      <View style={styles.policiesAndAddonsContainer}>
-        {/* ─── PART A: DELIVERY POLICY & OTHER STUDIO POLICIES ─── */}
-        <View style={styles.policySectionBox}>
-          <View style={styles.rowBetween}>
-            <View style={styles.tierTitleRow}>
-              <Ionicons name="shield-checkmark-outline" size={17} color={colors.primary} />
-              <Text style={styles.label}>Delivery Policy & Studio Policies</Text>
-            </View>
-            {isStudio && policyReadFromMenu ? (
-              <View style={styles.menuReadBadge}>
-                <Ionicons name="checkmark-circle" size={12} color={colors.primary} />
-                <Text style={styles.menuReadBadgeText}>Read from menu picture</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text style={styles.subtitleText}>
-            {isStudio
-              ? 'Policies found on your uploaded menu picture are auto-filled below. If your menu does not list a delivery or booking policy, add or pick one below.'
-              : 'Set your delivery turnaround policy and any other booking policies (deposit, rescheduling, transport).'}
-          </Text>
-
-          <Input
-            label="Delivery Policy"
-            placeholder="e.g. Standard delivery within 5 days; express 48h delivery incurs 2,500 RWF per photo."
-            value={deliveryVal}
-            onChangeText={setDeliveryVal}
-          />
-
-          {/* Quick Delivery Policy Presets */}
-          <View style={styles.chipsRow}>
-            {QUICK_DELIVERY_POLICY_PRESETS.map((preset) => {
-              const active = deliveryVal.trim() === preset;
-              return (
-                <Pressable
-                  key={preset}
-                  onPress={() => setDeliveryVal(preset)}
-                  style={[styles.quickAddChip, active && styles.chipActive]}
-                >
-                  <Ionicons
-                    name={active ? 'checkmark' : 'add'}
-                    size={12}
-                    color={active ? onFill : colors.primary}
-                  />
-                  <Text
-                    style={[styles.quickAddChipText, active && styles.chipTextActive]}
-                    numberOfLines={1}
-                  >
-                    {preset}
-                  </Text>
+      <>
+        {/* ─── MODAL 1: DELIVERY POLICY & STUDIO RULES (REQUIRED) ─── */}
+        <Modal
+          visible={policyModalTarget !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setPolicyModalTarget(null)}
+        >
+          <GlassScrim style={styles.modalBackdrop} onPress={() => setPolicyModalTarget(null)}>
+            <GlassSheetHost style={styles.modalSheet}>
+              <View style={styles.rowBetween}>
+                <View style={styles.tierTitleRow}>
+                  <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>Delivery Policy</Text>
+                  <View style={styles.stageTriggerBadgeRequired}>
+                    <Text style={styles.stageTriggerBadgeTextRequired}>REQUIRED</Text>
+                  </View>
+                </View>
+                <Pressable onPress={() => setPolicyModalTarget(null)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color={colors.textSoft} />
                 </Pressable>
-              );
-            })}
-          </View>
+              </View>
 
-          {/* Other Studio / Booking Policies */}
-          <Text style={[styles.label, { marginTop: spacing.xs }]}>
-            Other Policies (Deposit, Rescheduling, Transport, Raw Files)
-          </Text>
-          <View style={styles.addItemInputRow}>
-            <TextInput
-              value={newPolicyInput}
-              onChangeText={setNewPolicyInput}
-              placeholder="Add another policy (e.g. 50% deposit required to lock date)..."
-              placeholderTextColor={colors.textMuted}
-              style={styles.addItemTextInput}
-              onSubmitEditing={() => {
-                const clean = newPolicyInput.trim();
-                if (!clean) return;
-                setOtherList((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
-                setNewPolicyInput('');
-              }}
-            />
-            <Pressable
-              onPress={() => {
-                const clean = newPolicyInput.trim();
-                if (!clean) return;
-                setOtherList((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
-                setNewPolicyInput('');
-              }}
-              style={styles.addItemBtn}
-            >
-              <Text style={styles.addItemBtnText}>+ Add Policy</Text>
-            </Pressable>
-          </View>
-
-          <View style={styles.chipsRow}>
-            {QUICK_OTHER_POLICY_PRESETS.filter((p) => !otherList.includes(p)).map((preset) => (
-              <Pressable
-                key={preset}
-                onPress={() =>
-                  setOtherList((prev) => (prev.includes(preset) ? prev : [...prev, preset]))
-                }
-                style={styles.quickAddChip}
+              <ScrollView
+                style={{ maxHeight: 420 }}
+                contentContainerStyle={{ gap: spacing.sm }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
               >
-                <Ionicons name="add" size={12} color={colors.primary} />
-                <Text style={styles.quickAddChipText} numberOfLines={1}>
-                  {preset}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+                <Input
+                  label="Delivery Turnaround Policy *"
+                  placeholder="e.g. Delivery in 5–7 days via online gallery"
+                  value={deliveryVal}
+                  onChangeText={setDeliveryVal}
+                />
 
-          {otherList.length > 0 ? (
-            <View style={styles.manualItemsListBox}>
-              {otherList.map((pol, idx) => (
-                <View key={`${pol}-${idx}`} style={styles.manualItemRow}>
-                  <Ionicons name="document-text-outline" size={15} color={colors.primary} />
-                  <Text style={styles.manualItemText}>{pol}</Text>
+                <View style={styles.chipsRow}>
+                  {QUICK_DELIVERY_POLICY_PRESETS.map((preset) => {
+                    const active = deliveryVal.trim() === preset;
+                    return (
+                      <Pressable
+                        key={preset}
+                        onPress={() => setDeliveryVal(preset)}
+                        style={[styles.quickAddChip, active && styles.chipActive]}
+                      >
+                        <Ionicons
+                          name={active ? 'checkmark' : 'add'}
+                          size={12}
+                          color={active ? onFill : colors.primary}
+                        />
+                        <Text
+                          style={[styles.quickAddChipText, active && styles.chipTextActive]}
+                          numberOfLines={1}
+                        >
+                          {preset}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <Text style={[styles.label, { marginTop: spacing.xs }]}>Other Policies</Text>
+                <View style={styles.chipsRow}>
+                  {QUICK_OTHER_POLICY_PRESETS.map((preset) => {
+                    const active = otherList.includes(preset);
+                    return (
+                      <Pressable
+                        key={preset}
+                        onPress={() =>
+                          setOtherList((prev) =>
+                            prev.includes(preset)
+                              ? prev.filter((p) => p !== preset)
+                              : [...prev, preset],
+                          )
+                        }
+                        style={[styles.quickAddChip, active && styles.chipActive]}
+                      >
+                        <Ionicons
+                          name={active ? 'checkmark' : 'add'}
+                          size={12}
+                          color={active ? onFill : colors.primary}
+                        />
+                        <Text
+                          style={[styles.quickAddChipText, active && styles.chipTextActive]}
+                          numberOfLines={1}
+                        >
+                          {preset}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.addItemInputRow}>
+                  <TextInput
+                    value={newPolicyInput}
+                    onChangeText={setNewPolicyInput}
+                    placeholder="Add custom rule..."
+                    placeholderTextColor={colors.textMuted}
+                    style={styles.addItemTextInput}
+                    onSubmitEditing={() => {
+                      const clean = newPolicyInput.trim();
+                      if (!clean) return;
+                      setOtherList((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
+                      setNewPolicyInput('');
+                    }}
+                  />
                   <Pressable
-                    onPress={() => setOtherList((prev) => prev.filter((_, i) => i !== idx))}
-                    hitSlop={8}
+                    onPress={() => {
+                      const clean = newPolicyInput.trim();
+                      if (!clean) return;
+                      setOtherList((prev) => (prev.includes(clean) ? prev : [...prev, clean]));
+                      setNewPolicyInput('');
+                    }}
+                    style={styles.addItemBtn}
                   >
-                    <Ionicons name="trash-outline" size={15} color={colors.error} />
+                    <Text style={styles.addItemBtnText}>+ Add</Text>
                   </Pressable>
                 </View>
-              ))}
-            </View>
-          ) : null}
-        </View>
 
-        {/* ─── PART B: SELF-PRICED ADD-ONS (DRONE CAPTURING & EXTRAS) ─── */}
-        <View style={styles.policySectionBox}>
-          <View style={styles.rowBetween}>
-            <View style={styles.tierTitleRow}>
-              <Ionicons name="airplane-outline" size={17} color={colors.primary} />
-              <Text style={styles.label}>Self-Priced Add-ons (Drone Capturing & Extras)</Text>
-            </View>
-            <View
-              style={[
-                styles.addonStatusPill,
-                activeAddonsCount > 0 ? styles.addonStatusPillOn : styles.addonStatusPillOff,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.addonStatusPillText,
-                  activeAddonsCount > 0
-                    ? styles.addonStatusPillTextOn
-                    : styles.addonStatusPillTextOff,
-                ]}
-              >
-                {activeAddonsCount > 0 ? `${activeAddonsCount} Enabled` : '0 Enabled'}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.subtitleText}>
-            Entering an amount automatically toggles that add-on ON for your photographer profile. Leaving the amount empty or 0 keeps it OFF.
-          </Text>
-
-          {/* Featured Unique Add-on: Drone Capturing */}
-          <View
-            style={[
-              styles.droneFeatureCard,
-              isDroneEnabled && styles.droneFeatureCardActive,
-            ]}
-          >
-            <View style={styles.rowBetween}>
-              <View style={{ flex: 1, gap: 2 }}>
-                <View style={styles.tierTitleRow}>
-                  <Ionicons
-                    name="airplane"
-                    size={16}
-                    color={isDroneEnabled ? colors.primary : colors.textSoft}
-                  />
-                  <Text style={styles.droneFeatureTitle}>Drone Capturing</Text>
-                  <View style={styles.uniqueFeatureBadge}>
-                    <Text style={styles.uniqueFeatureBadgeText}>UNIQUE SELF-PRICED</Text>
+                {otherList.length > 0 ? (
+                  <View style={styles.chipsRow}>
+                    {otherList.map((pol, idx) => (
+                      <Pressable
+                        key={`${pol}-${idx}`}
+                        onPress={() => setOtherList((prev) => prev.filter((_, i) => i !== idx))}
+                        style={styles.removableItemChip}
+                      >
+                        <Text style={styles.removableItemChipText}>{pol}</Text>
+                        <Ionicons name="close-circle" size={14} color={colors.error} />
+                      </Pressable>
+                    ))}
                   </View>
+                ) : null}
+              </ScrollView>
+
+              <Button
+                title="Save Delivery Policy"
+                onPress={() => {
+                  if (!deliveryVal.trim()) {
+                    setDeliveryVal(QUICK_DELIVERY_POLICY_PRESETS[0]);
+                  }
+                  setServerError(null);
+                  setPolicyModalTarget(null);
+                }}
+              />
+            </GlassSheetHost>
+          </GlassScrim>
+        </Modal>
+
+        {/* ─── MODAL 2: SELF-PRICED ADD-ONS & DRONE CAPTURING ─── */}
+        <Modal
+          visible={addonsModalTarget !== null}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setAddonsModalTarget(null)}
+        >
+          <GlassScrim style={styles.modalBackdrop} onPress={() => setAddonsModalTarget(null)}>
+            <GlassSheetHost style={styles.modalSheet}>
+              <View style={styles.rowBetween}>
+                <View style={styles.tierTitleRow}>
+                  <Ionicons name="airplane" size={20} color={colors.primary} />
+                  <Text style={styles.sectionTitle}>Add-ons & Drone Capturing</Text>
                 </View>
-                <Text style={styles.droneFeatureSub}>
-                  {isDroneEnabled
-                    ? `Toggled ON for your profile at +${dronePriceNum.toLocaleString()} RWF`
-                    : detectedDroneInMenu
-                      ? 'Drone was spotted on your menu — enter your self-pricing amount to toggle it ON'
-                      : 'Enter your self-pricing amount to toggle Drone Capturing ON (leave empty if not offered)'}
-                </Text>
+                <Pressable onPress={() => setAddonsModalTarget(null)} hitSlop={8}>
+                  <Ionicons name="close" size={22} color={colors.textSoft} />
+                </Pressable>
               </View>
-              <View
-                style={[
-                  styles.addonToggleIndicator,
-                  isDroneEnabled ? styles.addonToggleIndicatorOn : styles.addonToggleIndicatorOff,
-                ]}
+
+              <ScrollView
+                style={{ maxHeight: 440 }}
+                contentContainerStyle={{ gap: spacing.sm }}
+                keyboardShouldPersistTaps="handled"
+                showsVerticalScrollIndicator={false}
               >
-                <Ionicons
-                  name={isDroneEnabled ? 'checkmark-circle' : 'close-circle-outline'}
-                  size={14}
-                  color={isDroneEnabled ? onFill : colors.textMuted}
-                />
-                <Text
+                {/* Featured Drone Capturing Card */}
+                <View
                   style={[
-                    styles.addonToggleIndicatorText,
-                    isDroneEnabled
-                      ? styles.addonToggleIndicatorTextOn
-                      : styles.addonToggleIndicatorTextOff,
+                    styles.droneFeatureCard,
+                    isDroneEnabled && styles.droneFeatureCardActive,
                   ]}
                 >
-                  {isDroneEnabled ? 'ON' : 'OFF'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.addonAmountInputRow}>
-              <Text style={styles.addonAmountPrefix}>Self-Price (RWF):</Text>
-              <TextInput
-                value={addonPrices.drone_capturing || ''}
-                onChangeText={(v) => updateAddonPrice('drone_capturing', v)}
-                placeholder="0 (OFF) — e.g. 150000 to enable"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="number-pad"
-                style={styles.addonAmountInput}
-                testID={`drone-capturing-price-${target}`}
-              />
-              {isDroneEnabled ? (
-                <Pressable
-                  onPress={() => updateAddonPrice('drone_capturing', '')}
-                  style={styles.clearAddonBtn}
-                >
-                  <Text style={styles.clearAddonBtnText}>Clear (Turn OFF)</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Other Standard Self-Priced Add-ons */}
-          {DEFAULT_PACKAGE_ADDON_TEMPLATES.filter((tItem) => !tItem.isDrone).map((tpl) => {
-            const rawVal = addonPrices[tpl.key] || '';
-            const priceVal = Number(rawVal.replace(/[^\d]/g, '')) || 0;
-            const enabled = priceVal > 0;
-            return (
-              <View
-                key={tpl.key}
-                style={[styles.addonRowCard, enabled && styles.addonRowCardActive]}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <View style={styles.tierTitleRow}>
-                    <Text style={styles.addonRowTitle}>{tpl.name}</Text>
+                  <View style={styles.rowBetween}>
+                    <View style={styles.tierTitleRow}>
+                      <Ionicons
+                        name="airplane"
+                        size={16}
+                        color={isDroneEnabled ? colors.primary : colors.textSoft}
+                      />
+                      <Text style={styles.droneFeatureTitle}>Drone Capturing</Text>
+                    </View>
                     <View
                       style={[
-                        styles.addonMiniBadge,
-                        enabled ? styles.addonMiniBadgeOn : styles.addonMiniBadgeOff,
+                        styles.addonToggleIndicator,
+                        isDroneEnabled
+                          ? styles.addonToggleIndicatorOn
+                          : styles.addonToggleIndicatorOff,
                       ]}
                     >
+                      <Ionicons
+                        name={isDroneEnabled ? 'checkmark-circle' : 'close-circle-outline'}
+                        size={14}
+                        color={isDroneEnabled ? onFill : colors.textMuted}
+                      />
                       <Text
                         style={[
-                          styles.addonMiniBadgeText,
-                          enabled ? styles.addonMiniBadgeTextOn : styles.addonMiniBadgeTextOff,
+                          styles.addonToggleIndicatorText,
+                          isDroneEnabled
+                            ? styles.addonToggleIndicatorTextOn
+                            : styles.addonToggleIndicatorTextOff,
                         ]}
                       >
-                        {enabled ? `ON · +${priceVal.toLocaleString()} RWF` : 'OFF'}
+                        {isDroneEnabled ? `ON · +${dronePriceNum.toLocaleString()} RWF` : 'OFF'}
                       </Text>
                     </View>
                   </View>
-                  <Text style={styles.addonRowDesc}>{tpl.description}</Text>
-                </View>
-                <TextInput
-                  value={rawVal}
-                  onChangeText={(v) => updateAddonPrice(tpl.key, v)}
-                  placeholder="Amount (RWF)"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  style={styles.addonCompactInput}
-                />
-              </View>
-            );
-          })}
 
-          {/* Custom Self-Priced Add-ons added by Photographer */}
-          {customAddons.map((c) => {
-            const pVal = Number((c.priceText || '').replace(/[^\d]/g, '')) || 0;
-            const enabled = pVal > 0;
-            return (
-              <View
-                key={c.key}
-                style={[styles.addonRowCard, enabled && styles.addonRowCardActive]}
-              >
-                <View style={{ flex: 1, gap: 2 }}>
-                  <View style={styles.tierTitleRow}>
-                    <Text style={styles.addonRowTitle}>{c.name}</Text>
-                    <View
-                      style={[
-                        styles.addonMiniBadge,
-                        enabled ? styles.addonMiniBadgeOn : styles.addonMiniBadgeOff,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.addonMiniBadgeText,
-                          enabled ? styles.addonMiniBadgeTextOn : styles.addonMiniBadgeTextOff,
-                        ]}
+                  <View style={styles.addonAmountInputRow}>
+                    <TextInput
+                      value={addonPrices.drone_capturing || ''}
+                      onChangeText={(v) => updateAddonPrice('drone_capturing', v)}
+                      placeholder="Enter amount (RWF) to toggle ON — e.g. 150000"
+                      placeholderTextColor={colors.textMuted}
+                      keyboardType="number-pad"
+                      style={styles.addonAmountInput}
+                      testID={`drone-capturing-price-${activeTarget}`}
+                    />
+                    {isDroneEnabled ? (
+                      <Pressable
+                        onPress={() => updateAddonPrice('drone_capturing', '')}
+                        style={styles.clearAddonBtn}
                       >
-                        {enabled ? `ON · +${pVal.toLocaleString()} RWF` : 'OFF'}
-                      </Text>
-                    </View>
+                        <Text style={styles.clearAddonBtnText}>Turn OFF</Text>
+                      </Pressable>
+                    ) : null}
                   </View>
                 </View>
-                <TextInput
-                  value={c.priceText}
-                  onChangeText={(v) => handleUpdateCustomAddonPrice(c.key, v)}
-                  placeholder="Amount"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="number-pad"
-                  style={styles.addonCompactInput}
-                />
-                <Pressable onPress={() => handleRemoveCustomAddon(c.key)} hitSlop={8}>
-                  <Ionicons name="trash-outline" size={16} color={colors.error} />
-                </Pressable>
-              </View>
-            );
-          })}
 
-          {/* Add Custom Self-Priced Add-on Row */}
-          <View style={styles.addItemInputRow}>
-            <TextInput
-              value={newAddonName}
-              onChangeText={setNewAddonName}
-              placeholder="Custom add-on name (e.g. Crane / 360 Booth)..."
-              placeholderTextColor={colors.textMuted}
-              style={[styles.addItemTextInput, { flex: 1.4 }]}
-            />
-            <TextInput
-              value={newAddonPrice}
-              onChangeText={(v) => setNewAddonPrice(v.replace(/[^\d]/g, ''))}
-              placeholder="Amount (RWF)"
-              placeholderTextColor={colors.textMuted}
-              keyboardType="number-pad"
-              style={[styles.addItemTextInput, { flex: 0.9 }]}
-            />
-            <Pressable onPress={handleAddCustomAddon} style={styles.addItemBtn}>
-              <Text style={styles.addItemBtnText}>+ Add</Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
+                {/* Other Self-Priced Add-ons */}
+                {DEFAULT_PACKAGE_ADDON_TEMPLATES.filter((tItem) => !tItem.isDrone).map((tpl) => {
+                  const rawVal = addonPrices[tpl.key] || '';
+                  const priceVal = Number(rawVal.replace(/[^\d]/g, '')) || 0;
+                  const enabled = priceVal > 0;
+                  return (
+                    <View
+                      key={tpl.key}
+                      style={[styles.addonRowCard, enabled && styles.addonRowCardActive]}
+                    >
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.addonRowTitle}>{tpl.name}</Text>
+                        <View
+                          style={[
+                            styles.addonMiniBadge,
+                            enabled ? styles.addonMiniBadgeOn : styles.addonMiniBadgeOff,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.addonMiniBadgeText,
+                              enabled ? styles.addonMiniBadgeTextOn : styles.addonMiniBadgeTextOff,
+                            ]}
+                          >
+                            {enabled ? 'ON' : 'OFF'}
+                          </Text>
+                        </View>
+                      </View>
+                      <TextInput
+                        value={rawVal}
+                        onChangeText={(v) => updateAddonPrice(tpl.key, v)}
+                        placeholder="Amount (RWF)"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="number-pad"
+                        style={styles.addonCompactInput}
+                      />
+                    </View>
+                  );
+                })}
+
+                {customAddons.map((c) => {
+                  const pVal = Number((c.priceText || '').replace(/[^\d]/g, '')) || 0;
+                  const enabled = pVal > 0;
+                  return (
+                    <View
+                      key={c.key}
+                      style={[styles.addonRowCard, enabled && styles.addonRowCardActive]}
+                    >
+                      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={styles.addonRowTitle}>{c.name}</Text>
+                        <View
+                          style={[
+                            styles.addonMiniBadge,
+                            enabled ? styles.addonMiniBadgeOn : styles.addonMiniBadgeOff,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.addonMiniBadgeText,
+                              enabled ? styles.addonMiniBadgeTextOn : styles.addonMiniBadgeTextOff,
+                            ]}
+                          >
+                            {enabled ? 'ON' : 'OFF'}
+                          </Text>
+                        </View>
+                      </View>
+                      <TextInput
+                        value={c.priceText}
+                        onChangeText={(v) => handleUpdateCustomAddonPrice(c.key, v)}
+                        placeholder="Amount"
+                        placeholderTextColor={colors.textMuted}
+                        keyboardType="number-pad"
+                        style={styles.addonCompactInput}
+                      />
+                      <Pressable onPress={() => handleRemoveCustomAddon(c.key)} hitSlop={8}>
+                        <Ionicons name="trash-outline" size={16} color={colors.error} />
+                      </Pressable>
+                    </View>
+                  );
+                })}
+
+                <View style={styles.addItemInputRow}>
+                  <TextInput
+                    value={newAddonName}
+                    onChangeText={setNewAddonName}
+                    placeholder="Custom add-on..."
+                    placeholderTextColor={colors.textMuted}
+                    style={[styles.addItemTextInput, { flex: 1.3 }]}
+                  />
+                  <TextInput
+                    value={newAddonPrice}
+                    onChangeText={(v) => setNewAddonPrice(v.replace(/[^\d]/g, ''))}
+                    placeholder="Amount"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="number-pad"
+                    style={[styles.addItemTextInput, { flex: 0.9 }]}
+                  />
+                  <Pressable onPress={handleAddCustomAddon} style={styles.addItemBtn}>
+                    <Text style={styles.addItemBtnText}>+ Add</Text>
+                  </Pressable>
+                </View>
+              </ScrollView>
+
+              <Button title="Save Add-ons" onPress={() => setAddonsModalTarget(null)} />
+            </GlassSheetHost>
+          </GlassScrim>
+        </Modal>
+      </>
     );
   };
 
@@ -1440,9 +1603,6 @@ export default function NewPackageScreen() {
                   </View>
                 </View>
 
-                {/* Delivery Policy, Other Studio Policies & Self-Priced Add-ons (Drone Capturing & Extras) */}
-                {renderPoliciesAndAddonsSection('studio')}
-
                 {/* Existing Online Packages Suggestion Banner */}
                 {existingPackages.length > 0 ? (
                   <View style={styles.existingBanner}>
@@ -1511,20 +1671,10 @@ export default function NewPackageScreen() {
                ═══════════════════════════════════════════════════════════════════ */}
             {aiStep === 2 ? (
               <View style={{ gap: spacing.md }}>
-                {/* Organize Packages Header */}
-                <View style={styles.policyInfoCard}>
-                  <Ionicons name="layers-outline" size={18} color={colors.primary} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.policyInfoTitle}>Organize Packages</Text>
-                  </View>
-                </View>
+                {/* Top Stage Modal Buttons: Add Delivery Policy (Required) & Add-ons / Drone */}
+                {renderPoliciesAndAddonsSection('studio')}
 
-                {/* Studio Policies & Self-Priced Add-ons (Read from menu or customized here) */}
-                <View style={styles.cardBox}>
-                  {renderPoliciesAndAddonsSection('studio')}
-                </View>
-
-                {/* Organize Packages: Indoor vs Outdoor Cards (Matches Step 4 in Reference Image) */}
+                {/* Organize Packages: Indoor vs Outdoor Cards */}
                 <View style={styles.twoColRow}>
                   <Pressable
                     onPress={() => setReviewSessionTab('STUDIO')}
@@ -1936,6 +2086,8 @@ export default function NewPackageScreen() {
                   </Text>
                 </Pressable>
 
+                {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
+
                 <View style={styles.twoColRow}>
                   <Pressable
                     onPress={() => setAiStep(1)}
@@ -1946,7 +2098,7 @@ export default function NewPackageScreen() {
                   <View style={{ flex: 2 }}>
                     <Button
                       title="Review & Publish Packages"
-                      onPress={() => setAiStep(3)}
+                      onPress={handleProceedToStep3}
                     />
                   </View>
                 </View>
@@ -2348,6 +2500,9 @@ export default function NewPackageScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Modals for Delivery Policy (Required) & Self-Priced Add-ons (Drone Capturing & Extras) */}
+      {renderPolicyAndAddonsModals()}
 
       {/* Native PDF / Document Picker Modal via WebView for iOS & Android */}
       {Platform.OS !== 'web' ? (
@@ -3159,6 +3314,80 @@ const useStyles = makeStyles((c) => ({
   modalSheet: {
     padding: spacing.lg,
     gap: spacing.md,
+  },
+  stageActionTriggersRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  stageTriggerCard: {
+    flex: 1,
+    backgroundColor: c.card,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    gap: 6,
+    borderWidth: 1.5,
+    borderColor: c.borderSoft,
+  },
+  stageTriggerCardRequired: {
+    borderColor: c.error,
+    backgroundColor: c.card,
+  },
+  stageTriggerCardDone: {
+    borderColor: c.primary,
+    backgroundColor: c.tint,
+  },
+  stageTriggerIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: c.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stageTriggerBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+  },
+  stageTriggerBadgeSaved: {
+    backgroundColor: c.primary,
+  },
+  stageTriggerBadgeRequired: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.full,
+    backgroundColor: c.error,
+  },
+  stageTriggerBadgeNeutral: {
+    backgroundColor: c.background,
+    borderWidth: 1,
+    borderColor: c.borderSoft,
+  },
+  stageTriggerBadgeText: {
+    fontSize: 9,
+    fontWeight: fontWeight.extrabold,
+    letterSpacing: 0.3,
+  },
+  stageTriggerBadgeTextSaved: {
+    color: onFill,
+  },
+  stageTriggerBadgeTextRequired: {
+    fontSize: 9,
+    fontWeight: fontWeight.extrabold,
+    color: onFill,
+    letterSpacing: 0.3,
+  },
+  stageTriggerBadgeTextNeutral: {
+    color: c.textSoft,
+  },
+  stageTriggerTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.extrabold,
+    color: c.text,
+  },
+  stageTriggerSub: {
+    fontSize: 10,
+    color: c.textSoft,
   },
   policiesAndAddonsContainer: {
     gap: spacing.md,

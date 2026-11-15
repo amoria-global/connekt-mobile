@@ -138,17 +138,17 @@ export const DEFAULT_PACKAGE_ADDON_TEMPLATES: {
 ];
 
 export const QUICK_DELIVERY_POLICY_PRESETS: string[] = [
-  'Express work within 2 days incurs 2,500 RWF per photo. Schedule sessions in advance.',
-  'Standard edited photos delivered within 5–7 business days via online gallery.',
-  'Same-day preview highlights (5–10 photos) + full delivery within 7 days.',
-  'Wedding & large event full films and photobooks delivered within 14–21 days.',
+  'Delivery in 5–7 days via online gallery',
+  'Express 48h delivery (+2,500 RWF per photo)',
+  'Same-day preview highlights + 7-day full delivery',
+  '14–21 days for full wedding film & photobook',
 ];
 
 export const QUICK_OTHER_POLICY_PRESETS: string[] = [
-  '50% non-refundable deposit required to confirm and lock booking date.',
-  'Free rescheduling up to 48 hours before the scheduled session.',
-  'Transport & accommodation outside the city are covered by the client.',
-  'Raw unedited files are not included unless purchased as an add-on.',
+  '50% deposit required to confirm date',
+  'Free reschedule up to 48h before session',
+  'Client covers transport outside city',
+  'Raw unedited files sold separately',
 ];
 
 export function normalizePackageAddons(
@@ -860,9 +860,7 @@ function createDraftFromParsedFields(params: {
     params.deliveryDays ?? (daysMatch ? parseInt(daysMatch[1], 10) : 0);
   const deliveryPolicy =
     params.deliveryPolicy ||
-    (deliveryDays > 0
-      ? `Delivery within ${deliveryDays} days.`
-      : 'Standard studio delivery policy applies.');
+    (deliveryDays > 0 ? `Delivery within ${deliveryDays} days.` : '');
 
   const priceUnit =
     params.priceUnit ||
@@ -1702,9 +1700,7 @@ function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
     deliveryDays,
     deliveryPolicy:
       str(r.deliveryPolicy) ??
-      (deliveryDays > 0
-        ? `Delivery within ${deliveryDays} days.`
-        : 'Standard studio delivery policy applies.'),
+      (deliveryDays > 0 ? `Delivery within ${deliveryDays} days.` : ''),
     otherPolicies,
     addons: normalizedAddons,
     droneCapturingPrice,
