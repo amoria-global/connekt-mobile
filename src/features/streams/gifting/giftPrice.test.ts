@@ -17,7 +17,7 @@ describe('gift prices follow the one display currency', () => {
   it('converts to the selected currency, whole units for RWF', () => {
     const withRate = useCurrency.getState().currencies.map((c) => (c.code === 'RWF' ? { ...c, rate: 1300 } : c));
     useCurrency.setState({ currency: 'RWF', currencies: withRate });
-    expect(formatGiftUsd(5)).toBe('RF 6,500');
+    expect(formatGiftUsd(5)).toBe('RWF 6,500');
   });
 
   it('shows the USD price, not a guess, when the backend gave no rate for the chosen currency', () => {
