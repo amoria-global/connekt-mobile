@@ -49,21 +49,76 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/offers" },
-            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/opportunities" },
-            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/bookings" },
-            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/jobs" },
-            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/events" },
-            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/wish" },
-            { "scheme": "https", "host": "connekyt.com", "pathPrefix": "/user" },
-            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/offers" },
-            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/opportunities" },
-            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/bookings" },
-            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/jobs" },
-            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/events" },
-            { "scheme": "https", "host": "dashboard.connekyt.com", "pathPrefix": "/user" }
+            {
+              "scheme": "https",
+              "host": "connekyt.com",
+              "pathPrefix": "/offers"
+            },
+            {
+              "scheme": "https",
+              "host": "connekyt.com",
+              "pathPrefix": "/opportunities"
+            },
+            {
+              "scheme": "https",
+              "host": "connekyt.com",
+              "pathPrefix": "/bookings"
+            },
+            {
+              "scheme": "https",
+              "host": "connekyt.com",
+              "pathPrefix": "/jobs"
+            },
+            {
+              "scheme": "https",
+              "host": "connekyt.com",
+              "pathPrefix": "/events"
+            },
+            {
+              "scheme": "https",
+              "host": "connekyt.com",
+              "pathPrefix": "/wish"
+            },
+            {
+              "scheme": "https",
+              "host": "connekyt.com",
+              "pathPrefix": "/user"
+            },
+            {
+              "scheme": "https",
+              "host": "dashboard.connekyt.com",
+              "pathPrefix": "/offers"
+            },
+            {
+              "scheme": "https",
+              "host": "dashboard.connekyt.com",
+              "pathPrefix": "/opportunities"
+            },
+            {
+              "scheme": "https",
+              "host": "dashboard.connekyt.com",
+              "pathPrefix": "/bookings"
+            },
+            {
+              "scheme": "https",
+              "host": "dashboard.connekyt.com",
+              "pathPrefix": "/jobs"
+            },
+            {
+              "scheme": "https",
+              "host": "dashboard.connekyt.com",
+              "pathPrefix": "/events"
+            },
+            {
+              "scheme": "https",
+              "host": "dashboard.connekyt.com",
+              "pathPrefix": "/user"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "versionCode": 2,
@@ -182,6 +237,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-15-my-packages",
+            "date": "2026-11-15",
+            "title": "A clearer My packages screen",
+            "items": [
+              {
+                "icon": "layers-outline",
+                "title": "Packages are easier to scan and manage",
+                "body": "Prices now show with their currency code, such as RWF 100,000, and counts read correctly, like 1 video. One New package button and an All, Indoor, Outdoor filter replace the three action cards."
+              },
+              {
+                "icon": "trash-outline",
+                "title": "Deleting a package is safer",
+                "body": "Delete now lives in the more menu, names the package before it goes, and shows a clear message with Try again if it fails, instead of hiding the package from your list."
+              },
+              {
+                "icon": "pricetag-outline",
+                "title": "A package from a brochure never gets a made-up price",
+                "body": "If a brochure has no price for a package, it now shows Price needed and cannot be published until you enter one. A failed publish also stops safely and shows Try again, instead of repeating itself."
+              }
+            ]
+          },
+          {
             "id": "2026-11-15-logo-spacing",
             "date": "2026-11-15",
             "title": "A tidier Connekyt logo",
@@ -226,523 +303,6 @@
                 "icon": "map-outline",
                 "title": "More colour and landmarks in light mode",
                 "body": "The map of nearby photographers now shows parks, water, buildings and place names in clearer colours when your phone is in light mode."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-14-maps",
-            "date": "2026-11-14",
-            "title": "Maps that load",
-            "items": [
-              {
-                "icon": "map-outline",
-                "title": "The photographer map shows the real map",
-                "body": "The map of nearby photographers no longer has a watermark over it, and your service area preview now appears when you choose an area."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-13-ai-package-upload",
-            "date": "2026-11-13",
-            "title": "Upload or create your photography packages",
-            "items": [
-              {
-                "icon": "document-text-outline",
-                "title": "Upload your package brochure or price list",
-                "body": "Upload your pricing brochure, PDF, or photo to organize your Indoor and Outdoor photography packages, review your items and delivery details, and publish to your profile."
-              },
-              {
-                "icon": "list-outline",
-                "title": "Manual package builder",
-                "body": "You can also create packages manually by choosing Indoor or Outdoor, selecting a package title, adding included items to your list, and setting your delivery policy and price."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-13-service-area",
-            "date": "2026-11-13",
-            "title": "Choose where you work",
-            "items": [
-              {
-                "icon": "location-outline",
-                "title": "Set your service area",
-                "body": "Photographers can now choose the area or neighbourhood where they usually work, so clients searching nearby can find them on the map. Clients only ever see an approximate area and a rounded distance, never your address."
-              },
-              {
-                "icon": "eye-off-outline",
-                "title": "Change it or remove it any time",
-                "body": "You can change your service area whenever you like, and removing it takes you off the map straight away. You will find it in Profile settings, and on your Home screen until you have set one."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-13-safer-location-search",
-            "date": "2026-11-13",
-            "title": "Safer location search",
-            "items": [
-              {
-                "icon": "shield-checkmark-outline",
-                "title": "Place suggestions through our own servers",
-                "body": "When you type a venue or address while booking, suggestions now come through our own servers, so no search key is stored inside the app. Suggestions look and work the same."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-13-calmer-errors",
-            "date": "2026-11-13",
-            "title": "Clearer messages when a profile is not ready",
-            "items": [
-              {
-                "icon": "hourglass-outline",
-                "title": "Profiles still being reviewed",
-                "body": "If you open or try to book a photographer whose profile is still being reviewed, you now see a calm \"Profile pending\" message with a way back, instead of a general error."
-              },
-              {
-                "icon": "bug-outline",
-                "title": "Faster fixes when something breaks",
-                "body": "When the app hits a problem it now tells us which version and update you were on, with no personal details, so we can fix it sooner. The version is shown at the bottom of Preferences."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-13-client-details",
-            "date": "2026-11-13",
-            "title": "Client details show your bookings",
-            "items": [
-              {
-                "icon": "people-outline",
-                "title": "Bookings and events on a client",
-                "body": "A client you work with now shows how many bookings you have together and the events they belong to, instead of Bookings 0."
-              },
-              {
-                "icon": "wallet-outline",
-                "title": "Total spent is what was actually paid",
-                "body": "The Total spent on a client now counts only money that was collected, in one currency, instead of adding up quoted prices."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-13-sell-chooser",
-            "date": "2026-11-13",
-            "title": "Sell photos asks what you are selling",
-            "items": [
-              {
-                "icon": "pricetag-outline",
-                "title": "Event photos or Stock & content",
-                "body": "Sell photos now opens a choice: event photos that buyers find with face search, or stock and content albums that are reviewed before going live."
-              },
-              {
-                "icon": "checkmark-circle-outline",
-                "title": "Submit for review or save as draft",
-                "body": "Stock albums can be submitted straight away or saved as a draft, and an album with no photos can no longer be submitted."
-              },
-              {
-                "icon": "images-outline",
-                "title": "Content Albums shows the right photo count",
-                "body": "Photo counts on your Content Albums are now correct, and the status chips scroll with a fade instead of being cut off."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-12-topbar-appearance",
-            "date": "2026-11-12",
-            "title": "Light and dark from the top bar",
-            "items": [
-              {"icon": "moon-outline", "title": "Switch appearance anywhere", "body": "The top bar now has a sun and moon button beside the currency and language, so you can switch between light and dark from any screen instead of only from Profile."}
-            ]
-          },
-          {
-            "id": "2026-11-12-large-albums",
-            "date": "2026-11-12",
-            "title": "Big albums publish without waiting",
-            "items": [
-              {
-                "icon": "images-outline",
-                "title": "Large albums are prepared in the background",
-                "body": "When you sell a big album, it goes live straight away and you can watch the photos being prepared for Find my photos. Buyers can already find the ones that are ready."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-12-sell-photos",
-            "date": "2026-11-12",
-            "title": "Sell your photos",
-            "items": [
-              {
-                "icon": "pricetag-outline",
-                "title": "Sell photos in one tap",
-                "body": "The big button on your Home is now Sell photos. Add your photos and a price, and buyers can find them on Find my photos by taking a selfie."
-              },
-              {
-                "icon": "alert-circle-outline",
-                "title": "You are told if an album is not live",
-                "body": "If an album could not be published to Find my photos, you now see the reason and a Retry publishing button, and the album list marks it as not visible."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-11-chat-albums",
-            "date": "2026-11-11",
-            "title": "Better chats and album sharing",
-            "items": [
-              {
-                "icon": "chatbubbles-outline",
-                "title": "A cleaner conversation screen",
-                "body": "Chats now open with who you are talking to, show the day above each group of messages, and keep the message box right above your keyboard with no empty gap."
-              },
-              {
-                "icon": "images-outline",
-                "title": "Share albums in a chat",
-                "body": "Photographers can tap the plus button next to the message box to send up to five of their albums to a client as a card, with an optional note."
-              },
-              {
-                "icon": "shield-checkmark-outline",
-                "title": "Phone numbers split across messages",
-                "body": "If someone sends a phone number in pieces over several messages, the pieces are now removed and show as Message removed, in the same way a full number is blocked."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-10-album-date-check",
-            "date": "2026-11-10",
-            "title": "Album date double-check",
-            "items": [
-              {"icon": "calendar-outline", "title": "Is the year right?", "body": "If you date a new album in the future, the app now asks you to confirm the year before creating it, so a typo like 2028 for 2026 doesn't slip through."}
-            ]
-          },
-          {
-            "id": "2026-11-10-sheet-swipe-close",
-            "date": "2026-11-10",
-            "title": "Swipe down to close sheets",
-            "items": [
-              {"icon": "chevron-down-outline", "title": "Swipe down to close", "body": "Drag any bottom sheet down by its handle or title to close it. A short pull springs back, and sheets with a request running stay open."}
-            ]
-          },
-          {
-            "id": "2026-11-10-location-pricing-access",
-            "date": "2026-11-10",
-            "title": "Location pricing and access when you create an event",
-            "items": [
-              {"icon": "earth-outline", "title": "Price or block places while you create an event", "body": "Open Location pricing and access on the event form to give a country or continent its own price, or keep a place from watching at all. The rules save together with the event."},
-              {"icon": "ban-outline", "title": "A clear screen when a stream is not available where you are", "body": "If a host has blocked your region, or we cannot confirm where you are, you now see a plain message with a Retry button instead of a price or a pay button."},
-              {"icon": "list-outline", "title": "One list of places on the app, the dashboard and the website", "body": "The same countries and continents appear everywhere, so a rule you set in one place shows up in all of them, and the old price manager now uses the same simple field."}
-            ]
-          },
-          {
-            "id": "2026-11-10-incoming-call-alerts",
-            "date": "2026-11-10",
-            "title": "Reliable ringing, call screens, package pricing and indoor or outdoor sessions",
-            "items": [
-              {"icon": "home-outline", "title": "Choose indoor studio or outdoor session when posting an offer", "body": "Tap Post my offer to choose between an Indoor session (studio session for small events) and an Outdoor session (outside studio session for large events) for individuals or organizations."},
-              {"icon": "call-outline", "title": "Incoming call screen and ringtone restored", "body": "New event opportunities and direct booking requests now immediately show the full-screen incoming call screen, play your ringtone and vibrate."},
-              {"icon": "notifications-outline", "title": "Device push alerts and lock screen notifications", "body": "When a new offer or booking request arrives, your phone wakes up and posts a ringing notification on the lock screen with quick Accept and Reject actions."},
-              {"icon": "pricetag-outline", "title": "Choose your package price when accepting offers", "body": "When accepting an offer with your package delivery policy, choose the client's offer amount or send one of your own packages as a suggested price, and clients can confirm and pay by package."}
-            ]
-          },
-          {
-            "id": "2026-11-08-booking-places-categories",
-            "date": "2026-11-08",
-            "title": "Smarter venue search and clearer event types",
-            "items": [
-              {"icon": "location-outline", "title": "Search venues with Google Maps", "body": "Type where your event is happening or where prints should be delivered to see a quick suggestion at the top followed by live Google Maps places."},
-              {"icon": "options-outline", "title": "Event categories tailored to you", "body": "When you book as an individual, the event list shows personal occasions like weddings and birthdays. Switch to Organization to see conferences, corporate events and more."}
-            ]
-          },
-          {
-            "id": "2026-11-06-events-get-started",
-            "date": "2026-11-06",
-            "title": "Easier to create in Events",
-            "items": [
-              {"icon": "add-circle-outline", "title": "A create button you can find", "body": "The small plus in the corner is now a labelled button at the bottom right: Create event, New album, New photobook or New post, depending on the tab. It shrinks to a round plus while you scroll down."},
-              {"icon": "rocket-outline", "title": "Get started with Events", "body": "New to Events? A quick sheet offers what you can do first. Tick Don't show this again to hide it on every device, or open it any time from Help."},
-              {"icon": "calendar-outline", "title": "Check the year", "body": "If you set an event date more than a year ahead, the app asks whether the year is right before it saves, so a typo like 2028 does not hide your event."},
-              {"icon": "radio-outline", "title": "Still live reminder", "body": "If your stream has had no signal for two hours, you get a reminder with a shortcut to end it. Streams are never ended for you."}
-            ]
-          },
-          {
-            "id": "2026-11-06-offer-restyle",
-            "date": "2026-11-06",
-            "title": "Clearer opportunity offers",
-            "items": [
-              {"icon": "radio-outline", "title": "A calmer opportunity card", "body": "The card now shows the client's offer as the big number, the date, service and delivery at a glance, and the best reasons you were matched. Accepting moved to the offer page."},
-              {"icon": "checkmark-circle-outline", "title": "One Accept on the offer page", "body": "Pick how you want to deliver, the client's schedule or your package policy, then tap one Accept offer button that always shows the amount. Reject stays beside it."},
-              {"icon": "list-outline", "title": "Offer details match the card", "body": "Print products and delivery on the offer page now come from what the client actually asked for, instead of showing None. What the client did not ask for sits in one Not included line."},
-              {"icon": "cash-outline", "title": "Clearer price comparison", "body": "When the client offers more than your package, the page says so in green. Amounts are always written in RWF."}
-            ]
-          },
-          {
-            "id": "2026-11-06-instagram-removal",
-            "date": "2026-11-06",
-            "title": "Removing Instagram is reviewed too",
-            "items": [
-              {"icon": "logo-instagram", "title": "Removing your Instagram needs approval", "body": "When you remove the Instagram account from your matching profile, an admin reviews it first. Your current account stays until the removal is approved, and the card tells you it is waiting."}
-            ]
-          },
-          {
-            "id": "2026-11-06-instagram-review",
-            "date": "2026-11-06",
-            "title": "Instagram changes are reviewed",
-            "items": [
-              {"icon": "logo-instagram", "title": "Changing your Instagram now needs approval", "body": "When you replace the Instagram account on your matching profile, an admin reviews it first. Your current account keeps working until the new one is approved, and the card tells you it is waiting."}
-            ]
-          },
-          {
-            "id": "2026-11-06-event-form",
-            "date": "2026-11-06",
-            "title": "A clearer create event form",
-            "items": [
-              {"icon": "people-outline", "title": "Choose how guests attend", "body": "Create event now asks whether guests join in person with the live stream, or by live stream only. For an in person event, the venue and city show right below."},
-              {"icon": "checkmark-circle-outline", "title": "Required fields are always visible", "body": "Everything you must fill in sits in the main form, marked with a star. More options holds only optional extras, and the form shows exactly what is missing."},
-              {"icon": "infinite-outline", "title": "Max guests has no limit by default", "body": "Leave Max guests empty for no limit. Your country is now filled in from your profile phone number instead of always being Rwanda."}
-            ]
-          },
-          {
-            "id": "2026-11-06-host-any-role",
-            "date": "2026-11-06",
-            "title": "Go live from your own event",
-            "items": [
-              {"icon": "videocam-outline", "title": "Host and go live", "body": "Clients and coordinators can now host an event and go live from the home screen, the same way photographers do, free or paid."},
-              {"icon": "calendar-outline", "title": "My hosted events", "body": "A new My hosted events screen lists your upcoming, live and ended events and opens the live studio for each one."},
-              {"icon": "play-circle-outline", "title": "Create event is simpler", "body": "The create event form no longer has the I stream it myself switch. Tap Go live under the form to host and stream your own event."}
-            ]
-          },
-          {
-            "id": "2026-11-06-problem-reports",
-            "date": "2026-11-06",
-            "title": "Help us fix problems faster",
-            "items": [
-              {
-                "icon": "shield-checkmark-outline",
-                "title": "Problems reach us with your support code",
-                "body": "When something goes wrong, the app now sends us a short report that carries the same support code you see on screen, so we can find and fix it quickly."
-              },
-              {
-                "icon": "lock-closed-outline",
-                "title": "Nothing personal is sent",
-                "body": "Reports leave out your name, email, phone number and anything you typed. They only describe what failed and where."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-05-album-errors",
-            "date": "2026-11-05",
-            "title": "Clearer problems when creating an album",
-            "items": [
-              {
-                "icon": "alert-circle-outline",
-                "title": "Problems show next to the field",
-                "body": "When the title, price, currency or recipient email needs fixing, the message now appears right under that field, the screen scrolls to it, and everything you typed stays."
-              },
-              {
-                "icon": "images-outline",
-                "title": "Photo counts read correctly",
-                "body": "The new album screen now says 1 photo instead of 1 photos, and counts the photos it is uploading the same way."
-              },
-              {
-                "icon": "chatbubble-ellipses-outline",
-                "title": "Plain messages when it does not work",
-                "body": "If creating an album fails for another reason, you now get a short, friendly message with a Try again button and a support code you can read out."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-05-amount-clears-on-currency-change",
-            "date": "2026-11-05",
-            "title": "Safer amounts when you change currency",
-            "items": [
-              {
-                "icon": "shield-checkmark-outline",
-                "title": "Donation and withdrawal amounts clear when you change currency",
-                "body": "If you switch currency while typing a donation or withdrawal amount, the amount now empties so the same number is never read in a different currency. Type it again in the new one."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-05-clearer-messages",
-            "date": "2026-11-05",
-            "title": "Groundwork for clearer messages",
-            "items": [
-              {
-                "icon": "chatbubble-ellipses-outline",
-                "title": "Friendlier messages when something goes wrong",
-                "body": "Behind the scenes we prepared plainer messages with a clear next step for when something does not work. You will start to see them on each screen as we move it over."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-05-money-input",
-            "date": "2026-11-05",
-            "title": "Price and currency in one field",
-            "items": [
-              {
-                "icon": "cash-outline",
-                "title": "One field for the price and its currency",
-                "body": "Pick the currency right inside the price field. The smallest allowed price and its worth in your own currency show underneath as you type."
-              },
-              {
-                "icon": "search-outline",
-                "title": "Find a currency fast",
-                "body": "Search by code, name or country, and see the currencies you use most at the top."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-05-price-minimums",
-            "date": "2026-11-05",
-            "title": "Prices checked in your own currency",
-            "items": [
-              {
-                "icon": "pricetag-outline",
-                "title": "The right minimum for each currency",
-                "body": "When you price an album or a live stream, the form now shows the smallest price for the currency you picked, so a price like USD 4 is no longer refused as too low."
-              },
-              {
-                "icon": "calculator-outline",
-                "title": "Cents where they exist",
-                "body": "You can type cents in currencies that have them. Rwandan, Ugandan and CFA francs stay whole numbers."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-04-workspace-collaborators",
-            "date": "2026-11-04",
-            "title": "Invite someone to help run your business",
-            "items": [
-              {
-                "icon": "people-outline",
-                "title": "Workspace collaborators",
-                "body": "You can now invite a supporter or a friend to help run your business with just their email. They set a password from the link, then sign in on the normal login page, and you can remove them at any time."
-              },
-              {
-                "icon": "lock-closed-outline",
-                "title": "Money stays with you",
-                "body": "A collaborator can handle bookings, events, albums, clients and messages, but never sees your wallet, balance, withdrawals or transactions, and analytics show counts without money figures."
-              },
-              {
-                "icon": "mail-outline",
-                "title": "Email me a code instead",
-                "body": "On the sign-in screen you can now ask for a six-digit code by email instead of typing a password, and people who work in more than one workspace can choose which one to open."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-04-copy-setup-key",
-            "date": "2026-11-04",
-            "title": "Copy your authenticator key",
-            "items": [
-              {
-                "icon": "copy-outline",
-                "title": "Copy button for the setup key",
-                "body": "When you set up an authenticator app, a Copy key button now puts the setup key on your clipboard, or opens the share sheet with a Copy option, so you can paste it into your app."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-04-signup-album-codes",
-            "date": "2026-11-04",
-            "title": "Clearer verification codes",
-            "items": [
-              {
-                "icon": "keypad-outline",
-                "title": "Easier code entry when you sign up or open a free album",
-                "body": "The code box now fills from your messages or a paste and sends itself at the sixth digit. You see how many tries are left and when you can ask for a new code."
-              },
-              {
-                "icon": "shield-checkmark-outline",
-                "title": "Safer codes",
-                "body": "Too many wrong tries pauses the code for a few minutes, so nobody can guess it."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-04-withdraw-two-factor",
-            "date": "2026-11-04",
-            "title": "Easier two-factor setup for withdrawals",
-            "items": [
-              {
-                "icon": "shield-checkmark-outline",
-                "title": "Set up two-factor right from a withdrawal",
-                "body": "If two-factor is off when you withdraw, we now take you straight to setting it up, with an authenticator app or an email code, then back to your withdrawal."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-04-two-factor-email",
-            "date": "2026-11-04",
-            "title": "Safer sign-in, easier codes",
-            "items": [
-              {
-                "icon": "mail-outline",
-                "title": "Get your sign-in code by email",
-                "body": "Turn on Email code in Two-factor authentication and we send a 6-digit code to your inbox when you sign in. You can use it instead of, or alongside, an authenticator app."
-              },
-              {
-                "icon": "keypad-outline",
-                "title": "Easier code entry",
-                "body": "Codes are one field that fills from your messages or a paste and sends itself at the sixth digit. You always see how many tries are left and when you can ask for a new code."
-              },
-              {
-                "icon": "key-outline",
-                "title": "Clearer authenticator setup",
-                "body": "The setup key is now grouped in fours and can be selected, so it is easy to read and type."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-03-withdraw-email-code",
-            "date": "2026-11-03",
-            "title": "Simpler, easier withdrawals",
-            "items": [
-              {
-                "icon": "mail-outline",
-                "title": "No more selfie to withdraw",
-                "body": "Withdrawals no longer ask for a selfie. We email a 6-digit code to your account and you enter it to confirm."
-              },
-              {
-                "icon": "refresh-outline",
-                "title": "Send a new code any time",
-                "body": "If the code does not arrive or runs out, tap Send a new code to my email on the confirm step and enter the fresh one."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-31-live-money",
-            "date": "2026-10-31",
-            "title": "Balances that show they are updating",
-            "items": [
-              {
-                "icon": "sync-outline",
-                "title": "Loading shows when amounts are hidden",
-                "body": "Wallet balances and revenue now show a short loading mark every 10 seconds as they refresh, even when your amounts are hidden."
-              },
-              {
-                "icon": "stats-chart-outline",
-                "title": "Revenue and earnings too",
-                "body": "Revenue, earnings, spending and the wallet figures now refresh together, so everything you see stays current."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-31-coordinator-event-create-fix",
-            "date": "2026-10-31",
-            "title": "Fix for event creation in coordinator dashboard",
-            "items": [
-              {
-                "icon": "calendar-outline",
-                "title": "Event creation fixed",
-                "body": "Fixed an issue where tapping the Create event button in the event coordinator dashboard would not submit when optional location details were omitted."
-              }
-            ]
-          },
-          {
-            "id": "2026-10-31-restore-your-albums",
-            "date": "2026-10-31",
-            "title": "Restore your archived albums",
-            "items": [
-              {
-                "icon": "lock-closed-outline",
-                "title": "See what is archived",
-                "body": "If one of your albums was archived, you now see a clear notice on it. You keep your photos, and the notice tells you how to restore it on the Connekyt website so clients and buyers can open it again."
               }
             ]
           }

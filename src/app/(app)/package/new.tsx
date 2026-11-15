@@ -30,6 +30,7 @@ import {
   applyPackageTierNamingPolicy,
   bulkPublishPackages,
   createPackage,
+  draftsMissingPrice,
   extractPackagesWithAi,
   listPackages,
   normalizePackageAddons,
@@ -42,7 +43,9 @@ import {
   type PackageFeatureItem,
   type ServiceType,
 } from '@/features/packages/api';
+import { useErrors } from '@/features/errors/useErrors';
 import { listCurrencies } from '@/features/reference/api';
+import { tp } from '@/i18n/plural';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
@@ -144,6 +147,7 @@ export default function NewPackageScreen() {
   const [reviewSessionTab, setReviewSessionTab] = useState<ServiceType>('STUDIO');
   const [expandedDraftId, setExpandedDraftId] = useState<string | null>(null);
   const [newDraftIngredientText, setNewDraftIngredientText] = useState<Record<string, string>>({});
+  const { showError } = useErrors();
   const [publishingBatch, setPublishingBatch] = useState(false);
   const [pdfPickerModalOpen, setPdfPickerModalOpen] = useState(false);
   const webFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -463,7 +467,7 @@ export default function NewPackageScreen() {
         packageName: 'Basic',
         originalTitle: studio ? 'Custom Studio Session' : 'Custom Outdoor Package',
         serviceType: session,
-        price: studio ? 120000 : 400000,
+        price: null,
         currencyCode: 'RWF',
         priceUnit: studio ? 'per session' : 'per event',
         durationHours: studio ? 2 : 6,
@@ -514,6 +518,11 @@ export default function NewPackageScreen() {
       setPolicyModalTarget('studio');
       return;
     }
+    const unpriced = draftsMissingPrice(extractedDrafts);
+    if (unpriced.length > 0) {
+      setServerError(tp(t as never, 'b2_pkgl_priceNeededBlock', unpriced.length));
+      return;
+    }
     setAiStep(3);
   };
 
@@ -538,6 +547,11 @@ export default function NewPackageScreen() {
       setServerError('Add at least one package before publishing.');
       return;
     }
+    const unpriced = draftsMissingPrice(extractedDrafts);
+    if (unpriced.length > 0) {
+      setServerError(tp(t as never, 'b2_pkgl_priceNeededBlock', unpriced.length));
+      return;
+    }
 
     setPublishingBatch(true);
     try {
@@ -560,7 +574,7 @@ export default function NewPackageScreen() {
 
         return {
           packageName: d.packageName,
-          price: Math.max(1000, Number(d.price) || 100000),
+          price: d.price as number, // never null here: the guard above blocks an unpriced draft
           currencyId: d.currencyId || resolvedCurrencyId,
           currencyCode: d.currencyCode || 'RWF',
           priceUnit: d.priceUnit || (d.serviceType === 'STUDIO' ? 'per session' : 'per event'),
@@ -594,7 +608,7 @@ export default function NewPackageScreen() {
 
       setAiStep('done');
     } catch (err) {
-      setServerError(isApiError(err) ? err.message : t('b2_pkgNewErrGeneric'));
+      showError(err, { intent: 'save' }, { onRetry: () => void handlePublishBatch(), where: 'package.bulkPublish' });
     } finally {
       setPublishingBatch(false);
     }
@@ -1795,7 +1809,7 @@ export default function NewPackageScreen() {
 
                           <View style={styles.pricePillPurple}>
                             <Text style={styles.pricePillPurpleText}>
-                              {`${Number(item.price || 0).toLocaleString('en-US')} ${item.currencyCode || 'RWF'}`}
+                              {item.price ? `${Number(item.price).toLocaleString('en-US')} ${item.currencyCode || 'RWF'}` : t('b2_pkgl_priceNeeded')}
                             </Text>
                           </View>
                         </View>
@@ -1930,10 +1944,11 @@ export default function NewPackageScreen() {
                                 <Input
                                   label="Price (RWF)"
                                   keyboardType="number-pad"
-                                  value={String(item.price)}
+                                  value={item.price ? String(item.price) : ''}
+                                  placeholder={t('b2_pkgl_priceNeeded')}
                                   onChangeText={(v) => {
                                     const n = Number(v.replace(/\D/g, ''));
-                                    updateDraftItem(item.tempId, { price: n }, true);
+                                    updateDraftItem(item.tempId, { price: n > 0 ? n : null }, true);
                                   }}
                                 />
                               </View>
@@ -2143,7 +2158,7 @@ export default function NewPackageScreen() {
                           </Text>
                         </View>
                         <Text style={styles.compactReviewPrice}>
-                          {`${Number(d.price).toLocaleString('en-US')} ${d.currencyCode}`}
+                          {d.price ? `${Number(d.price).toLocaleString('en-US')} ${d.currencyCode}` : t('b2_pkgl_priceNeeded')}
                         </Text>
                       </View>
                     ))
@@ -2174,7 +2189,7 @@ export default function NewPackageScreen() {
                           </Text>
                         </View>
                         <Text style={styles.compactReviewPrice}>
-                          {`${Number(d.price).toLocaleString('en-US')} ${d.currencyCode}`}
+                          {d.price ? `${Number(d.price).toLocaleString('en-US')} ${d.currencyCode}` : t('b2_pkgl_priceNeeded')}
                         </Text>
                       </View>
                     ))
