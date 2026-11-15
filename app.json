@@ -250,6 +250,11 @@
                 "icon": "trash-outline",
                 "title": "Deleting a package is safer",
                 "body": "Delete now lives in the more menu, names the package before it goes, and shows a clear message with Try again if it fails, instead of hiding the package from your list."
+              },
+              {
+                "icon": "pricetag-outline",
+                "title": "A package from a brochure never gets a made-up price",
+                "body": "If a brochure has no price for a package, it now shows Price needed and cannot be published until you enter one. A failed publish also stops safely and shows Try again, instead of repeating itself."
               }
             ]
           },
