@@ -23,6 +23,7 @@
  * went through. Here a successful verify is the end of the client's part.
  */
 import type { Role } from '@/features/auth/role';
+import { withCurrencyPrefix } from '@/utils/currencyPrefix';
 
 /** Namespace for the withdraw routes. The web uses the role's own. */
 export function withdrawNamespace(role: Role | undefined): 'photographer' | 'coordinator' | 'customer' {
@@ -126,9 +127,8 @@ export function formatDisplay(amount: number, c: DisplayCurrency): string {
     minimumFractionDigits: c.decimals,
     maximumFractionDigits: c.decimals,
   });
-  // Letter symbols read better spaced ("RF 5,000"), sign symbols tight ("$25.00").
-  const gap = /^[A-Za-z]+$/.test(c.symbol) ? ' ' : '';
-  return `${c.symbol}${gap}${fixed}`;
+  // The ISO code, spaced ("RWF 5,000"); USD and EUR keep their signs, tight ("$25.00").
+  return withCurrencyPrefix(c.code, fixed);
 }
 
 /** Parse what the user typed; commas and spaces are ignored. */

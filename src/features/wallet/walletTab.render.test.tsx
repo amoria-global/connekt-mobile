@@ -126,7 +126,7 @@ describe('mobile wallet tab as rendered', () => {
     expect(flat(r.root)).toContain('$100.00');
   });
 
-  it('RWF display converts only with a live rate: RF 124,150 with one, $95.50 without', async () => {
+  it('RWF display converts only with a live rate: RWF 124,150 with one, $95.50 without', async () => {
     serve('wallet-me-photographer.json', 'wallet-movements-photographer.json');
 
     useCurrency.setState({
@@ -135,7 +135,7 @@ describe('mobile wallet tab as rendered', () => {
     });
     let r = await mount();
     await reveal(r);
-    expect(flat(r.root)).toContain('RF 124,150');
+    expect(flat(r.root)).toContain('RWF 124,150');
     await act(async () => r.unmount());
 
     useCurrency.setState({ currency: 'RWF', currencies: DEFAULT_CURRENCIES }); // backend rate never arrived
@@ -143,7 +143,7 @@ describe('mobile wallet tab as rendered', () => {
     await reveal(r);
     const text = flat(r.root);
     expect(text).toContain('$95.50');
-    expect(text).not.toContain('RF ');
+    expect(text).not.toContain('RWF ');
   });
 
   it('an HTTP 200 carrying action 0 shows an error and a retry, never a zero balance', async () => {

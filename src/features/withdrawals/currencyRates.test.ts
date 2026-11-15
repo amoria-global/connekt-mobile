@@ -72,7 +72,7 @@ describe('display currency store', () => {
 
   it('converts between live currencies and formats at the currency precision', () => {
     const live = DEFAULT_CURRENCIES.map((c) => (c.code === 'RWF' ? { ...c, rate: 1300 } : c));
-    expect(convertAndFormat(95.5, 'USD', 'RWF', live)).toBe('RF 124,150');
+    expect(convertAndFormat(95.5, 'USD', 'RWF', live)).toBe('RWF 124,150');
     expect(convertAndFormat(130000, 'RWF', 'USD', live)).toBe('$100.00');
     expect(convertAndFormat(0, 'USD', 'USD', live)).toBe('$0.00'); // a genuine zero still shows as zero
   });

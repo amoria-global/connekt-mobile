@@ -49,7 +49,7 @@ describe('currency', () => {
   });
 
   it('formats letter symbols spaced and sign symbols tight', () => {
-    expect(formatDisplay(5000, RWF)).toBe('RF 5,000');
+    expect(formatDisplay(5000, RWF)).toBe('RWF 5,000');
     expect(formatDisplay(25, USD)).toBe('$25.00');
   });
 
@@ -67,7 +67,7 @@ describe('amountError', () => {
   });
 
   it('refuses more than the balance, zero and garbage', () => {
-    expect(amountError('14700', balance, RWF)).toMatch(/more than your booking earnings of RF 14,600/);
+    expect(amountError('14700', balance, RWF)).toMatch(/more than your booking earnings of RWF 14,600/);
     expect(amountError('10.02', balance, USD)).toMatch(/more than/);
     expect(amountError('0', balance, RWF)).toMatch(/greater than zero/);
     expect(amountError('abc', balance, RWF)).toMatch(/greater than zero/);

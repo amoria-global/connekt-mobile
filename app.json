@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-16-currency-codes",
+            "date": "2026-11-16",
+            "title": "Amounts show the currency code",
+            "items": [
+              {
+                "icon": "cash-outline",
+                "title": "RWF instead of RF",
+                "body": "Amounts now start with the currency code, such as RWF 5,000, the same way packages and bookings already do. This applies wherever prices, balances and checkout totals are shown."
+              }
+            ]
+          },
+          {
             "id": "2026-11-15-my-packages",
             "date": "2026-11-15",
             "title": "A clearer My packages screen",
@@ -291,18 +303,6 @@
                 "icon": "navigate-outline",
                 "title": "The map follows where you are",
                 "body": "When you allow it, the Photographers map centres on your phone's location, like the website does. Clients and photographers only ever see a general area, never your exact position."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-14-map-style",
-            "date": "2026-11-14",
-            "title": "A brighter photographer map",
-            "items": [
-              {
-                "icon": "map-outline",
-                "title": "More colour and landmarks in light mode",
-                "body": "The map of nearby photographers now shows parks, water, buildings and place names in clearer colours when your phone is in light mode."
               }
             ]
           }
