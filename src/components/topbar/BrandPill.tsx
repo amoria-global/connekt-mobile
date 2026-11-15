@@ -23,11 +23,17 @@ export function BrandPill({
   const styles = useStyles();
   const content = children ?? (
     <>
-      <Image
-        source={require('../../../assets/images/logo.png')}
-        style={styles.mark}
-        contentFit="contain"
-      />
+      {/* logo.png is a square whose visible mark fills only about 55% of the width, so the file carries
+          roughly 22% transparent padding on each side. At face value that padding reads as a wide gap before
+          the wordmark. Drawing the image larger inside a clipped box of the visible width removes it, so the
+          mark and "Connekyt" read as one logo. */}
+      <View style={styles.markBox}>
+        <Image
+          source={require('../../../assets/images/logo.png')}
+          style={styles.mark}
+          contentFit="contain"
+        />
+      </View>
       {/* The pill sits in a fixed-height bar: at 1.6x text on a 360dp phone the wordmark wrapped to "Connek / yt". */}
       <Text style={styles.text} numberOfLines={1} maxFontSizeMultiplier={1.1}>
         Connekyt
@@ -61,7 +67,8 @@ const useStyles = makeStyles((c, e) => ({
   },
   flat: { height: 40, backgroundColor: 'transparent', justifyContent: 'flex-start', paddingHorizontal: 0, shadowOpacity: 0, elevation: 0 },
   pressed: { opacity: 0.9 },
-  mark: { width: 22, height: 22 },
+  markBox: { width: 22, height: 24, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  mark: { width: 40, height: 40, flexShrink: 0 },
   // The wordmark in the display face, as design/home.png sets it.
   text: {
     fontSize: 19,
