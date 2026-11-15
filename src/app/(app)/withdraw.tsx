@@ -48,6 +48,7 @@ import { listWalletMovements, type Movement } from '@/features/wallet/api';
 import { isApiError } from '@/store/auth';
 import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme } from '@/theme';
 import { formatDate, formatPrice } from '@/utils/format';
+import { currencyPrefix } from '@/utils/currencyPrefix';
 import { useCurrency } from '@/store/currency';
 import { useSharedT } from '@/i18n/sharedStrings';
 
@@ -528,7 +529,7 @@ export default function WithdrawScreen() {
                 </View>
                 {donation.mode === 'custom' ? (
                   <View style={styles.amountBoxSmall}>
-                    <Text style={styles.amountPrefixSmall}>{currency.symbol}</Text>
+                    <Text style={styles.amountPrefixSmall}>{currencyPrefix(currency.code)}</Text>
                     <TextInput
                       value={donation.text}
                       onChangeText={(t) => setDonation({ mode: 'custom', text: t.replace(/[^0-9.,]/g, '') })}

@@ -24,8 +24,8 @@ describe('convertAndFormat (parity with web formatPrice)', () => {
     expect(convertAndFormat(1234.5, undefined, 'USD', DEFAULT_CURRENCIES)).toBe('$1,234.50');
   });
 
-  it('converts USD to RWF with no decimals and a symbol prefix', () => {
-    expect(convertAndFormat(10, 'USD', 'RWF', LIVE_RATES)).toBe('RF 14,600');
+  it('converts USD to RWF with no decimals and the ISO code as prefix', () => {
+    expect(convertAndFormat(10, 'USD', 'RWF', LIVE_RATES)).toBe('RWF 14,600');
   });
 
   it('converts through USD between two non-USD currencies', () => {

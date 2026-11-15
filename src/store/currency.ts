@@ -5,6 +5,7 @@
  * persisted on the device. Every rate is "units of that currency per 1 USD".
  */
 import { create } from 'zustand';
+import { withCurrencyPrefix } from '@/utils/currencyPrefix';
 import { api } from '@/api/client';
 import { useAuth } from '@/store/auth';
 import { storage, StorageKeys } from '@/services/storage';
@@ -62,7 +63,7 @@ export function convertAndFormat(
   });
   if (target.code === 'USD') return `$${formatted}`;
   if (target.code === 'EUR') return `€${formatted}`;
-  return `${target.symbol} ${formatted}`;
+  return withCurrencyPrefix(target.code, formatted);
 }
 
 type CurrencyState = {
