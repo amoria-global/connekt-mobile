@@ -182,6 +182,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-15-logo-spacing",
+            "date": "2026-11-15",
+            "title": "A tidier Connekyt logo",
+            "items": [
+              {
+                "icon": "image-outline",
+                "title": "The logo now reads as one mark",
+                "body": "The Connekyt symbol and name in the top bar sit close together, so they look like a single logo instead of two separate pieces."
+              }
+            ]
+          },
+          {
             "id": "2026-11-14-tv-one-tap",
             "date": "2026-11-14",
             "title": "Send to your TV in one tap",
