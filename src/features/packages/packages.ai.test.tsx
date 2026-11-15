@@ -235,57 +235,40 @@ Outdoor Birthday Event - 500,000 RWF
     expect(extracted[0].deliveryPolicy).toContain('2,500 RWF per photo');
   });
 
-  it('deletes a package cleanly via soft-deactivation fallback when hard DELETE fails due to booking/event foreign keys', async () => {
-    const delSpy = jest.spyOn(api, 'delete').mockRejectedValueOnce({
-      status: 500,
-      message: 'violates foreign key constraint fk_bookings_on_package',
-    });
-    const putSpy = jest.spyOn(api, 'put').mockResolvedValueOnce({ action: 1, data: {} });
-    const getSpy = jest.spyOn(api, 'get').mockResolvedValueOnce({
-      action: 1,
-      data: [
-        {
-          id: 'pkg-fk-locked',
-          packageName: 'Diamond',
-          price: 1000000,
-          currencyId: 'curr-rwf',
-          currencyAbbreviation: 'RWF',
-          serviceType: 'OUTDOOR',
-          isActive: true,
-        },
-        {
-          id: 'pkg-active-2',
-          packageName: 'Gold',
-          price: 700000,
-          currencyId: 'curr-rwf',
-          currencyAbbreviation: 'RWF',
-          serviceType: 'OUTDOOR',
-          isActive: true,
-        },
-      ],
-    });
+  it('delete is a plain server delete: it does not quietly deactivate, and a failure is thrown for the caller to show', async () => {
+    const delSpy = jest.spyOn(api, 'delete').mockRejectedValueOnce({ status: 500, message: 'Could not delete this package.' });
+    const putSpy = jest.spyOn(api, 'put');
 
-    await expect(
-      deletePackage('pkg-fk-locked', {
-        id: 'pkg-fk-locked',
-        name: 'Diamond',
-        price: 1000000,
-        currencyId: 'curr-rwf',
-        serviceType: 'OUTDOOR',
-      }),
-    ).resolves.toBeUndefined();
-
-    expect(delSpy).toHaveBeenCalledWith('/photographer/packages/pkg-fk-locked');
-    expect(putSpy).toHaveBeenCalledWith(
-      '/photographer/packages/pkg-fk-locked',
-      expect.objectContaining({ isActive: false }),
-    );
-
-    const remaining = await listPackages();
-    expect(remaining.map((p) => p.id)).toEqual(['pkg-active-2']);
+    await expect(deletePackage('pkg-1')).rejects.toMatchObject({ message: 'Could not delete this package.' });
+    expect(delSpy).toHaveBeenCalledWith('/photographer/packages/pkg-1');
+    expect(putSpy).not.toHaveBeenCalled();
 
     delSpy.mockRestore();
     putSpy.mockRestore();
+  });
+
+  it('a delete that answers action 0 is a failure, not a success', async () => {
+    const delSpy = jest.spyOn(api, 'delete').mockResolvedValueOnce({ action: 0, message: 'Package not found.' });
+    await expect(deletePackage('pkg-2')).rejects.toMatchObject({ status: 400, message: 'Package not found.' });
+    delSpy.mockRestore();
+  });
+
+  it('a list answered with action 0 is a failed load, never an empty list', async () => {
+    const getSpy = jest.spyOn(api, 'get').mockResolvedValueOnce({ action: 0, message: 'Could not load this. Please try again.' });
+    await expect(listPackages()).rejects.toMatchObject({ message: 'Could not load this. Please try again.' });
+    getSpy.mockRestore();
+  });
+
+  it('the list shows what the server holds: a package a phone once hid locally comes back, an inactive one stays hidden', async () => {
+    const getSpy = jest.spyOn(api, 'get').mockResolvedValueOnce({
+      action: 1,
+      data: [
+        { id: 'pkg-a', packageName: 'Diamond', price: 1000, currencyAbbreviation: 'RWF', serviceType: 'OUTDOOR', isActive: true },
+        { id: 'pkg-b', packageName: 'Gold', price: 900, currencyAbbreviation: 'RWF', serviceType: 'OUTDOOR', isActive: false },
+      ],
+    });
+    const listed = await listPackages();
+    expect(listed.map((p) => p.id)).toEqual(['pkg-a']);
     getSpy.mockRestore();
   });
 });

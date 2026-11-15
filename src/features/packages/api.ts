@@ -7,49 +7,18 @@ import { storage } from '@/services/storage';
 import type { ApiError, ApiEnvelope, ID } from '@/types';
 import { appendFile, type UploadFile } from '@/utils/upload';
 
-const DELETED_PACKAGES_STORAGE_KEY = 'connekt.deleted_package_ids';
-const memoryDeletedPackageIds = new Set<string>();
+/**
+ * Older builds hid a deleted package on the phone (and soft-deactivated it with a stripped-down PUT when the server
+ * refused the delete). The server now unlinks bookings and events itself, so a delete either works or fails with a
+ * message, and the list shows what the server holds. This sweeps the old local list once.
+ */
+const LEGACY_DELETED_PACKAGES_KEY = 'connekt.deleted_package_ids';
 
-async function getDeletedPackageIds(): Promise<Set<string>> {
+async function clearLegacyDeletedPackageIds(): Promise<void> {
   try {
-    const raw = await storage.get(DELETED_PACKAGES_STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        parsed.forEach((id) => {
-          if (typeof id === 'string' && id) memoryDeletedPackageIds.add(id);
-        });
-      }
-    }
+    await storage.remove(LEGACY_DELETED_PACKAGES_KEY);
   } catch {
-    // ignore storage errors
-  }
-  return new Set(memoryDeletedPackageIds);
-}
-
-async function markPackageDeletedLocally(id: string): Promise<void> {
-  if (!id) return;
-  const set = await getDeletedPackageIds();
-  set.add(id);
-  memoryDeletedPackageIds.add(id);
-  try {
-    await storage.set(DELETED_PACKAGES_STORAGE_KEY, JSON.stringify(Array.from(set)));
-  } catch {
-    // ignore storage errors
-  }
-}
-
-async function unmarkPackageDeletedLocally(id: string): Promise<void> {
-  if (!id) return;
-  const set = await getDeletedPackageIds();
-  if (set.has(id) || memoryDeletedPackageIds.has(id)) {
-    set.delete(id);
-    memoryDeletedPackageIds.delete(id);
-    try {
-      await storage.set(DELETED_PACKAGES_STORAGE_KEY, JSON.stringify(Array.from(set)));
-    } catch {
-      // ignore storage errors
-    }
+    // nothing to clear
   }
 }
 
@@ -548,15 +517,14 @@ function buildPackagePayload(input: CreatePackageInput): Record<string, unknown>
 }
 
 export async function listPackages(): Promise<Package[]> {
-  const [res, deletedIds] = await Promise.all([
-    api.get<ApiEnvelope<Raw[]>>('/photographer/packages'),
-    getDeletedPackageIds(),
-  ]);
+  const res = await api.get<ApiEnvelope<Raw[]>>('/photographer/packages');
+  // HTTP 200 with action 0 is a failed read. Without this it fell through to an empty list and read "No packages yet".
+  if (res?.action === 0) {
+    throw { status: 400, message: res.message || 'Could not load your packages.' } satisfies ApiError;
+  }
+  void clearLegacyDeletedPackageIds();
   const data = Array.isArray(res?.data) ? res.data : [];
-  return data
-    .filter((r) => r && r.isActive !== false)
-    .map(mapPackage)
-    .filter((p) => p.id && !deletedIds.has(p.id));
+  return data.filter((r) => r && r.isActive !== false).map(mapPackage).filter((p) => p.id);
 }
 
 export async function createPackage(input: CreatePackageInput): Promise<Package> {
@@ -567,11 +535,7 @@ export async function createPackage(input: CreatePackageInput): Promise<Package>
       message: res.message || 'Could not create the package.',
     } satisfies ApiError;
   }
-  const pkg = mapPackage((res?.data ?? {}) as Raw);
-  if (pkg.id) {
-    await unmarkPackageDeletedLocally(pkg.id);
-  }
-  return pkg;
+  return mapPackage((res?.data ?? {}) as Raw);
 }
 
 export async function updatePackage(id: string, input: CreatePackageInput): Promise<Package> {
@@ -582,56 +546,17 @@ export async function updatePackage(id: string, input: CreatePackageInput): Prom
   if (res.action !== 1) {
     throw { status: 400, message: res.message || 'Could not save your changes.' } satisfies ApiError;
   }
-  const pkg = mapPackage((res?.data ?? {}) as Raw);
-  if (pkg.id) {
-    await unmarkPackageDeletedLocally(pkg.id);
-  }
-  return pkg;
+  return mapPackage((res?.data ?? {}) as Raw);
 }
 
-export async function deletePackage(id: string, existingPkg?: Package): Promise<void> {
-  try {
-    await api.delete(`/photographer/packages/${encodeURIComponent(id)}`);
-    await markPackageDeletedLocally(id);
-    return;
-  } catch {
-    // Fallback when the package is referenced by historical bookings/events (FK constraint on hard DELETE):
-    // soft-deactivate via PUT /photographer/packages/{id} with isActive: false so public/booking queries hide it.
-    try {
-      let pkg = existingPkg;
-      if (!pkg || !pkg.currencyId) {
-        const fetched = await api
-          .get<ApiEnvelope<Raw>>(`/photographer/packages/${encodeURIComponent(id)}`)
-          .catch(() => null);
-        if (fetched?.data) {
-          pkg = mapPackage(fetched.data);
-        }
-      }
-      if (pkg && pkg.currencyId) {
-        const payload = {
-          ...buildPackagePayload({
-            packageName: pkg.name || 'Package',
-            price: pkg.price && pkg.price > 0 ? pkg.price : 100000,
-            currencyId: pkg.currencyId,
-            priceUnit: pkg.priceUnit || (pkg.serviceType === 'STUDIO' ? 'per session' : 'per event'),
-            durationHours: pkg.durationHours ?? 0,
-            description: pkg.description ?? '',
-            hasLiveStream: pkg.hasLiveStream ?? false,
-            includedPhotos: pkg.includedPhotos ?? 0,
-            includedVideos: pkg.includedVideos ?? 0,
-            photobookPhotos: pkg.photobookPhotos ?? null,
-            deliveryDays: pkg.deliveryDays ?? 0,
-            serviceType: pkg.serviceType ?? 'OUTDOOR',
-            features: pkg.features ?? [],
-          }),
-          isActive: false,
-        };
-        await api.put(`/photographer/packages/${encodeURIComponent(id)}`, payload);
-      }
-    } catch {
-      // Even if soft-deactivation PUT fails, mark locally deleted so it is removed from the photographer's package list
-    }
-    await markPackageDeletedLocally(id);
+/**
+ * Deletes a package on the server. The server unlinks its bookings and events and removes its geo prices first, so a
+ * failure here is a real one: it throws, and the caller shows it and keeps the package in the list.
+ */
+export async function deletePackage(id: string): Promise<void> {
+  const res = await api.delete<ApiEnvelope<unknown>>(`/photographer/packages/${encodeURIComponent(id)}`);
+  if (res && typeof res === 'object' && res.action === 0) {
+    throw { status: 400, message: res.message || 'Could not delete the package.' } satisfies ApiError;
   }
 }
 
@@ -1877,16 +1802,15 @@ export async function bulkPublishPackages(input: {
   const existing = input.existingPackages ?? (await listPackages().catch(() => [] as Package[]));
   if (input.mode === 'REPLACE_ALL') {
     for (const oldPkg of existing) {
-      await deletePackage(oldPkg.id, oldPkg).catch(() => {});
+      await deletePackage(oldPkg.id).catch(() => {});
     }
   } else if (input.mode === 'REPLACE_SESSION' && input.sessionType) {
     for (const oldPkg of existing.filter((p) => p.serviceType === input.sessionType)) {
-      await deletePackage(oldPkg.id, oldPkg).catch(() => {});
+      await deletePackage(oldPkg.id).catch(() => {});
     }
   } else if (input.deletePackageIds?.length) {
     for (const id of input.deletePackageIds) {
-      const match = existing.find((p) => p.id === id);
-      await deletePackage(id, match).catch(() => {});
+      await deletePackage(id).catch(() => {});
     }
   }
 

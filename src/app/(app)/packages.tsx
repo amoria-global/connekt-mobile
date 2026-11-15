@@ -1,689 +1,184 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { Alert } from '@/components/ui/dialog';
+import { View } from 'react-native';
 import { DataList } from '@/components/ui/DataList';
+import { EmptyState, ErrorState } from '@/components/ui/EmptyState';
+import { PrimaryButton, GhostButton } from '@/components/ui/Button';
 import { HeaderHelpAndAdd } from '@/components/help/HeaderAddButton';
 import { Screen } from '@/components/ui/Screen';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
+import { Segmented } from '@/components/ui/Segmented';
+import { deletePackage, listPackages, type Package, type ServiceType } from '@/features/packages/api';
+import { filterBySession, splitBySession, topTierIds, type SessionFilter } from '@/features/packages/listModel';
+import { PackageCard, PackageCardSkeleton } from '@/features/packages/PackageCard';
 import {
-  deletePackage,
-  listPackages,
-  type Package,
-  type ServiceType,
-} from '@/features/packages/api';
+  AddPackageSheet,
+  DeleteConfirmSheet,
+  PackageMenuSheet,
+  ReplaceConfirmSheet,
+} from '@/features/packages/PackageSheets';
+import { useErrors } from '@/features/errors/useErrors';
 import { useAsync } from '@/hooks/useAsync';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
-import { formatPrice } from '@/utils/format';
-import { useCurrency } from '@/store/currency';
+import { makeStyles, spacing } from '@/theme';
 import { useLanguage } from '@/store/language';
 
-type SessionFilter = 'ALL' | ServiceType;
+type Sheet = null | 'add' | 'replace' | { kind: 'menu' | 'delete'; pkg: Package };
 
 export default function PackagesScreen() {
-  // Re-render when the display currency changes (formatPrice reads the store).
-  useCurrency((s) => s.currency);
   const { t } = useLanguage();
-  const { colors } = useTheme();
   const styles = useStyles();
   const router = useRouter();
+  const { showError } = useErrors();
   const { data, loading, error, refresh } = useAsync(useCallback(() => listPackages(), []));
+  const [filter, setFilter] = useState<SessionFilter>('ALL');
+  const [sheet, setSheet] = useState<Sheet>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [sessionFilter, setSessionFilter] = useState<SessionFilter>('ALL');
 
-  const allPackages = useMemo(() => data ?? [], [data]);
-  const indoorPackages = useMemo(
-    () =>
-      allPackages
-        .filter((p) => p.serviceType === 'STUDIO')
-        .sort((a, b) => (b.price ?? 0) - (a.price ?? 0)),
-    [allPackages],
-  );
-  const outdoorPackages = useMemo(
-    () =>
-      allPackages
-        .filter((p) => p.serviceType !== 'STUDIO')
-        .sort((a, b) => (b.price ?? 0) - (a.price ?? 0)),
-    [allPackages],
-  );
+  const all = useMemo(() => data ?? [], [data]);
+  const { indoor, outdoor } = useMemo(() => splitBySession(all), [all]);
+  const shown = useMemo(() => filterBySession(all, filter), [all, filter]);
+  const topTiers = useMemo(() => topTierIds(all), [all]);
 
-  const filteredPackages = useMemo(() => {
-    if (sessionFilter === 'STUDIO') return indoorPackages;
-    if (sessionFilter === 'OUTDOOR') return outdoorPackages;
-    return [...indoorPackages, ...outdoorPackages];
-  }, [sessionFilter, indoorPackages, outdoorPackages]);
+  const closeSheet = () => setSheet(null);
 
-  const onDelete = (p: Package) => {
-    Alert.alert(t('b2_packagesDeleteTitle'), t('b2_packagesDeleteMessage', { name: p.name }), [
-      { text: t('b2_packagesCancel'), style: 'cancel' },
-      {
-        text: t('b2_packagesDelete'),
-        style: 'destructive',
-        onPress: async () => {
-          setBusyId(p.id);
-          try {
-            await deletePackage(p.id, p);
-            await refresh();
-          } catch {
-            Alert.alert(t('b2_packagesDeleteErrorTitle'), t('b2_packagesTryAgain'));
-          } finally {
-            setBusyId(null);
-          }
-        },
-      },
-    ]);
+  const openBrochure = (replace: boolean) => {
+    setSheet(null);
+    router.push({ pathname: '/package/new', params: { mode: 'ai', replace: replace ? '1' : '0' } });
+  };
+  const openManual = (serviceType?: ServiceType) => {
+    setSheet(null);
+    router.push({ pathname: '/package/new', params: { mode: 'manual', ...(serviceType ? { serviceType } : {}) } });
+  };
+  const openEdit = (p: Package) => {
+    setSheet(null);
+    router.push({ pathname: '/package/new', params: { mode: 'manual', editId: p.id, data: JSON.stringify(p) } });
   };
 
-  const openAiUpload = (replaceExisting = false) => {
-    router.push({
-      pathname: '/package/new',
-      params: { mode: 'ai', replace: replaceExisting ? '1' : '0' },
-    });
+  const doDelete = async (p: Package) => {
+    setBusyId(p.id);
+    try {
+      await deletePackage(p.id);
+      setSheet(null);
+      await refresh();
+    } catch (e) {
+      // The package stays in the list. Close this sheet first so the error sheet is the only one open.
+      setSheet(null);
+      showError(e, { intent: 'destructive' }, { onRetry: () => void doDelete(p), where: 'packages.delete' });
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const openManualCreate = (defaultSession?: ServiceType) => {
-    router.push({
-      pathname: '/package/new',
-      params: {
-        mode: 'manual',
-        ...(defaultSession ? { serviceType: defaultSession } : {}),
-      },
-    });
-  };
-
-  const headerComponent = (
-    <View style={styles.headerBlock}>
-      {/* Action Cards */}
-      <View style={styles.actionCardsWrap}>
-        {/* 1. Add New Package (Upload Document) */}
-        <Pressable
-          onPress={() => openAiUpload(false)}
-          style={({ pressed }) => [
-            styles.actionCard,
-            styles.actionCardPrimary,
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Add New Package"
-        >
-          <View style={styles.actionIconCirclePrimary}>
-            <Ionicons name="add-circle-outline" size={20} color={onFill} />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <View style={styles.actionTitleRow}>
-              <Text style={styles.actionTitlePrimary}>Add New Package</Text>
-              <View style={styles.aiBadge}>
-                <Text style={styles.aiBadgeText}>PDF · JPG · PNG</Text>
-              </View>
-            </View>
-            <Text style={styles.actionSubtitlePrimary}>
-              Upload your package brochure or create a new Indoor or Outdoor package.
-            </Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={onFill} />
-        </Pressable>
-
-        {/* 2. Update Package (Replace Existing) + 3. Add Package Manually */}
-        <View style={styles.secondaryActionsRow}>
-          <Pressable
-            onPress={() => openAiUpload(true)}
-            style={({ pressed }) => [
-              styles.secondaryActionCard,
-              allPackages.length > 0 && styles.secondaryActionCardSuggested,
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Update Package (Edit or replace existing)"
-          >
-            <View style={styles.secondaryTopRow}>
-              <View style={styles.secondaryIconBox}>
-                <Ionicons name="sync-outline" size={17} color={colors.primary} />
-              </View>
-              {allPackages.length > 0 ? (
-                <View style={styles.suggestedPill}>
-                  <Text style={styles.suggestedPillText}>SUGGESTED</Text>
-                </View>
-              ) : null}
-            </View>
-            <Text style={styles.secondaryActionTitle}>Update Package</Text>
-            <Text style={styles.secondaryActionSub}>
-              {allPackages.length > 0
-                ? `Edit or replace your ${allPackages.length} existing package(s)`
-                : 'Edit or replace existing packages'}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() =>
-              openManualCreate(sessionFilter === 'STUDIO' ? 'STUDIO' : 'OUTDOOR')
-            }
-            style={({ pressed }) => [styles.secondaryActionCard, pressed && styles.pressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Add Package Manually"
-          >
-            <View style={styles.secondaryTopRow}>
-              <View style={styles.secondaryIconBox}>
-                <Ionicons name="create-outline" size={17} color={colors.primary} />
-              </View>
-              <View style={[styles.suggestedPill, { backgroundColor: colors.surface }]}>
-                <Text style={[styles.suggestedPillText, { color: colors.textMuted }]}>CUSTOM</Text>
-              </View>
-            </View>
-            <Text style={styles.secondaryActionTitle}>Manual Upload</Text>
-            <Text style={styles.secondaryActionSub}>
-              Select package title, add items & set pricing
-            </Text>
-          </Pressable>
+  const header = (
+    <View style={styles.header}>
+      <View style={styles.buttons}>
+        <View style={styles.buttonCell}>
+          <PrimaryButton title={t('b2_pkgl_new')} onPress={() => setSheet('add')} />
+        </View>
+        <View style={styles.buttonCell}>
+          <GhostButton title={t('b2_pkgl_upload')} onPress={() => openBrochure(false)} />
         </View>
       </View>
-
-      {/* Session Category Filter Tabs: All / Indoor (Studio) / Outdoor (Events) */}
-      <View style={styles.sessionTabsRow}>
-        {(
-          [
-            ['ALL', 'layers-outline', `All (${allPackages.length})`],
-            ['STUDIO', 'home-outline', `Indoor (${indoorPackages.length})`],
-            ['OUTDOOR', 'sunny-outline', `Outdoor (${outdoorPackages.length})`],
-          ] as [SessionFilter, keyof typeof Ionicons.glyphMap, string][]
-        ).map(([key, icon, label]) => {
-          const active = sessionFilter === key;
-          return (
-            <Pressable
-              key={key}
-              onPress={() => setSessionFilter(key)}
-              style={[styles.sessionTab, active && styles.sessionTabActive]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-            >
-              <Ionicons name={icon} size={14} color={active ? onFill : colors.primary} />
-              <Text style={[styles.sessionTabText, active && styles.sessionTabTextActive]}>
-                {label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <Segmented<SessionFilter>
+        value={filter}
+        onChange={setFilter}
+        options={[
+          { value: 'ALL', label: `${t('b2_pkgl_all')} ${all.length}` },
+          { value: 'STUDIO', label: `${t('b2_pkgl_indoor')} ${indoor.length}` },
+          { value: 'OUTDOOR', label: `${t('b2_pkgl_outdoor')} ${outdoor.length}` },
+        ]}
+      />
     </View>
   );
 
+  let body: React.ReactElement;
+  if (loading && !data) {
+    body = (
+      <View style={styles.state}>
+        {[0, 1, 2].map((i) => (
+          <PackageCardSkeleton key={i} />
+        ))}
+      </View>
+    );
+  } else if (error && !data?.length) {
+    body = (
+      <View style={styles.state}>
+        <ErrorState title={t('b2_pkgl_errTitle')} message={t('b2_pkgl_errMsg')} onRetry={refresh} />
+      </View>
+    );
+  } else if (all.length === 0) {
+    body = (
+      <View style={styles.state}>
+        <EmptyState
+          icon="layers-outline"
+          title={t('b2_packagesEmptyTitle')}
+          message={t('b2_pkgl_emptyMsg')}
+          action={{ label: t('b2_pkgl_emptyAction'), onPress: () => setSheet('add'), raised: true }}
+        />
+      </View>
+    );
+  } else {
+    body = (
+      <DataList
+        data={shown}
+        loading={false}
+        error={null}
+        onRefresh={refresh}
+        headerExtra={header}
+        keyExtractor={(p) => p.id}
+        renderItem={({ item }) => (
+          <PackageCard
+            pkg={item}
+            topTier={topTiers.has(item.id)}
+            dimmed={busyId === item.id}
+            onEdit={() => openEdit(item)}
+            onGeo={() => router.push(`/event/geo-pricing?packageId=${item.id}` as never)}
+            onMore={() => setSheet({ kind: 'menu', pkg: item })}
+          />
+        )}
+        emptyIcon="layers-outline"
+        emptyTitle={filter === 'STUDIO' ? t('b2_pkgl_noIndoor') : t('b2_pkgl_noOutdoor')}
+        emptyMessage={t('b2_pkgl_noneInFilter')}
+        emptyAction={{ label: t('b2_pkgl_emptyAction'), onPress: () => setSheet('add') }}
+      />
+    );
+  }
+
   return (
     <Screen padded={false}>
-      <ScreenHeader
-        duplicatesHeader
-        title={t('b2_packagesTitle')}
-        subtitle="Add, update, organize, and publish your Indoor and Outdoor photography packages."
-      />
-      <DataList
-        data={filteredPackages}
-        loading={loading}
-        error={error}
-        onRefresh={refresh}
-        headerExtra={headerComponent}
-        keyExtractor={(p) => p.id}
-        renderItem={({ item }) => {
-          const isStudio = item.serviceType === 'STUDIO';
-          const isDiamond = item.name.toLowerCase().includes('diamond');
-          const featureNames = (item.features ?? [])
-            .filter((f) => f.isIncluded !== false)
-            .map((f) => f.featureName);
+      <ScreenHeader duplicatesHeader title={t('b2_packagesTitle')} subtitle={t('b2_pkgl_subtitle')} />
+      {body}
 
-          return (
-            <Pressable
-              style={({ pressed }) => [
-                styles.card,
-                isDiamond && styles.cardDiamond,
-                busyId === item.id && styles.dim,
-                pressed && styles.pressed,
-              ]}
-              onPress={() =>
-                router.push({
-                  pathname: '/package/new',
-                  params: { mode: 'manual', editId: item.id, data: JSON.stringify(item) },
-                })
-              }
-            >
-              <View style={styles.row}>
-                <View style={styles.titleGroup}>
-                  <View style={styles.tierTitleRow}>
-                    <Ionicons
-                      name={isDiamond ? 'diamond-outline' : 'pricetag-outline'}
-                      size={16}
-                      color={isDiamond ? colors.accent : colors.primary}
-                    />
-                    <Text style={styles.name}>{item.name}</Text>
-                    {isDiamond ? (
-                      <View style={styles.topTierBadge}>
-                        <Text style={styles.topTierBadgeText}>TOP TIER</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                  <View style={styles.sessionBadge}>
-                    <Ionicons
-                      name={isStudio ? 'home-outline' : 'sunny-outline'}
-                      size={11}
-                      color={colors.primary}
-                    />
-                    <Text style={styles.sessionBadgeText}>
-                      {isStudio ? 'Indoor (Studio session)' : 'Outdoor (Outside studio)'}
-                    </Text>
-                  </View>
-                </View>
+      {sheet === 'add' ? (
+        <AddPackageSheet
+          canReplace={all.length > 0}
+          onManual={() => openManual(filter === 'STUDIO' ? 'STUDIO' : 'OUTDOOR')}
+          onBrochure={() => openBrochure(false)}
+          onReplace={() => setSheet('replace')}
+          onClose={closeSheet}
+        />
+      ) : null}
+      {sheet === 'replace' ? <ReplaceConfirmSheet count={all.length} onConfirm={() => openBrochure(true)} onClose={closeSheet} /> : null}
+      {sheet && typeof sheet === 'object' && sheet.kind === 'menu' ? (
+        <PackageMenuSheet
+          pkg={sheet.pkg}
+          onEdit={() => openEdit(sheet.pkg)}
+          onDelete={() => setSheet({ kind: 'delete', pkg: sheet.pkg })}
+          onClose={closeSheet}
+        />
+      ) : null}
+      {sheet && typeof sheet === 'object' && sheet.kind === 'delete' ? (
+        <DeleteConfirmSheet pkg={sheet.pkg} busy={busyId === sheet.pkg.id} onConfirm={() => doDelete(sheet.pkg)} onClose={closeSheet} />
+      ) : null}
 
-                {item.price != null ? (
-                  <View style={styles.priceBadge}>
-                    <Text style={styles.price}>{formatPrice(item.price, item.currency)}</Text>
-                    {item.priceUnit ? (
-                      <Text style={styles.priceUnitText}>{item.priceUnit}</Text>
-                    ) : null}
-                  </View>
-                ) : null}
-              </View>
-
-              {item.description ? <Text style={styles.desc}>{item.description}</Text> : null}
-
-              <View style={styles.metricsRow}>
-                {item.durationHours ? (
-                  <View style={styles.metricChip}>
-                    <Ionicons name="time-outline" size={12} color={colors.primary} />
-                    <Text style={styles.metricChipText}>{`${item.durationHours}h session`}</Text>
-                  </View>
-                ) : null}
-                {item.includedPhotos ? (
-                  <View style={styles.metricChip}>
-                    <Ionicons name="images-outline" size={12} color={colors.primary} />
-                    <Text style={styles.metricChipText}>
-                      {t('b2_packagesPhotosCount', { count: item.includedPhotos })}
-                    </Text>
-                  </View>
-                ) : null}
-                {item.includedVideos ? (
-                  <View style={styles.metricChip}>
-                    <Ionicons name="videocam-outline" size={12} color={colors.primary} />
-                    <Text style={styles.metricChipText}>
-                      {t('b2_packagesVideosCount', { count: item.includedVideos })}
-                    </Text>
-                  </View>
-                ) : null}
-                {item.deliveryDays ? (
-                  <View style={styles.metricChip}>
-                    <Ionicons name="calendar-outline" size={12} color={colors.primary} />
-                    <Text style={styles.metricChipText}>{`Delivery in ${item.deliveryDays}d`}</Text>
-                  </View>
-                ) : null}
-                {item.hasLiveStream ? (
-                  <View style={styles.metricChip}>
-                    <Ionicons name="radio-outline" size={12} color={colors.accent} />
-                    <Text style={styles.metricChipText}>{t('b2_packagesLiveStream')}</Text>
-                  </View>
-                ) : null}
-                {(item.addons ?? [])
-                  .filter((a) => a.enabled && a.price > 0)
-                  .map((addon) => (
-                    <View key={addon.key} style={styles.metricChip}>
-                      <Ionicons
-                        name={addon.key === 'drone_capturing' ? 'airplane' : 'sparkles-outline'}
-                        size={12}
-                        color={colors.primary}
-                      />
-                      <Text style={styles.metricChipText}>
-                        {`${addon.name}: +${formatPrice(addon.price, addon.currencyCode || item.currency)}`}
-                      </Text>
-                    </View>
-                  ))}
-              </View>
-
-              {item.deliveryPolicy || (item.otherPolicies && item.otherPolicies.length > 0) ? (
-                <View style={styles.ingredientsBox}>
-                  {item.deliveryPolicy ? (
-                    <Text style={styles.ingredientLine} numberOfLines={2}>
-                      {`⏱️ Delivery Policy: ${item.deliveryPolicy}`}
-                    </Text>
-                  ) : null}
-                  {(item.otherPolicies ?? []).slice(0, 2).map((pol, pIdx) => (
-                    <Text key={`pol-${pIdx}`} style={styles.ingredientLine} numberOfLines={2}>
-                      {`📋 Policy: ${pol}`}
-                    </Text>
-                  ))}
-                </View>
-              ) : null}
-
-              {featureNames.length > 0 ? (
-                <View style={styles.ingredientsBox}>
-                  {featureNames.slice(0, 4).map((feat, idx) => (
-                    <Text key={`${feat}-${idx}`} style={styles.ingredientLine} numberOfLines={1}>
-                      {`• ${feat}`}
-                    </Text>
-                  ))}
-                  {featureNames.length > 4 ? (
-                    <Text style={styles.moreIngredientsText}>
-                      {`+${featureNames.length - 4} more item(s)`}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-
-              <View style={styles.cardActions}>
-                <Text style={styles.editHint}>Edit Details</Text>
-                <Pressable
-                  onPress={(e) => {
-                    e?.stopPropagation?.();
-                    router.push(`/event/geo-pricing?packageId=${item.id}` as never);
-                  }}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.geoLink}>{t('b2_packagesGeoPricing')}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={(e) => {
-                    e?.stopPropagation?.();
-                    onDelete(item);
-                  }}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t('b2_packagesDelete')} ${item.name}`}
-                >
-                  <Text style={styles.delete}>{t('b2_packagesDelete')}</Text>
-                </Pressable>
-              </View>
-            </Pressable>
-          );
-        }}
-        emptyIcon="pricetags-outline"
-        emptyTitle={t('b2_packagesEmptyTitle')}
-        emptyMessage="Upload your package brochure (PDF, JPG, PNG) or create a package manually."
-        emptyAction={{ label: 'Add New Package', onPress: () => openAiUpload(false) }}
-      />
-      <Stack.Screen
-        options={{
-          headerRight: () => (
-            <HeaderHelpAndAdd label="Add package" onPress={() => openAiUpload(false)} />
-          ),
-        }}
-      />
+      <Stack.Screen options={{ headerRight: () => <HeaderHelpAndAdd label={t('b2_pkgl_emptyAction')} onPress={() => setSheet('add')} /> }} />
     </Screen>
   );
 }
 
-const useStyles = makeStyles((c) => ({
-  headerBlock: {
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  actionCardsWrap: {
-    gap: spacing.sm,
-  },
-  actionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surface,
-  },
-  actionCardPrimary: {
-    backgroundColor: c.primary,
-    borderColor: c.primary,
-  },
-  actionIconCirclePrimary: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  actionTitlePrimary: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.extrabold,
-    color: onFill,
-  },
-  aiBadge: {
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-  },
-  aiBadgeText: {
-    fontSize: 9.5,
-    fontWeight: fontWeight.extrabold,
-    color: onFill,
-    letterSpacing: 0.4,
-  },
-  actionSubtitlePrimary: {
-    fontSize: fontSize.xs,
-    color: 'rgba(255,255,255,0.9)',
-    lineHeight: 16,
-  },
-  secondaryActionsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  secondaryActionCard: {
-    flex: 1,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surface,
-    gap: 4,
-  },
-  secondaryActionCardSuggested: {
-    borderColor: c.primary,
-    backgroundColor: c.tint,
-  },
-  secondaryTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 2,
-  },
-  secondaryIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: c.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  suggestedPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    backgroundColor: c.primary,
-  },
-  suggestedPillText: {
-    fontSize: 9,
-    fontWeight: fontWeight.extrabold,
-    color: onFill,
-    letterSpacing: 0.4,
-  },
-  secondaryActionTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.extrabold,
-    color: c.text,
-  },
-  secondaryActionSub: {
-    fontSize: 11,
-    color: c.textSoft,
-    lineHeight: 15,
-  },
-  sessionTabsRow: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-  },
-  sessionTab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 5,
-    paddingVertical: 9,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surface,
-  },
-  sessionTabActive: {
-    backgroundColor: c.primary,
-    borderColor: c.primary,
-  },
-  sessionTabText: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: c.text,
-  },
-  sessionTabTextActive: {
-    color: onFill,
-  },
-  card: {
-    backgroundColor: c.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: c.borderSoft,
-    gap: spacing.sm,
-  },
-  cardDiamond: {
-    borderColor: c.primary,
-  },
-  dim: { opacity: 0.5 },
-  pressed: { opacity: 0.78 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
-  },
-  titleGroup: {
-    flex: 1,
-    gap: 4,
-  },
-  tierTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  name: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.extrabold,
-    color: c.text,
-  },
-  topTierBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: radii.full,
-    backgroundColor: c.tint,
-  },
-  topTierBadgeText: {
-    fontSize: 9.5,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-  },
-  sessionBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radii.full,
-    backgroundColor: c.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
-  },
-  sessionBadgeText: {
-    fontSize: 10.5,
-    fontWeight: fontWeight.semibold,
-    color: c.textSoft,
-  },
-  priceBadge: {
-    alignItems: 'flex-end',
-  },
-  price: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.extrabold,
-    color: c.primary,
-  },
-  priceUnitText: {
-    fontSize: 10.5,
-    color: c.textMuted,
-  },
-  desc: {
-    fontSize: fontSize.xs,
-    color: c.textSoft,
-    lineHeight: 17,
-  },
-  metricsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-  },
-  metricChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.full,
-    backgroundColor: c.tint,
-  },
-  metricChipText: {
-    fontSize: 11,
-    fontWeight: fontWeight.semibold,
-    color: c.text,
-  },
-  ingredientsBox: {
-    backgroundColor: c.card,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    gap: 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
-  },
-  ingredientLine: {
-    fontSize: 11.5,
-    color: c.textSoft,
-  },
-  moreIngredientsText: {
-    fontSize: 11,
-    fontWeight: fontWeight.bold,
-    color: c.primary,
-    marginTop: 2,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: spacing.xs,
-    paddingTop: spacing.xs,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.borderSoft,
-  },
-  editHint: {
-    fontSize: fontSize.xs,
-    color: c.primary,
-    fontWeight: fontWeight.bold,
-  },
-  geoLink: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: c.primary,
-  },
-  delete: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
-    color: c.error,
-  },
+const useStyles = makeStyles(() => ({
+  header: { gap: spacing.md },
+  buttons: { flexDirection: 'row', gap: spacing.sm },
+  buttonCell: { flex: 1 },
+  state: { padding: spacing.xl, gap: spacing.md },
 }));
