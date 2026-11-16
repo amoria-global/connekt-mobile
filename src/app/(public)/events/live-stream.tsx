@@ -153,7 +153,7 @@ import { Sheet } from '@/components/ui/Sheet';
 import { resolveHostName } from '@/features/live/hostName';
 import { useGuestWishesFlag } from '@/features/live/appFlags';
 import { mapLiveEventInfo } from '@/features/live/liveEventInfo';
-import { EventTabs, WishesPanel, type LiveTab } from '@/features/live/sections';
+import { EventTabs, WatchOnTv, WishesPanel, type LiveTab } from '@/features/live/sections';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /** The side-rail toggles' "on" state: a white wash over the glass. */
@@ -1765,6 +1765,7 @@ export default function PublicLiveStreamScreen() {
                   onFullscreen={enterFullscreen}
                   onDonate={onDonate}
                   onTouch={stageChrome.show}
+                  topRight={status.isLive ? <WatchOnTv eventId={id} title={eventTitle} /> : undefined}
                 />
               ) : null}
             </View>
