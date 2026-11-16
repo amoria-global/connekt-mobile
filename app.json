@@ -237,6 +237,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-16-wish-video-fix",
+            "date": "2026-11-16",
+            "title": "Video wishes send again",
+            "items": [
+              {
+                "icon": "videocam-outline",
+                "title": "Send a video wish",
+                "body": "Recording a one-minute video wish no longer fails with a message about reading a photo. The clip now uploads straight from your phone."
+              },
+              {
+                "icon": "heart-outline",
+                "title": "Cleaner wish form",
+                "body": "An old error no longer stays on screen while you type your wish."
+              }
+            ]
+          },
+          {
             "id": "2026-11-16-currency-codes",
             "date": "2026-11-16",
             "title": "Amounts show the currency code",

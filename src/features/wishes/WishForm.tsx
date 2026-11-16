@@ -135,7 +135,10 @@ export function WishForm({ eventId, variant = 'card' }: { eventId: string; varia
       )}
       <TextInput
         value={wishMessage}
-        onChangeText={setWishMessage}
+        onChangeText={(v) => {
+          setWishMessage(v);
+          setWishError(null);
+        }}
         placeholder={t('b4_writeMessagePlaceholder')}
         placeholderTextColor={colors.textMuted}
         accessibilityLabel="Your message"
