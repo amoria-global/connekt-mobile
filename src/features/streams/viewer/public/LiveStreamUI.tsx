@@ -115,6 +115,8 @@ export const StageControls = memo(function StageControls(p: {
   onDonate?: () => void;
   /** Called on any press inside the controls, so the timer restarts. */
   onTouch?: () => void;
+  /** Sits at the top right of the stage, for example the Watch on TV button. */
+  topRight?: ReactNode;
 }) {
   const pe = p.visible ? 'box-none' : 'none';
   const touch = (fn: () => void) => () => {
@@ -129,6 +131,12 @@ export const StageControls = memo(function StageControls(p: {
         <MediaBtn icon="chevron-back" label="Back" onPress={touch(p.onBack)} />
         {p.live ? <LivePill size="md" style={s.pillSelf} /> : null}
         {p.viewerCount > 0 ? <ViewerChip count={p.viewerCount} /> : null}
+        {p.topRight ? (
+          <>
+            <View style={{ flex: 1 }} />
+            {p.topRight}
+          </>
+        ) : null}
       </View>
       <View style={s.bottom} pointerEvents={pe}>
         <View style={{ flex: 1 }} />
