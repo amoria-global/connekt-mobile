@@ -345,7 +345,7 @@ export default function LiveViewerScreen() {
       title={model.title}
       tagline={eventInfo?.tagline}
       location={eventInfo?.location}
-      hostName={model.creatorName}
+      hostName={eventInfo?.hostName ?? model.creatorName}
       live={model.isLive && pb.phase !== 'ended'}
       viewerCount={model.viewerCount}
     />
