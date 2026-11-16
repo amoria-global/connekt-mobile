@@ -143,6 +143,28 @@ export async function appendFile(
   file: UploadFile,
 ): Promise<void> {
   const name = file.name ?? 'upload.jpg';
+  const isVideo = (file.type ?? '').startsWith('video/');
+  // A one-minute phone clip is tens of megabytes. Reading it into JS memory (arrayBuffer or base64) fails on many
+  // phones, which surfaced as "Could not read that photo" and sent nothing. expo-file-system's File is a Blob that
+  // the upload streams from disk, so a video goes in as the file itself and is never copied into memory.
+  if (
+    isVideo &&
+    Platform.OS !== 'web' &&
+    file.uri &&
+    !file.uri.startsWith('http') &&
+    !file.uri.startsWith('data:') &&
+    typeof ExpoFile === 'function'
+  ) {
+    try {
+      const expoFile = new ExpoFile(file.uri);
+      if (expoFile.exists && expoFile.size > 0) {
+        form.append(field, expoFile as unknown as Blob, name);
+        return;
+      }
+    } catch {
+      // fall through to the in-memory path below
+    }
+  }
   const blob = await fileToBlob(file);
   // An empty Blob used to ride through as a "successful" upload: the
   // backend's magic-byte check skips empty parts, the Content-Type check
@@ -150,7 +172,9 @@ export async function appendFile(
   if (!blob || blob.size === 0) {
     throw {
       status: 0,
-      message: 'Could not read that photo. Please pick it again.',
+      message: isVideo
+        ? 'Could not read that video. Please record it again.'
+        : 'Could not read that photo. Please pick it again.',
     };
   }
   const mime = file.type || 'image/jpeg';
