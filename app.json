@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-16-guest-tv",
+            "date": "2026-11-16",
+            "title": "Watch a live event on your TV",
+            "items": [
+              {
+                "icon": "tv-outline",
+                "title": "Watch on TV for everyone",
+                "body": "The live screen now has a Watch on TV button at the top right of the video, also when you are not signed in. Tap it to send the live to a paired TV, or sign in to pair one."
+              }
+            ]
+          },
+          {
             "id": "2026-11-16-live-host-name",
             "date": "2026-11-16",
             "title": "Live events: the host, and wishes for guests",
@@ -301,18 +313,6 @@
                 "icon": "pricetag-outline",
                 "title": "A package from a brochure never gets a made-up price",
                 "body": "If a brochure has no price for a package, it now shows Price needed and cannot be published until you enter one. A failed publish also stops safely and shows Try again, instead of repeating itself."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-15-logo-spacing",
-            "date": "2026-11-15",
-            "title": "A tidier Connekyt logo",
-            "items": [
-              {
-                "icon": "image-outline",
-                "title": "The logo now reads as one mark",
-                "body": "The Connekyt symbol and name in the top bar sit close together, so they look like a single logo instead of two separate pieces."
               }
             ]
           }
