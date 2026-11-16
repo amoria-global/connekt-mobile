@@ -150,6 +150,10 @@ import { translate, type TranslationKey } from '@/i18n/translations';
 import { useStackClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { Sheet } from '@/components/ui/Sheet';
+import { resolveHostName } from '@/features/live/hostName';
+import { useGuestWishesFlag } from '@/features/live/appFlags';
+import { mapLiveEventInfo } from '@/features/live/liveEventInfo';
+import { EventTabs, WishesPanel, type LiveTab } from '@/features/live/sections';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
 
 /** The side-rail toggles' "on" state: a white wash over the glass. */
@@ -803,6 +807,9 @@ export default function PublicLiveStreamScreen() {
   // TikTok-style overlay controls: collapse the feed to just its header, or
   // blow the player + chat up to a full-screen immersive view.
   const [chatMinimized, setChatMinimized] = useState(false);
+  // Live chat and Wishes & Memories, as on the web. Behind a remote switch (features/live/appFlags.ts), off until it is read.
+  const [guestTab, setGuestTab] = useState<LiveTab>('live');
+  const guestWishes = useGuestWishesFlag(account?.email ?? null);
   const [chatFullscreen, setChatFullscreen] = useState(false);
   const stageChrome = useAutoHide();
   const reducedMotion = useReducedMotion();
@@ -1629,6 +1636,8 @@ export default function PublicLiveStreamScreen() {
     [event.data?.creator?.firstName, event.data?.creator?.lastName].filter(Boolean).join(' ') ||
     undefined;
   const hostImage = event.data?.creator?.profilePicture;
+  // What the host bar shows. The chat's host badge below keeps comparing against hostName, so it does not move.
+  const hostDisplayName = resolveHostName(event.data);
 
   // Non-live placeholder card (photo finder, upcoming). An ended or cancelled event has its own card below.
   const offlineStageContent = (
@@ -1795,17 +1804,19 @@ export default function PublicLiveStreamScreen() {
           {/* 2. Host bar: live ring, title, Gift and Like (both use the existing handlers). */}
           <HostBar
             title={eventTitle}
-            hostName={hostName}
+            hostName={hostDisplayName}
             hostImage={hostImage}
             live={status.isLive}
             onGift={giftsEnabled ? () => setGiftOpen(true) : undefined}
             onLike={() => onSendReaction('❤️')}
           />
 
-          {/* 3. Live Chat — fills remaining screen below meta */}
+          {guestWishes ? <EventTabs value={guestTab} onChange={setGuestTab} /> : null}
+
+          {/* 3. Live Chat — fills remaining screen below meta. Kept mounted under the wishes tab so chat, gifts and reactions keep running. */}
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.ytChatWrapper}
+            style={[styles.ytChatWrapper, guestWishes && guestTab === 'wishes' ? { display: 'none' } : null]}
           >
             <LiveChatPanel
               layout="youtube"
@@ -1838,6 +1849,19 @@ export default function PublicLiveStreamScreen() {
               onToggleMute={() => setIsMuted((m) => !m)}
             />
           </KeyboardAvoidingView>
+
+          {guestWishes && guestTab === 'wishes' && event.data ? (
+            <View style={{ flex: 1 }}>
+              <WishesPanel
+                eventId={id}
+                title={eventTitle}
+                closed={mapLiveEventInfo(event.data).wishesClosed}
+                viewerId={viewerId}
+                invites={event.data.allowWishInvites}
+                bottomInset={insets.bottom}
+              />
+            </View>
+          ) : null}
         </View>
       ) : (
         // ── NOT LIVE or MINI-PLAYER BROWSE: boxed 16:9 card + details/status below ────
