@@ -237,6 +237,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-16-live-host-name",
+            "date": "2026-11-16",
+            "title": "Live events: the host, and wishes for guests",
+            "items": [
+              {
+                "icon": "person-circle-outline",
+                "title": "The real host name",
+                "body": "A live event now shows the name of the person hosting it, instead of a generic label, on both the live screen and the guest screen."
+              },
+              {
+                "icon": "gift-outline",
+                "title": "Wishes and invites without an account",
+                "body": "Guests watching a live event now have a Wishes & Memories tab beside the live chat. Send a video or text wish, share the invite link or QR code, and read the wishes the host approved."
+              }
+            ]
+          },
+          {
             "id": "2026-11-16-wish-video-fix",
             "date": "2026-11-16",
             "title": "Video wishes send again",
@@ -296,30 +313,6 @@
                 "icon": "image-outline",
                 "title": "The logo now reads as one mark",
                 "body": "The Connekyt symbol and name in the top bar sit close together, so they look like a single logo instead of two separate pieces."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-14-tv-one-tap",
-            "date": "2026-11-14",
-            "title": "Send to your TV in one tap",
-            "items": [
-              {
-                "icon": "tv-outline",
-                "title": "Watch on TV goes straight to your TV",
-                "body": "If you have one TV, or used one before, tapping the TV icon on a live stream sends it there right away. TVs that are on now show as On."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-14-nearby-location",
-            "date": "2026-11-14",
-            "title": "Photographers near you, using your location",
-            "items": [
-              {
-                "icon": "navigate-outline",
-                "title": "The map follows where you are",
-                "body": "When you allow it, the Photographers map centres on your phone's location, like the website does. Clients and photographers only ever see a general area, never your exact position."
               }
             ]
           }

@@ -180,3 +180,22 @@ key from a repository secret.
 Before 2026-09-23 the `production` profile pointed at the internal track, so
 `eas submit --profile production` did not release to production. That is the mistake that
 stranded 2.2.0.
+
+## Preview channel: try a change on internal phones first
+
+The `preview` profile in `eas.json` builds an internal app that reads updates from the `preview` channel, so a change can be
+tried on the owner's phone and QA phones before it goes to the `production` channel. Nothing published here reaches a
+production install.
+
+1. One internal build per platform, only when the natives change (they rarely do):
+   `npx eas-cli build --profile preview --platform android` (an installable APK). iOS needs each QA device registered
+   first: `npx eas-cli device:create`, then `npx eas-cli build --profile preview --platform ios`.
+2. For every change, from a branch that passes the gate (`node scripts/check-ota-compatibility.mjs`) and shares the preview
+   build's runtime version:
+   `npx eas-cli update --branch preview --platform all --message "<what changed>"`
+3. Open the preview app on the phone, let it fetch the update (close and reopen once), and check the change.
+4. Only then take the same commit through the normal `production` path above. Publishing to `production` still needs the
+   owner's go-ahead.
+
+A preview update never carries release notes work: add the release note on the branch as usual so the production publish
+of the same commit is complete.
