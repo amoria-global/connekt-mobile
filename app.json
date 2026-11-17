@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-17-live-chat-fix",
+            "date": "2026-11-17",
+            "title": "Chat on live events works when you are signed in",
+            "items": [
+              {
+                "icon": "chatbubbles-outline",
+                "title": "Your messages are sent",
+                "body": "When you are signed in and watching a live event, the messages you type now reach the chat for everyone. Before, they only showed on your own screen."
+              }
+            ]
+          },
+          {
             "id": "2026-11-17-live-layout",
             "date": "2026-11-17",
             "title": "A cleaner live screen",
@@ -301,18 +313,6 @@
                 "icon": "heart-outline",
                 "title": "Cleaner wish form",
                 "body": "An old error no longer stays on screen while you type your wish."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-16-currency-codes",
-            "date": "2026-11-16",
-            "title": "Amounts show the currency code",
-            "items": [
-              {
-                "icon": "cash-outline",
-                "title": "RWF instead of RF",
-                "body": "Amounts now start with the currency code, such as RWF 5,000, the same way packages and bookings already do. This applies wherever prices, balances and checkout totals are shown."
               }
             ]
           }

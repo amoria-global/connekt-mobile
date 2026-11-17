@@ -1128,6 +1128,19 @@ export async function sendInAppStreamChat(
   }
 }
 
+/**
+ * A signed-in viewer's chat message: POST /customer/events/{eventId}/chats. Any signed-in account may post (the host
+ * too); the server applies the content filter, the 10 a minute limit and the paid-stream rule. The coordinator route
+ * above is only for the event's owner, and the anonymous route needs a guest record, so a signed-in viewer who was not
+ * the owner could not post at all before this.
+ */
+export async function sendViewerStreamChat(eventId: string, message: string): Promise<void> {
+  const res = await api.post<ApiEnvelope<Raw>>(`/customer/events/${encodeURIComponent(eventId)}/chats`, { message });
+  if (res?.action !== 1) {
+    throw { status: 400, message: res?.message || 'Could not send message.' };
+  }
+}
+
 // --- Stream history: chats, video messages, delete (web dashboard parity) -----------------------------------------
 // The web Streams page (app/pages/client/streams.tsx) is the reference: per stream it reads the chat history from the
 // role's own endpoint, splits it into text and video messages, enriches the card from the public event, and lets the
