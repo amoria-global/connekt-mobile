@@ -237,6 +237,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-17-live-layout",
+            "date": "2026-11-17",
+            "title": "A cleaner live screen",
+            "items": [
+              {
+                "icon": "ellipsis-horizontal-circle-outline",
+                "title": "Everything in one More menu",
+                "body": "Tap the three dots on the video to watch on TV, share the live with a QR code, or invite viewers when the host allows it."
+              },
+              {
+                "icon": "qr-code-outline",
+                "title": "Share with a QR code",
+                "body": "A share card shows the event, a QR code anyone can scan, and quick buttons for WhatsApp, other apps, saving the QR and your TV."
+              },
+              {
+                "icon": "person-circle-outline",
+                "title": "Host, Gift and Like under the video",
+                "body": "The host and the title sit right under the video, with Gift and Like next to them."
+              }
+            ]
+          },
+          {
             "id": "2026-11-16-guest-tv",
             "date": "2026-11-16",
             "title": "Watch a live event on your TV",
@@ -291,28 +313,6 @@
                 "icon": "cash-outline",
                 "title": "RWF instead of RF",
                 "body": "Amounts now start with the currency code, such as RWF 5,000, the same way packages and bookings already do. This applies wherever prices, balances and checkout totals are shown."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-15-my-packages",
-            "date": "2026-11-15",
-            "title": "A clearer My packages screen",
-            "items": [
-              {
-                "icon": "layers-outline",
-                "title": "Packages are easier to scan and manage",
-                "body": "Prices now show with their currency code, such as RWF 100,000, and counts read correctly, like 1 video. One New package button and an All, Indoor, Outdoor filter replace the three action cards."
-              },
-              {
-                "icon": "trash-outline",
-                "title": "Deleting a package is safer",
-                "body": "Delete now lives in the more menu, names the package before it goes, and shows a clear message with Try again if it fails, instead of hiding the package from your list."
-              },
-              {
-                "icon": "pricetag-outline",
-                "title": "A package from a brochure never gets a made-up price",
-                "body": "If a brochure has no price for a package, it now shows Price needed and cannot be published until you enter one. A failed publish also stops safely and shows Try again, instead of repeating itself."
               }
             ]
           }

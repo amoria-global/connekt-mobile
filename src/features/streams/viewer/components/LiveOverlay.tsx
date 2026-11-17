@@ -42,6 +42,8 @@ type Props = {
   /** Section 2 extras: the Free / Ticket chip next to the LIVE badge, and the live scrubber between the controls. */
   accessChip?: ReactNode;
   scrubber?: ReactNode;
+  /** Extra buttons before More in the top bar (the live layout puts Watch on TV here). */
+  topExtra?: ReactNode;
   /** Hide the in-video Back when the page has its own header above the player. Default shown. */
   showBack?: boolean;
   viewerCount: number | null;
@@ -86,6 +88,7 @@ export const LiveOverlay = memo(function LiveOverlay(p: Props) {
         </View>
         <View style={styles.right}>
           {p.fullscreen ? <RoundButton icon="share-social-outline" label="Share stream" onPress={p.onShare} /> : null}
+          {p.topExtra}
           <RoundButton icon="ellipsis-vertical" label="More options" onPress={p.onMore} />
         </View>
       </View>

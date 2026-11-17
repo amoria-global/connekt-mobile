@@ -1,4 +1,4 @@
-import { guestWishesOn, parseMode } from './appFlags';
+import { flagOn, guestWishesOn, parseMode } from './appFlags';
 
 describe('guest wishes remote switch', () => {
   it('is off for anything that is not allowlist or all', () => {
@@ -30,5 +30,20 @@ describe('guest wishes remote switch', () => {
 
   it('all shows it to everyone, guests included', () => {
     expect(guestWishesOn({ liveGuestWishes: { mode: 'all' } }, null)).toBe(true);
+  });
+});
+
+describe('live viewer layout switch', () => {
+  it('is read on its own key, independent of the guest wishes switch', () => {
+    const flags = { liveGuestWishes: { mode: 'all' }, liveViewerV2: { mode: 'off' } };
+    expect(flagOn(flags, 'liveGuestWishes', null)).toBe(true);
+    expect(flagOn(flags, 'liveViewerV2', null)).toBe(false);
+  });
+
+  it('allowlist reaches only listed accounts; all reaches guests too; missing is off', () => {
+    expect(flagOn({ liveViewerV2: { mode: 'allowlist', allowlist: ['qa+viewer1@amoriaglobal.com'] } }, 'liveViewerV2', 'QA+viewer1@amoriaglobal.com')).toBe(true);
+    expect(flagOn({ liveViewerV2: { mode: 'allowlist', allowlist: ['qa+viewer1@amoriaglobal.com'] } }, 'liveViewerV2', null)).toBe(false);
+    expect(flagOn({ liveViewerV2: { mode: 'all' } }, 'liveViewerV2', null)).toBe(true);
+    expect(flagOn({}, 'liveViewerV2', 'a@b.c')).toBe(false);
   });
 });
