@@ -17,7 +17,6 @@ import { V } from '@/features/streams/viewer/viewerTheme';
  * the sheet leads to the pairing screen.
  */
 export const WatchOnTv = memo(function WatchOnTv({ eventId, title }: { eventId: string; title: string }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   return (
@@ -25,24 +24,31 @@ export const WatchOnTv = memo(function WatchOnTv({ eventId, title }: { eventId: 
       <Pressable onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel="Watch on TV" style={s.icon}>
         <Ionicons name="tv-outline" size={20} color={V.text} />
       </Pressable>
-      {open ? (
-        <TvPickerSheet
-          eventId={eventId}
-          title={title}
-          onClose={() => setOpen(false)}
-          onConnect={() => {
-            setOpen(false);
-            router.push('/connect-to-tv' as Href);
-          }}
-          onSignIn={() => {
-            setOpen(false);
-            router.push('/login' as Href);
-          }}
-        />
-      ) : null}
+      <WatchOnTvSheet eventId={eventId} title={title} visible={open} onClose={() => setOpen(false)} />
     </>
   );
 });
+
+/** The same TV picker, opened from somewhere else (the live screen's More sheet). */
+export function WatchOnTvSheet({ eventId, title, visible, onClose }: { eventId: string; title: string; visible: boolean; onClose: () => void }) {
+  const router = useRouter();
+  if (!visible) return null;
+  return (
+    <TvPickerSheet
+      eventId={eventId}
+      title={title}
+      onClose={onClose}
+      onConnect={() => {
+        onClose();
+        router.push('/connect-to-tv' as Href);
+      }}
+      onSignIn={() => {
+        onClose();
+        router.push('/login' as Href);
+      }}
+    />
+  );
+}
 
 type Load = { state: 'loading' } | { state: 'error'; message: string } | { state: 'ready'; devices: TvDevice[] };
 
