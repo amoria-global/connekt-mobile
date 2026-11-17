@@ -2,13 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import {
   listStreamChats,
-  sendInAppStreamChat,
   sendPublicStreamChat,
+  sendViewerStreamChat,
   sendPublicStreamReaction,
   type StreamChat,
 } from '@/features/streams/api';
 import { parseGiftMeta, type GiftEvent } from '@/features/streams/gifting/GiftOverlay';
-import { useRole } from '@/features/auth/role';
 import { useAuth, isApiError } from '@/store/auth';
 import { getDeviceId } from '@/utils/deviceId';
 import type { ChatConnection } from '../types';
@@ -25,7 +24,6 @@ const FAILURES_BEFORE_UNAVAILABLE = 3;
  */
 export function useStreamChat(eventId: string | undefined) {
   const user = useAuth((s) => s.user);
-  const { isCoordinator } = useRole();
   const [chats, setChats] = useState<StreamChat[]>([]);
   const [giftEvents, setGiftEvents] = useState<GiftEvent[]>([]);
   const [giftCount, setGiftCount] = useState(0);
@@ -91,11 +89,13 @@ export function useStreamChat(eventId: string | undefined) {
         const senderName = user
           ? `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email || 'You'
           : 'You';
-        if (isCoordinator) {
-          await sendInAppStreamChat(eventId, msg);
+        if (user?.customerId) {
+          // Signed in: post as the account. The owner route only accepted the event's owner, and the anonymous route
+          // below refused an account id, so a signed-in viewer's message was never saved.
+          await sendViewerStreamChat(eventId, msg);
         } else {
           const fp = await getDeviceId().catch(() => 'device-client');
-          const viewerId = user?.customerId ? String(user.customerId) : 'viewer';
+          const viewerId = 'viewer';
           await sendPublicStreamChat(eventId, { viewerId, deviceFingerprint: fp, message: msg });
         }
         setChats((prev) =>
@@ -117,7 +117,7 @@ export function useStreamChat(eventId: string | undefined) {
         setSending(false);
       }
     },
-    [eventId, user, isCoordinator],
+    [eventId, user],
   );
 
   const sendReaction = useCallback(
