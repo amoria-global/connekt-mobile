@@ -510,14 +510,6 @@ export default function NewPackageScreen() {
 
   const handleProceedToStep3 = () => {
     setServerError(null);
-    const hasDeliveryPolicy =
-      Boolean(studioDeliveryPolicy.trim()) ||
-      extractedDrafts.some((d) => Boolean(d.deliveryPolicy && d.deliveryPolicy.trim()));
-    if (!hasDeliveryPolicy) {
-      setServerError('Delivery Policy is required. Please add your delivery policy to continue.');
-      setPolicyModalTarget('studio');
-      return;
-    }
     const unpriced = draftsMissingPrice(extractedDrafts);
     if (unpriced.length > 0) {
       setServerError(tp(t as never, 'b2_pkgl_priceNeededBlock', unpriced.length));
@@ -529,14 +521,6 @@ export default function NewPackageScreen() {
   // ───────── Publish Batch in Step 3 ─────────
   const handlePublishBatch = async () => {
     setServerError(null);
-    const hasDeliveryPolicy =
-      Boolean(studioDeliveryPolicy.trim()) ||
-      extractedDrafts.some((d) => Boolean(d.deliveryPolicy && d.deliveryPolicy.trim()));
-    if (!hasDeliveryPolicy) {
-      setServerError('Delivery Policy is required before publishing.');
-      setPolicyModalTarget('studio');
-      return;
-    }
     const resolvedCurrencyId =
       currencyId || currencies.data?.[0]?.id || extractedDrafts.find((d) => d.currencyId)?.currencyId;
     if (!resolvedCurrencyId) {
@@ -617,11 +601,6 @@ export default function NewPackageScreen() {
   // ───────── Submit Manual Custom Package ─────────
   const handleManualSubmit = async () => {
     setServerError(null);
-    if (!manualDeliveryPolicy.trim()) {
-      setServerError('Delivery Policy is required. Please add your delivery policy.');
-      setPolicyModalTarget('manual');
-      return;
-    }
     const resolvedCurrencyId = currencyId || currencies.data?.[0]?.id;
     if (!resolvedCurrencyId) {
       setServerError(t('b2_pkgNewErrCurrency'));
@@ -708,7 +687,7 @@ export default function NewPackageScreen() {
 
     return (
       <View style={styles.stageActionTriggersRow}>
-        {/* 1. REQUIRED: Add Delivery Policy Button (Opens Delivery Policy Modal) */}
+        {/* 1. Add Delivery Policy Button (Opens Delivery Policy Modal) */}
         <Pressable
           onPress={() => {
             setServerError(null);
@@ -716,7 +695,7 @@ export default function NewPackageScreen() {
           }}
           style={[
             styles.stageTriggerCard,
-            hasDelivery ? styles.stageTriggerCardDone : styles.stageTriggerCardRequired,
+            hasDelivery && styles.stageTriggerCardDone,
           ]}
           accessibilityRole="button"
           testID={`open-delivery-policy-modal-${target}`}
@@ -724,15 +703,15 @@ export default function NewPackageScreen() {
           <View style={styles.rowBetween}>
             <View style={styles.stageTriggerIconWrap}>
               <Ionicons
-                name={hasDelivery ? 'shield-checkmark' : 'alert-circle'}
+                name={hasDelivery ? 'shield-checkmark' : 'shield-checkmark-outline'}
                 size={18}
-                color={hasDelivery ? colors.primary : colors.error}
+                color={hasDelivery ? colors.primary : colors.textSoft}
               />
             </View>
             <View
               style={[
                 styles.stageTriggerBadge,
-                hasDelivery ? styles.stageTriggerBadgeSaved : styles.stageTriggerBadgeRequired,
+                hasDelivery ? styles.stageTriggerBadgeSaved : styles.stageTriggerBadgeNeutral,
               ]}
             >
               <Text
@@ -740,14 +719,14 @@ export default function NewPackageScreen() {
                   styles.stageTriggerBadgeText,
                   hasDelivery
                     ? styles.stageTriggerBadgeTextSaved
-                    : styles.stageTriggerBadgeTextRequired,
+                    : styles.stageTriggerBadgeTextNeutral,
                 ]}
               >
                 {hasDelivery
                   ? isStudio && policyReadFromMenu
                     ? '✓ FROM MENU'
                     : '✓ SAVED'
-                  : 'REQUIRED'}
+                  : 'OPTIONAL'}
               </Text>
             </View>
           </View>
@@ -757,7 +736,7 @@ export default function NewPackageScreen() {
           <Text style={styles.stageTriggerSub} numberOfLines={1}>
             {hasDelivery
               ? `${deliveryVal}${otherList.length > 0 ? ` (+${otherList.length} more)` : ''}`
-              : 'Required · Tap to set turnaround & rules'}
+              : 'Tap to add delivery & studio rules'}
           </Text>
         </Pressable>
 
@@ -802,7 +781,7 @@ export default function NewPackageScreen() {
                   ? `DRONE ON · +${Math.round(droneAddon.price / 1000)}K`
                   : activeAddons.length > 0
                     ? `${activeAddons.length} ACTIVE`
-                    : 'ADD-ONS'}
+                    : 'OPTIONAL'}
               </Text>
             </View>
           </View>
@@ -949,7 +928,7 @@ export default function NewPackageScreen() {
 
     return (
       <>
-        {/* ─── MODAL 1: DELIVERY POLICY & STUDIO RULES (REQUIRED) ─── */}
+        {/* ─── MODAL 1: DELIVERY POLICY & STUDIO RULES (OPTIONAL) ─── */}
         <Modal
           visible={policyModalTarget !== null}
           transparent
@@ -962,8 +941,10 @@ export default function NewPackageScreen() {
                 <View style={styles.tierTitleRow}>
                   <Ionicons name="shield-checkmark" size={20} color={colors.primary} />
                   <Text style={styles.sectionTitle}>Delivery Policy</Text>
-                  <View style={styles.stageTriggerBadgeRequired}>
-                    <Text style={styles.stageTriggerBadgeTextRequired}>REQUIRED</Text>
+                  <View style={[styles.stageTriggerBadge, styles.stageTriggerBadgeNeutral]}>
+                    <Text style={[styles.stageTriggerBadgeText, styles.stageTriggerBadgeTextNeutral]}>
+                      OPTIONAL
+                    </Text>
                   </View>
                 </View>
                 <Pressable onPress={() => setPolicyModalTarget(null)} hitSlop={8}>
@@ -978,7 +959,7 @@ export default function NewPackageScreen() {
                 showsVerticalScrollIndicator={false}
               >
                 <Input
-                  label="Delivery Turnaround Policy *"
+                  label="Delivery Turnaround Policy"
                   placeholder="e.g. Delivery in 5–7 days via online gallery"
                   value={deliveryVal}
                   onChangeText={setDeliveryVal}
@@ -1087,9 +1068,6 @@ export default function NewPackageScreen() {
               <Button
                 title="Save Delivery Policy"
                 onPress={() => {
-                  if (!deliveryVal.trim()) {
-                    setDeliveryVal(QUICK_DELIVERY_POLICY_PRESETS[0]);
-                  }
                   setServerError(null);
                   setPolicyModalTarget(null);
                 }}
