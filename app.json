@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-17-fainter-watermark",
+            "date": "2026-11-17",
+            "title": "A fainter watermark on live video",
+            "items": [
+              {
+                "icon": "eye-outline",
+                "title": "The picture comes first",
+                "body": "The Connekyt watermark on live video is now fainter, so it gets out of the way of what you are watching."
+              }
+            ]
+          },
+          {
             "id": "2026-11-17-live-chat-fix",
             "date": "2026-11-17",
             "title": "Chat on live events works when you are signed in",
@@ -296,23 +308,6 @@
                 "icon": "gift-outline",
                 "title": "Wishes and invites without an account",
                 "body": "Guests watching a live event now have a Wishes & Memories tab beside the live chat. Send a video or text wish, share the invite link or QR code, and read the wishes the host approved."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-16-wish-video-fix",
-            "date": "2026-11-16",
-            "title": "Video wishes send again",
-            "items": [
-              {
-                "icon": "videocam-outline",
-                "title": "Send a video wish",
-                "body": "Recording a one-minute video wish no longer fails with a message about reading a photo. The clip now uploads straight from your phone."
-              },
-              {
-                "icon": "heart-outline",
-                "title": "Cleaner wish form",
-                "body": "An old error no longer stays on screen while you type your wish."
               }
             ]
           }
