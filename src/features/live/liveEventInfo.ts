@@ -9,7 +9,7 @@ import type { PublicEvent } from '@/features/events/types';
 import type { EventAccess } from './sections/LivePlayer';
 import { resolveHostName } from './hostName';
 
-export type LiveEventInfo = { tagline?: string; location?: string; access: EventAccess; wishesClosed: boolean; allowWishInvites?: boolean; hostName: string };
+export type LiveEventInfo = { tagline?: string; location?: string; access: EventAccess; wishesClosed: boolean; allowWishInvites?: boolean; hostName: string; coverUrl?: string; hostAvatar?: string };
 
 const CLOSED = new Set(['COMPLETED', 'AWAITING_REVIEW', 'CANCELLED', 'ENDED']);
 
@@ -21,7 +21,7 @@ export function taglineOf(description?: string): string | undefined {
   return first.length > 140 ? `${first.slice(0, 137).trimEnd()}...` : first;
 }
 
-export function mapLiveEventInfo(e: Pick<PublicEvent, 'description' | 'location' | 'streamFee' | 'eventStatus' | 'allowWishInvites' | 'creator' | 'eventOrganizer' | 'photographerName'>): LiveEventInfo {
+export function mapLiveEventInfo(e: Pick<PublicEvent, 'description' | 'location' | 'streamFee' | 'eventStatus' | 'allowWishInvites' | 'creator' | 'eventOrganizer' | 'photographerName'> & { eventPhoto?: string }): LiveEventInfo {
   return {
     hostName: resolveHostName(e),
     tagline: taglineOf(e.description),
@@ -29,6 +29,8 @@ export function mapLiveEventInfo(e: Pick<PublicEvent, 'description' | 'location'
     access: typeof e.streamFee === 'number' && e.streamFee > 0 ? 'ticket' : 'free',
     wishesClosed: CLOSED.has(String(e.eventStatus ?? '').toUpperCase()),
     allowWishInvites: e.allowWishInvites,
+    coverUrl: e.eventPhoto?.trim() || undefined,
+    hostAvatar: (e.creator as { profilePicture?: string | null } | undefined)?.profilePicture?.trim() || undefined,
   };
 }
 

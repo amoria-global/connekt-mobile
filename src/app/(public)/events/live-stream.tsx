@@ -151,7 +151,12 @@ import { useStackClearance } from '@/hooks/useScrollClearance';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
 import { Sheet } from '@/components/ui/Sheet';
 import { resolveHostName } from '@/features/live/hostName';
-import { useGuestWishesFlag } from '@/features/live/appFlags';
+import { useAppFlag, useGuestWishesFlag } from '@/features/live/appFlags';
+import { LiveMoreSheet } from '@/features/live/v2/LiveMoreSheet';
+import { LiveQrCard } from '@/features/live/v2/LiveQrCard';
+import { WatchOnTvSheet } from '@/features/live/sections';
+import { RoundButton } from '@/features/streams/viewer/components/LiveOverlay';
+import { buildStreamShareUrl } from '@/features/streams/viewer/utils';
 import { mapLiveEventInfo } from '@/features/live/liveEventInfo';
 import { EventTabs, WatchOnTv, WishesPanel, type LiveTab } from '@/features/live/sections';
 const tr = (k: TranslationKey) => translate(useLanguage.getState().language, k);
@@ -810,6 +815,9 @@ export default function PublicLiveStreamScreen() {
   // Live chat and Wishes & Memories, as on the web. Behind a remote switch (features/live/appFlags.ts), off until it is read.
   const [guestTab, setGuestTab] = useState<LiveTab>('live');
   const guestWishes = useGuestWishesFlag(account?.email ?? null);
+  // The new live layout's More sheet and QR card. Remote switch, off unless app-flags.json turns it on.
+  const liveV2 = useAppFlag('liveViewerV2', account?.email ?? null);
+  const [v2Sheet, setV2Sheet] = useState<null | 'more' | 'qr' | 'tv'>(null);
   const [chatFullscreen, setChatFullscreen] = useState(false);
   const stageChrome = useAutoHide();
   const reducedMotion = useReducedMotion();
@@ -1765,7 +1773,16 @@ export default function PublicLiveStreamScreen() {
                   onFullscreen={enterFullscreen}
                   onDonate={onDonate}
                   onTouch={stageChrome.show}
-                  topRight={status.isLive ? <WatchOnTv eventId={id} title={eventTitle} /> : undefined}
+                  topRight={
+                    liveV2 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        {status.isLive ? <WatchOnTv eventId={id} title={eventTitle} /> : null}
+                        <RoundButton icon="ellipsis-horizontal" label="More" onPress={() => setV2Sheet('more')} />
+                      </View>
+                    ) : status.isLive ? (
+                      <WatchOnTv eventId={id} title={eventTitle} />
+                    ) : undefined
+                  }
                 />
               ) : null}
             </View>
@@ -1813,6 +1830,30 @@ export default function PublicLiveStreamScreen() {
           />
 
           {guestWishes ? <EventTabs value={guestTab} onChange={setGuestTab} /> : null}
+
+          {liveV2 && id ? (
+            <>
+              <LiveMoreSheet
+                visible={v2Sheet === 'more'}
+                onClose={() => setV2Sheet(null)}
+                reducedMotion={false}
+                onTv={() => setV2Sheet('tv')}
+                onQr={() => setV2Sheet('qr')}
+                onInvite={guestWishes && event.data?.allowWishInvites ? () => setGuestTab('wishes') : undefined}
+              />
+              <LiveQrCard
+                visible={v2Sheet === 'qr'}
+                onClose={() => setV2Sheet(null)}
+                eventId={id}
+                title={eventTitle}
+                link={buildStreamShareUrl(id)}
+                cover={event.data?.eventPhoto}
+                live={status.isLive}
+                onTv={() => setV2Sheet('tv')}
+              />
+              <WatchOnTvSheet eventId={id} title={eventTitle} visible={v2Sheet === 'tv'} onClose={() => setV2Sheet(null)} />
+            </>
+          ) : null}
 
           {/* 3. Live Chat — fills remaining screen below meta. Kept mounted under the wishes tab so chat, gifts and reactions keep running. */}
           <KeyboardAvoidingView

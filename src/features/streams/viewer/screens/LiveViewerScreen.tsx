@@ -35,6 +35,14 @@ import { ReactionOverlay, ReactionRail } from '../components/ReactionOverlay';
 import { ShareSheet } from '../components/ShareSheet';
 import { EventHeader, EventInfo, EventTabs, LivePlayer, WishesPanel, WatchOnTv, AccessChip, LiveScrubber, type LiveTab } from '@/features/live/sections';
 import { useLiveEventInfo } from '@/features/live/liveEventInfo';
+import { useAppFlag } from '@/features/live/appFlags';
+import { LiveHostRow } from '@/features/live/v2/LiveHostRow';
+import { LiveMoreSheet } from '@/features/live/v2/LiveMoreSheet';
+import { LiveQrCard } from '@/features/live/v2/LiveQrCard';
+import { WatchOnTvSheet } from '@/features/live/sections';
+import { useAuth } from '@/store/auth';
+import { buildStreamShareUrl } from '../utils';
+import { RoundButton } from '../components/LiveOverlay';
 import { StreamStateOverlay } from '../components/StreamStateOverlay';
 import { ViewerError, ViewerSkeleton } from '../components/ViewerStates';
 
@@ -69,6 +77,9 @@ export default function LiveViewerScreen() {
   const { items: floating, burst } = useFloatingReactions(reduced);
 
   const eventInfo = useLiveEventInfo(pb.data?.eventId);
+  // The new live layout (reference: one screen for app and web). Remote switch, off unless app-flags.json turns it on.
+  const v2 = useAppFlag('liveViewerV2', useAuth((a) => a.user?.email ?? null));
+  const [v2Sheet, setV2Sheet] = useState<null | 'more' | 'qr' | 'tv'>(null);
   const [tab, setTab] = useState<LiveTab>('live');
   const [ui, dispatch] = useReducer(uiReducer, initialUI);
   const [mode, setMode] = useState<ChatMode>('all');
@@ -246,11 +257,12 @@ export default function LiveViewerScreen() {
         playing={pb.playing}
         fullscreen={fs}
         canControl={canControl}
-        showBack={fs}
-        accessChip={eventInfo ? <AccessChip access={eventInfo.access} /> : undefined}
+        showBack={fs || v2}
+        accessChip={eventInfo && !v2 ? <AccessChip access={eventInfo.access} /> : undefined}
+        topExtra={v2 && !fs && model.eventId ? <RoundButton icon="tv-outline" label="Watch on TV" onPress={() => setV2Sheet('tv')} /> : undefined}
         scrubber={<LiveScrubber atLive={model.isLive && pb.phase === 'playing'} onGoLive={() => { if (!(model.isLive && pb.phase === 'playing')) pb.retry(); }} />}
         onBack={fs ? exitFullscreen : goBack}
-        onMore={openOptions}
+        onMore={v2 ? () => setV2Sheet('more') : openOptions}
         onShare={openShare}
         onToggleMute={pb.toggleMute}
         onTogglePlay={pb.togglePlay}
@@ -279,6 +291,30 @@ export default function LiveViewerScreen() {
         onRefresh={pb.retry}
         onGift={openGift}
       />
+      {v2 && model.eventId ? (
+        <>
+          <LiveMoreSheet
+            visible={v2Sheet === 'more'}
+            onClose={() => setV2Sheet(null)}
+            reducedMotion={reduced}
+            onTv={() => setV2Sheet('tv')}
+            onQr={() => setV2Sheet('qr')}
+            onInvite={eventInfo?.allowWishInvites ? () => setTab('wishes') : undefined}
+            onRefresh={pb.retry}
+          />
+          <LiveQrCard
+            visible={v2Sheet === 'qr'}
+            onClose={() => setV2Sheet(null)}
+            eventId={model.eventId}
+            title={model.title}
+            link={buildStreamShareUrl(model.eventId)}
+            cover={eventInfo?.coverUrl}
+            live={model.isLive && pb.phase !== 'ended'}
+            onTv={() => setV2Sheet('tv')}
+          />
+          <WatchOnTvSheet eventId={model.eventId} title={model.title} visible={v2Sheet === 'tv'} onClose={() => setV2Sheet(null)} />
+        </>
+      ) : null}
       <GiftTray
         visible={giftTray}
         onClose={() => setGiftTray(false)}
@@ -340,7 +376,17 @@ export default function LiveViewerScreen() {
   );
 
   const watchOnTv = model.eventId ? <WatchOnTv eventId={model.eventId} title={model.title} /> : undefined;
-  const info = (
+  const info = v2 ? (
+    <LiveHostRow
+      title={model.title}
+      hostName={eventInfo?.hostName ?? model.creatorName}
+      avatar={eventInfo?.hostAvatar}
+      live={model.isLive && pb.phase !== 'ended'}
+      viewerCount={model.viewerCount}
+      onGift={giftsEnabled ? openGift : undefined}
+      onLike={() => react('heart')}
+    />
+  ) : (
     <EventInfo
       title={model.title}
       tagline={eventInfo?.tagline}
@@ -390,8 +436,8 @@ export default function LiveViewerScreen() {
     >
       <Stack.Screen options={{ headerShown: false }} />
       <StatusBar style="light" />
-      {keyboardUp ? null : <EventHeader title={model.title} onBack={goBack} onShare={openShare} topInset={insets.top} extra={watchOnTv} />}
-      <LivePlayer topInset={keyboardUp ? insets.top : 0}>{video}</LivePlayer>
+      {keyboardUp || v2 ? null : <EventHeader title={model.title} onBack={goBack} onShare={openShare} topInset={insets.top} extra={watchOnTv} />}
+      <LivePlayer topInset={keyboardUp || v2 ? insets.top : 0}>{video}</LivePlayer>
       {keyboardUp ? null : (
         <>
           {info}
