@@ -53,7 +53,15 @@ const EN = {
     "confirm": "Confirm",
     "cancel": "Cancel",
     "saved": "Referral code saved",
-    "shareMessage": "Join me on Connekyt. Use my referral code {code}: {link}"
+    "shareMessage": "Join me on Connekyt. Use my referral code {code}: {link}",
+    "cardTitle": "Share & invite",
+    "chipAlbum": "Album",
+    "chipProfile": "Profile",
+    "chipReferral": "Referral",
+    "badgeLower": "Lower fees",
+    "badgeFee": "Your fee: {fee}%",
+    "subAlbum": "Send an album link to your clients",
+    "subReferral": "Invite photographers, lower your fee"
   },
   "policy": {
     "title": "Connekyt Photographer Referral Program",
@@ -185,7 +193,15 @@ export const REFERRAL_I18N: Record<string, ReferralStrings> = {
       "confirm": "Thibitisha",
       "cancel": "Ghairi",
       "saved": "Msimbo wa rufaa umehifadhiwa",
-      "shareMessage": "Jiunge nami kwenye Connekyt. Tumia msimbo wangu wa rufaa {code}: {link}"
+      "shareMessage": "Jiunge nami kwenye Connekyt. Tumia msimbo wangu wa rufaa {code}: {link}",
+      "cardTitle": "Shiriki na ualike",
+      "chipAlbum": "Albamu",
+      "chipProfile": "Wasifu",
+      "chipReferral": "Rufaa",
+      "badgeLower": "Ada ndogo",
+      "badgeFee": "Ada yako: {fee}%",
+      "subAlbum": "Tuma kiungo cha albamu kwa wateja wako",
+      "subReferral": "Alika wapigapicha, punguza ada yako"
     },
     "policy": {
       "title": "Mpango wa Rufaa wa Wapigapicha wa Connekyt",
@@ -315,7 +331,15 @@ export const REFERRAL_I18N: Record<string, ReferralStrings> = {
       "confirm": "Emeza",
       "cancel": "Reka",
       "saved": "Kode yo gutumira yabitswe",
-      "shareMessage": "Twifatanye kuri Connekyt. Koresha kode yanjye {code}: {link}"
+      "shareMessage": "Twifatanye kuri Connekyt. Koresha kode yanjye {code}: {link}",
+      "cardTitle": "Sangiza no gutumira",
+      "chipAlbum": "Alubumu",
+      "chipProfile": "Profili",
+      "chipReferral": "Gutumira",
+      "badgeLower": "Igiciro gito",
+      "badgeFee": "Igiciro cyawe: {fee}%",
+      "subAlbum": "Ohereza link ya alubumu ku bakiriya bawe",
+      "subReferral": "Tumira abafotozi, ugabanye igiciro"
     },
     "policy": {
       "title": "Gahunda ya Connekyt yo Gutumira Abafotozi",
@@ -445,7 +469,15 @@ export const REFERRAL_I18N: Record<string, ReferralStrings> = {
       "confirm": "Confirmer",
       "cancel": "Annuler",
       "saved": "Code de parrainage enregistré",
-      "shareMessage": "Rejoignez-moi sur Connekyt. Utilisez mon code de parrainage {code} : {link}"
+      "shareMessage": "Rejoignez-moi sur Connekyt. Utilisez mon code de parrainage {code} : {link}",
+      "cardTitle": "Partager et inviter",
+      "chipAlbum": "Album",
+      "chipProfile": "Profil",
+      "chipReferral": "Parrainage",
+      "badgeLower": "Frais réduits",
+      "badgeFee": "Vos frais : {fee} %",
+      "subAlbum": "Envoyez un lien d’album à vos clients",
+      "subReferral": "Invitez des photographes, baissez vos frais"
     },
     "policy": {
       "title": "Programme de parrainage des photographes Connekyt",
@@ -575,7 +607,15 @@ export const REFERRAL_I18N: Record<string, ReferralStrings> = {
       "confirm": "Confirmar",
       "cancel": "Cancelar",
       "saved": "Código de referido guardado",
-      "shareMessage": "Únete a mí en Connekyt. Usa mi código de referido {code}: {link}"
+      "shareMessage": "Únete a mí en Connekyt. Usa mi código de referido {code}: {link}",
+      "cardTitle": "Compartir e invitar",
+      "chipAlbum": "Álbum",
+      "chipProfile": "Perfil",
+      "chipReferral": "Referido",
+      "badgeLower": "Comisión menor",
+      "badgeFee": "Tu comisión: {fee} %",
+      "subAlbum": "Envía un enlace de álbum a tus clientes",
+      "subReferral": "Invita fotógrafos, reduce tu comisión"
     },
     "policy": {
       "title": "Programa de referidos para fotógrafos de Connekyt",
