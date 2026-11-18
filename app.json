@@ -237,6 +237,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-18-share-invite",
+            "date": "2026-11-18",
+            "title": "One card to share and invite",
+            "items": [
+              {
+                "icon": "share-social-outline",
+                "title": "Share and invite in one place",
+                "body": "The Share card on Home now says what is inside: your album, your profile and your referral code. Tap anywhere on the card to open it."
+              },
+              {
+                "icon": "gift-outline",
+                "title": "See your fee at a glance",
+                "body": "The card shows your current platform fee once you reach 5 referrals, and the sheet shows your progress toward the next level."
+              }
+            ]
+          },
+          {
             "id": "2026-11-18-referral-program",
             "date": "2026-11-18",
             "title": "Refer photographers and lower your fee",
@@ -296,18 +313,6 @@
                 "icon": "person-circle-outline",
                 "title": "Host, Gift and Like under the video",
                 "body": "The host and the title sit right under the video, with Gift and Like next to them."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-16-guest-tv",
-            "date": "2026-11-16",
-            "title": "Watch a live event on your TV",
-            "items": [
-              {
-                "icon": "tv-outline",
-                "title": "Watch on TV for everyone",
-                "body": "The live screen now has a Watch on TV button at the top right of the video, also when you are not signed in. Tap it to send the live to a paired TV, or sign in to pair one."
               }
             ]
           }

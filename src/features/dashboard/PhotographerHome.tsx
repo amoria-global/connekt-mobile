@@ -71,6 +71,7 @@ import { useAsync } from '@/hooks/useAsync';
 import { useCurrency } from '@/store/currency';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { ShareMenuSheet } from '@/features/referral/ShareMenuSheet';
+import { ShareInviteCard, type CardStats } from '@/features/referral/ShareInviteCard';
 import { ReferralSheet } from '@/features/referral/ReferralSheet';
 import { fetchMyReferral } from '@/features/referral/referral';
 import { formatDate } from '@/utils/format';
@@ -290,7 +291,6 @@ export function PhotographerHome() {
   const upcomingCount = useMemo(() => eventList.filter((e) => bucketOf(e) === 'upcoming').length, [eventList]);
   const ongoingCount = useMemo(() => eventList.filter((e) => bucketOf(e) === 'ongoing').length, [eventList]);
   const profileUrl = useAsync(useCallback(() => photographerProfileUrl(user?.customerId), [user?.customerId]));
-  const profileHost = (profileUrl.data ?? env.webBaseUrl).replace(/^https?:\/\//, '').replace(/\/+$/, '');
 
   // ── Business ─────────────────────────────────────────────────────────────
   const a = analytics.data;
@@ -319,11 +319,12 @@ export function PhotographerHome() {
   // The Share button opens a menu: album, profile, referral. The referral item is hidden for good at 20 referrals.
   const [shareMenu, setShareMenu] = useState(false);
   const [referralSheet, setReferralSheet] = useState(false);
-  const [referralDone, setReferralDone] = useState(false);
+  const [referralStats, setReferralStats] = useState<CardStats>(null);
+  const referralDone = referralStats?.complete === true;
   useEffect(() => {
     if (isShared) return;
     let alive = true;
-    fetchMyReferral().then((r) => { if (alive) setReferralDone(r.complete); }).catch(() => {});
+    fetchMyReferral().then((r) => { if (alive) setReferralStats({ qualifying: r.qualifying, feePercent: r.feePercent, complete: r.complete }); }).catch(() => {});
     return () => { alive = false; };
   }, [isShared]);
   const privacyLabel = hidden ? 'Show amounts' : 'Hide amounts';
@@ -339,6 +340,8 @@ export function PhotographerHome() {
         onProfile={shareProfile}
         onReferral={() => setReferralSheet(true)}
         referralHidden={referralDone || isCollab}
+        profileUrl={profileUrl.data ?? env.webBaseUrl}
+        qualifying={referralStats ? referralStats.qualifying : null}
       />
       <ReferralSheet
         visible={referralSheet}
@@ -477,16 +480,7 @@ export function PhotographerHome() {
             />
           )}
           {isCollab ? null : (
-          <ActionRow
-            icon="share-social-outline"
-            tone="primary"
-            title={tr('Share profile')}
-            caption={profileHost}
-            actionLabel="Share"
-            actionIcon="share-outline"
-            onAction={() => setShareMenu(true)}
-            accessibilityLabel={tr('Share profile')}
-          />
+          <ShareInviteCard stats={referralStats} onPress={() => setShareMenu(true)} />
           )}
         </View>
         <View style={[styles.gutter, styles.cta]}>
