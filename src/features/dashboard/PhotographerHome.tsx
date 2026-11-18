@@ -26,7 +26,7 @@
  *   - Background polling for opportunities is quiet and never drives the
  *     pull-to-refresh spinner.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -70,6 +70,9 @@ import { useAuth } from '@/store/auth';
 import { useAsync } from '@/hooks/useAsync';
 import { useCurrency } from '@/store/currency';
 import { useSharedT } from '@/i18n/sharedStrings';
+import { ShareMenuSheet } from '@/features/referral/ShareMenuSheet';
+import { ReferralSheet } from '@/features/referral/ReferralSheet';
+import { fetchMyReferral } from '@/features/referral/referral';
 import { formatDate } from '@/utils/format';
 import { fonts, makeStyles, radii, spacing, tracking, useTheme } from '@/theme';
 import {
@@ -313,11 +316,35 @@ export function PhotographerHome() {
 
   const open = (path: string) => router.push(path as never);
   const sell = useSellChooser();
+  // The Share button opens a menu: album, profile, referral. The referral item is hidden for good at 20 referrals.
+  const [shareMenu, setShareMenu] = useState(false);
+  const [referralSheet, setReferralSheet] = useState(false);
+  const [referralDone, setReferralDone] = useState(false);
+  useEffect(() => {
+    if (isShared) return;
+    let alive = true;
+    fetchMyReferral().then((r) => { if (alive) setReferralDone(r.complete); }).catch(() => {});
+    return () => { alive = false; };
+  }, [isShared]);
   const privacyLabel = hidden ? 'Show amounts' : 'Hide amounts';
 
   return (
     <Screen padded={false} edges={[]}>
       {sell.chooser}
+      <ShareMenuSheet
+        visible={shareMenu}
+        onClose={() => setShareMenu(false)}
+        canAlbum={!isCollab}
+        onAlbum={sell.open}
+        onProfile={shareProfile}
+        onReferral={() => setReferralSheet(true)}
+        referralHidden={referralDone || isCollab}
+      />
+      <ReferralSheet
+        visible={referralSheet}
+        onClose={() => setReferralSheet(false)}
+        onAddCode={() => { setReferralSheet(false); open('/preferences?referral=1'); }}
+      />
       <ScrollView
         contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
         showsVerticalScrollIndicator={false}
@@ -457,7 +484,7 @@ export function PhotographerHome() {
             caption={profileHost}
             actionLabel="Share"
             actionIcon="share-outline"
-            onAction={shareProfile}
+            onAction={() => setShareMenu(true)}
             accessibilityLabel={tr('Share profile')}
           />
           )}

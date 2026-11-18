@@ -237,6 +237,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-18-referral-program",
+            "date": "2026-11-18",
+            "title": "Refer photographers and lower your fee",
+            "items": [
+              {
+                "icon": "gift-outline",
+                "title": "Share your referral code",
+                "body": "The Share button on Home now opens a menu with your album, your profile and your personal referral code and link. Photographers you refer who start earning lower your platform fee, down to 10 percent."
+              },
+              {
+                "icon": "person-add-outline",
+                "title": "Add a code if someone referred you",
+                "body": "You can enter a referral code at sign-up, or later in Preferences, and see who referred you. It can be set once and the policy explains how it works."
+              }
+            ]
+          },
+          {
             "id": "2026-11-17-fainter-watermark",
             "date": "2026-11-17",
             "title": "A fainter watermark on live video",
@@ -291,23 +308,6 @@
                 "icon": "tv-outline",
                 "title": "Watch on TV for everyone",
                 "body": "The live screen now has a Watch on TV button at the top right of the video, also when you are not signed in. Tap it to send the live to a paired TV, or sign in to pair one."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-16-live-host-name",
-            "date": "2026-11-16",
-            "title": "Live events: the host, and wishes for guests",
-            "items": [
-              {
-                "icon": "person-circle-outline",
-                "title": "The real host name",
-                "body": "A live event now shows the name of the person hosting it, instead of a generic label, on both the live screen and the guest screen."
-              },
-              {
-                "icon": "gift-outline",
-                "title": "Wishes and invites without an account",
-                "body": "Guests watching a live event now have a Wishes & Memories tab beside the live chat. Send a video or text wish, share the invite link or QR code, and read the wishes the host approved."
               }
             ]
           }

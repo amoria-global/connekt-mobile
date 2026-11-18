@@ -45,6 +45,8 @@ export type SignupPayload = {
   lastName: string;
   phone: string;
   customerType: CustomerType;
+  /** Optional photographer referral code or link. The server validates it and it never blocks sign-up. */
+  referralCode?: string;
 };
 
 /** Persisted session: tokens + the user profile. */
