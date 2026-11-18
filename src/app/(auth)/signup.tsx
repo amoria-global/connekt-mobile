@@ -25,6 +25,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { ReferralCodeField } from '@/features/referral/ReferralCodeField';
+import { referralStrings } from '@/features/referral/referral';
 import { Controller, useForm } from 'react-hook-form';
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
@@ -125,6 +127,7 @@ export default function SignupScreen() {
     firstName?: string;
     lastName?: string;
     invite?: string;
+    ref?: string;
   }>();
   // A workspace invitation the sign-up was opened for: it can only be claimed by an account with the invited address,
   // so that address is filled in and fixed. Only an invitation carried by the route counts, not one left in storage.
@@ -158,6 +161,8 @@ export default function SignupScreen() {
     if (role === null) router.replace('/login');
   }, [role, router]);
   const [serverError, setServerError] = useState<string | null>(null);
+  // Optional photographer referral code or link, prefilled from the deep link (connekyt://join?ref=CODE).
+  const [referralCode, setReferralCode] = useState(typeof params.ref === 'string' ? params.ref : '');
   const [phoneValue, setPhoneValue] = useState<PhoneValue | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
@@ -266,6 +271,7 @@ export default function SignupScreen() {
         phone: phoneDigits,
         email: trimmedEmail,
         customerType: role,
+        ...(role === 'Photographer' && referralCode.trim() ? { referralCode: referralCode.trim() } : {}),
       });
       // Pass whichever channel the OTP was sent to so the verify screen can
       // show "sent to your email" vs "sent to your phone".
@@ -405,6 +411,15 @@ export default function SignupScreen() {
           <MatchIndicator matches={passwordsMatch} strongEnough={checks.strongEnough} />
         ) : null}
       </View>
+
+      {role === 'Photographer' ? (
+        <View style={styles.referral}>
+          <ReferralCodeField value={referralCode} onChange={setReferralCode} />
+          <Text style={styles.termsLink} onPress={() => router.push('/referral-program')}>
+            {referralStrings(language).field.policy}
+          </Text>
+        </View>
+      ) : null}
 
       {/* Terms sit on the final step, next to the button that accepts them. */}
       <Text style={styles.terms}>
@@ -650,6 +665,7 @@ const useStyles = makeStyles((c) => ({
   terms: { fontSize: 11, color: c.textMuted, lineHeight: 16, marginTop: 2 },
   termsLink: { color: c.primary, fontWeight: fontWeight.bold, textDecorationLine: 'underline' },
 
+  referral: { gap: spacing.sm },
   serverError: { color: c.error, fontSize: fontSize.sm, textAlign: 'center' },
 
   // ── Wizard progress ──────────────────────────────────────────────────

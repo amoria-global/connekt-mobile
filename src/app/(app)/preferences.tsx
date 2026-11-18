@@ -16,6 +16,8 @@ import { UserHeaderBand } from '@/components/ui/UserHeaderBand';
 import { ListRow } from '@/features/client/studio';
 import { Card, ErrorNotice, IconTile, SectionHeader, SkeletonCard } from '@/features/photographer/kit';
 import { useRole } from '@/features/auth/role';
+import { AddReferralCodeCard } from '@/features/referral/AddReferralCodeCard';
+import { useLocalSearchParams } from 'expo-router';
 import {
   NOTIFICATION_TOGGLES,
   getPreferences,
@@ -46,6 +48,7 @@ export default function PreferencesScreen() {
     SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   const { isPhotographer, isCoordinator } = useRole();
+  const referralParams = useLocalSearchParams<{ ref?: string }>();
   const base = preferencesBase({ isPhotographer, isCoordinator });
   const { data, loading, error, refresh } = useAsync(useCallback(() => getPreferences(base), [base]));
 
@@ -103,6 +106,15 @@ export default function PreferencesScreen() {
             accessibilityLabel={`${t('currencySectionTitle')}: currently ${currency}`}
           />
         </Card>
+
+        {isPhotographer ? (
+          <>
+            <SectionHeader flush title="Referral" />
+            <Card style={styles.card}>
+              <AddReferralCodeCard initialCode={typeof referralParams.ref === 'string' ? referralParams.ref : ''} />
+            </Card>
+          </>
+        ) : null}
 
         <SectionHeader flush title="Alert types" />
         {loading && !data ? (
