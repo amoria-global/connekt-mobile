@@ -3,13 +3,155 @@ import {
   applyPackageTierNamingPolicy,
   deletePackage,
   extractPackagesFromTextLocally,
-  LEGACY_STUDIO_CEREMONY_TEXT,
-  LEGACY_STUDIO_INDOOR_TEXT,
-  LEGACY_STUDIO_WEDDING_TEXT,
   listPackages,
   POLICY_PACKAGE_TIERS,
   type ExtractedAiPackageDraft,
 } from './api';
+
+const LEGACY_STUDIO_WEDDING_TEXT = `
+Pick your Perfect Wedding Plan
+ULTIMATE
+4.5M
+2 Photobooks
+1 Album for parents
+Civil Wedding (Video Highlight)
+Pre-wedding & Video Highlights
+Traditional Wedding
+Church & Reception
+Full video & highlights + Reels
+Frames 2 = A0
+Drone in Marriage
+Live Streaming
+Fog (smoke machine)
+Full HD video & Photo on Flash disk
+Team of 10 (Photographers and videographers)
+
+PREMIUM
+3.5M
+Photobook + Album
+Civil Wedding (Video Highlight)
+Pre-wedding & video highlight
+Traditional wedding
+Church & Reception Wedding
+Full video & highlights
+2 = A1 Frames
+Soft Photos on Flash Disk
+Live streaming
+Full HD video on Flash disk
+Fog (smoke machine)
+3 Photographers & 3 videographers
+
+BASIC
+2.5M
+Photobook
+Civil Wedding (No Video)
+Pre-wedding & Video Highlights
+Full video & highlights
+Traditional wedding
+Church & Reception Wedding
+2 = A2 Frames
+All Soft Photos & Video on Flash Disk
+2 Photographers & 2 videographers
+ONE DAY COVERAGE
+
+CHURCH & RECEPTION WEDDING
+2M
+Photobook & Album
+Pre-wedding Photoshoot
+Video Shoot & highlights
+Frame 2 = A1
+Full Video & Photo on Flash disk
+Live Streaming
+3 Photographers
+3 Videographers
+
+TRADITIONAL WEDDING
+1.5M
+Photobook
+Traditional Photoshoot
+Wedding Video Shoot & highlights
+Frame 1 = A1
+Full Video & Photos soft on flash disk
+Live Streaming
+2 Photographers
+2 Videographers
+
+CIVIL WEDDING
+700K
+Photobook
+1 = A2 Frames
+Soft Photos on Flash Disk
+Video highlight
+1 videographer
+1 Photographer
+`;
+
+const LEGACY_STUDIO_CEREMONY_TEXT = `
+Pick your Perfect Ceremony Plan Outside sessions
+BIRTHDAYS
+Photoshoot................................100K /12Photos
+Birthday Party............................200K
+Birthday Photo & Videos highlights..300K
+
+BAPTISM
+Baptism only photos....................100K
+Baptism Photos + Album.................200K
+Baptism Photos + Video Highlights......350K
+
+BRIDAL SHOWER
+Bridal Shower Photos...........100K / Per Hour
+Bridal Shower Photos & Videos highlights.......350K
+
+BABY SHOWER
+Baby Shower Photos.............100K / Per Hour
+Baby Shower Photos & Videos highlights ......350K
+
+PROPOSAL
+Proposal Photos & Video highlights for only Couple .......300K
+Proposal Party Photos & Video highlights ..................400K
+
+FUNERAL
+Funeral Photos.............................400K
+Funeral Photos & Videos....................700K
+Funeral Videos+ Photos + Album.....1M
+
+GRADUATION
+Graduation Photos..................100K/ Per Hour
+Graduation Photos & Videos Highlights........300K
+`;
+
+const LEGACY_STUDIO_INDOOR_TEXT = `
+INDOOR PACKAGE
+GOLD
+5 Photos — 35k
+10 Photos — 60k
+15 Photos — 90k
+20 Photos — 115k
+25 Photos — 170k
+(Bonus from 20 photos: 1 A3 Frame)
+
+PLATINUM
+10 Photos — 100k
+15 Photos — 140k
+20 Photos — 185k
+25 Photos — 220k
+Includes: Private Shoot, Makeup for 1 person, Balloons, Small Decoration.
+(Bonus from 20 photos: 1 A3 Frame)
+
+ARTS PHOTOSHOOT
+5 Photos — 60k
+10 Photos — 110k
+25 Photos — 260k
+Includes: Makeup for 1 Person & a small Decoration.
+(Bonus for 25 photos: 1 A2 Frame)
+
+CREATIVE PHOTOS
+Private session between 1 & 3 hrs:
+New Construction, Materials, Makeup, Decor & Reels.
+Prices start from 300k and above.
+
+We would like to inform you that any work expected within 2 days will be considered as express work, which may incur additional charges (2.5k per 1 photo).
+`;
 
 describe('AI Package Extraction & Tier Naming Policy', () => {
   it('enforces Connekyt Tier Naming Policy so the highest-amount package in each session is always Diamond', () => {

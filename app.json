@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-19-packages-theme",
+            "date": "2026-11-19",
+            "title": "A cleaner New package screen",
+            "items": [
+              {
+                "icon": "pricetags-outline",
+                "title": "New package now matches the rest of the app",
+                "body": "The New package screen uses the same frosted glass cards, lighter type and softer highlights as your other screens, and reading a brochure photo into packages works again."
+              }
+            ]
+          },
+          {
             "id": "2026-11-19-share-albums",
             "date": "2026-11-19",
             "title": "Share your albums from Home",
