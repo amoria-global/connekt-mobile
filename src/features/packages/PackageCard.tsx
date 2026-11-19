@@ -198,8 +198,9 @@ export function PackageCardSkeleton() {
 const useStyles = makeStyles((c) => ({
   card: {
     ...glassTile(c),
+    borderColor: c.stroke,
     borderWidth: 1,
-    borderRadius: radii.lg,
+    borderRadius: radii.xl,
     padding: spacing.md,
     gap: spacing.sm,
   },
@@ -250,17 +251,18 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   rows: {
-    gap: spacing.xs,
-    paddingVertical: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: c.borderSoft,
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: c.stroke,
+    backgroundColor: c.well,
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: spacing.md,
-    paddingTop: spacing.xs,
   },
   rowLabel: {
     flex: 1,

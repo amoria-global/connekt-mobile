@@ -18,7 +18,7 @@ import { MoneyInput, useMoneyCurrency } from '@/components/ui/MoneyInput';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
-import { glassTile } from '@/components/ui/GlassCard';
+import { Chip, IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { OptionsNote } from '@/components/ui/OptionsNote';
@@ -50,7 +50,7 @@ import { tp } from '@/i18n/plural';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, shadows } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, fonts, makeStyles, useTheme, onFill, shadows } from '@/theme';
 import type { UploadFile } from '@/utils/upload';
 
 type FlowMode = 'ai' | 'manual';
@@ -1287,55 +1287,18 @@ export default function NewPackageScreen() {
       >
         {/* Top Mode Switcher: Upload Document vs Manual Upload */}
         {!isEditing ? (
-          <View style={styles.modeSwitchContainer}>
-            <Pressable
-              onPress={() => {
-                setFlowMode('ai');
-                setServerError(null);
-              }}
-              style={[styles.modeSwitchTab, flowMode === 'ai' && styles.modeSwitchTabActive]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: flowMode === 'ai' }}
-            >
-              <Ionicons
-                name="cloud-upload-outline"
-                size={15}
-                color={flowMode === 'ai' ? onFill : colors.primary}
-              />
-              <Text
-                style={[
-                  styles.modeSwitchText,
-                  flowMode === 'ai' && styles.modeSwitchTextActive,
-                ]}
-              >
-                Upload Document
-              </Text>
-            </Pressable>
-
-            <Pressable
-              onPress={() => {
-                setFlowMode('manual');
-                setServerError(null);
-              }}
-              style={[styles.modeSwitchTab, flowMode === 'manual' && styles.modeSwitchTabActive]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: flowMode === 'manual' }}
-            >
-              <Ionicons
-                name="create-outline"
-                size={15}
-                color={flowMode === 'manual' ? onFill : colors.primary}
-              />
-              <Text
-                style={[
-                  styles.modeSwitchText,
-                  flowMode === 'manual' && styles.modeSwitchTextActive,
-                ]}
-              >
-                Manual Upload
-              </Text>
-            </Pressable>
-          </View>
+          <SegmentedTabs<FlowMode>
+            label="How to add packages"
+            value={flowMode}
+            onChange={(k) => {
+              setFlowMode(k);
+              setServerError(null);
+            }}
+            tabs={[
+              { key: 'ai', label: 'Upload document' },
+              { key: 'manual', label: 'Add manually' },
+            ]}
+          />
         ) : (
           <Text style={styles.title}>{t('b2_pkgNewEditTitle')}</Text>
         )}
@@ -1347,36 +1310,20 @@ export default function NewPackageScreen() {
               <View style={styles.stepBarCard}>
                 {(
                   [
-                    [1, '1. Upload Document'],
-                    [2, '2. Organize Packages'],
-                    [3, '3. Publish Package'],
+                    [1, '1 Upload'],
+                    [2, '2 Organize'],
+                    [3, '3 Publish'],
                   ] as [1 | 2 | 3, string][]
-                ).map(([n, label]) => {
-                  const active = aiStep === n;
-                  const done = typeof aiStep === 'number' && aiStep > n;
-                  return (
-                    <Pressable
-                      key={n}
-                      onPress={() => {
-                        if (done) setAiStep(n);
-                      }}
-                      style={[
-                        styles.stepPill,
-                        active && styles.stepPillActive,
-                        done && styles.stepPillDone,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.stepPillText,
-                          (active || done) && styles.stepPillTextActive,
-                        ]}
-                      >
-                        {label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+                ).map(([n, label]) => (
+                  <Chip
+                    key={n}
+                    label={label}
+                    selected={aiStep === n}
+                    onPress={() => {
+                      if (typeof aiStep === 'number' && aiStep > n) setAiStep(n);
+                    }}
+                  />
+                ))}
               </View>
             ) : null}
 
@@ -1386,10 +1333,9 @@ export default function NewPackageScreen() {
             {aiStep === 1 ? (
               <View style={styles.cardBox}>
                 <View style={styles.cardHeaderRow}>
-                  <View style={styles.iconCircle}>
-                    <Ionicons name="document-text-outline" size={22} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
+                  <IconTile icon="document-text-outline" />
+                  <View style={styles.cardHeaderText}>
+                    <Text style={styles.eyebrow}>STEP 1 OF 3</Text>
                     <Text style={styles.sectionTitle}>Upload Document</Text>
                   </View>
                 </View>
@@ -2105,10 +2051,9 @@ export default function NewPackageScreen() {
             {aiStep === 3 ? (
               <View style={styles.cardBox}>
                 <View style={styles.cardHeaderRow}>
-                  <View style={styles.iconCircle}>
-                    <Ionicons name="checkmark-done-outline" size={22} color={colors.primary} />
-                  </View>
-                  <View style={{ flex: 1 }}>
+                  <IconTile icon="checkmark-done-outline" />
+                  <View style={styles.cardHeaderText}>
+                    <Text style={styles.eyebrow}>STEP 3 OF 3</Text>
                     <Text style={styles.sectionTitle}>Publish Package</Text>
                   </View>
                 </View>
@@ -2262,6 +2207,13 @@ export default function NewPackageScreen() {
              (Select Session, Select Tier Title, Create Items into List, Pricing & Delivery Policy)
              ═══════════════════════════════════════════════════════════════════ */
           <View style={styles.cardBox}>
+            <View style={styles.cardHeaderRow}>
+              <IconTile icon="create-outline" />
+              <View style={styles.cardHeaderText}>
+                <Text style={styles.eyebrow}>{isEditing ? 'EDIT PACKAGE' : 'ADD MANUALLY'}</Text>
+                <Text style={styles.sectionTitle}>Package details</Text>
+              </View>
+            </View>
             {/* 1. Session Type: Indoor (Studio) vs Outdoor (Outside studio) */}
             <View style={styles.group}>
               <Text style={styles.label}>1. Session Category (Indoor or Outdoor)</Text>
@@ -2573,7 +2525,7 @@ const useStyles = makeStyles((c) => ({
   modeSwitchContainer: {
     flexDirection: 'row',
     gap: spacing.xs,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     padding: 4,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -2608,7 +2560,7 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 7,
     paddingHorizontal: 8,
     borderRadius: radii.full,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderWidth: 1,
     borderColor: c.stroke,
     alignItems: 'center',
@@ -2632,7 +2584,7 @@ const useStyles = makeStyles((c) => ({
   cardBox: {
     backgroundColor: c.glassTop,
     borderRadius: radii.xl,
-    padding: spacing.lg,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: c.stroke,
     gap: spacing.md,
@@ -2640,8 +2592,15 @@ const useStyles = makeStyles((c) => ({
   },
   cardHeaderRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  cardHeaderText: { flex: 1, gap: 2 },
+  eyebrow: {
+    fontFamily: fonts.semibold,
+    fontSize: fontSize.xs,
+    letterSpacing: 0.8,
+    color: c.textMuted,
   },
   iconCircle: {
     width: 40,
@@ -2652,8 +2611,8 @@ const useStyles = makeStyles((c) => ({
     justifyContent: 'center',
   },
   sectionTitle: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.display,
+    fontSize: fontSize.lg,
     color: c.text,
   },
   subtitleText: {
@@ -2675,7 +2634,7 @@ const useStyles = makeStyles((c) => ({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
@@ -2721,7 +2680,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.stroke,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   uploadSourceBtnText: {
     fontSize: 11,
@@ -2737,7 +2696,7 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.sm,
     padding: spacing.sm,
     borderRadius: radii.md,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderWidth: 1,
     borderColor: c.stroke,
   },
@@ -2780,7 +2739,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.sm,
     fontSize: fontSize.xs,
     color: c.text,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     textAlignVertical: 'top',
   },
   group: {
@@ -2817,7 +2776,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.stroke,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   choicePillActive: {
     backgroundColor: c.primary,
@@ -2881,7 +2840,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: c.stroke,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     gap: 3,
   },
   sessionCategoryCardActive: {
@@ -2917,7 +2876,7 @@ const useStyles = makeStyles((c) => ({
   emptySessionBox: {
     padding: spacing.lg,
     borderRadius: radii.lg,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderWidth: 1,
     borderColor: c.stroke,
     alignItems: 'center',
@@ -2995,7 +2954,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: c.stroke,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   miniSessionChipActive: {
     backgroundColor: c.primary,
@@ -3010,7 +2969,7 @@ const useStyles = makeStyles((c) => ({
     color: onFill,
   },
   metricsSummaryList: {
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: 3,
@@ -3028,7 +2987,7 @@ const useStyles = makeStyles((c) => ({
   descColumn: {
     flex: 1,
     minWidth: 140,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: 3,
@@ -3100,7 +3059,7 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: c.primary,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   addExtraBtnText: {
     fontSize: fontSize.xs,
@@ -3113,7 +3072,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.stroke,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -3123,7 +3082,7 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   sessionReviewBlock: {
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
@@ -3182,7 +3141,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: c.border,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   chipActive: {
     backgroundColor: c.primary,
@@ -3225,7 +3184,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: spacing.sm,
     fontSize: fontSize.xs,
     color: c.text,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   addItemBtn: {
     paddingHorizontal: spacing.md,
@@ -3256,7 +3215,7 @@ const useStyles = makeStyles((c) => ({
     color: c.primary,
   },
   manualItemsListBox: {
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: 6,
@@ -3280,7 +3239,7 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: radii.full,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderWidth: 1,
     borderColor: c.stroke,
   },
@@ -3317,7 +3276,7 @@ const useStyles = makeStyles((c) => ({
   },
   stageTriggerCard: {
     flex: 1,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderRadius: radii.lg,
     padding: spacing.md,
     gap: 6,
@@ -3326,7 +3285,7 @@ const useStyles = makeStyles((c) => ({
   },
   stageTriggerCardRequired: {
     borderColor: c.error,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   stageTriggerCardDone: {
     borderColor: c.primary,
@@ -3389,7 +3348,7 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.md,
   },
   policySectionBox: {
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderRadius: radii.lg,
     padding: spacing.md,
     gap: spacing.sm,
@@ -3423,7 +3382,7 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.primary,
   },
   addonStatusPillOff: {
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderColor: c.stroke,
   },
   addonStatusPillText: {
@@ -3437,7 +3396,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   droneFeatureCard: {
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: spacing.xs,
@@ -3485,7 +3444,7 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.primary,
   },
   addonToggleIndicatorOff: {
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderColor: c.stroke,
   },
   addonToggleIndicatorText: {
@@ -3519,7 +3478,7 @@ const useStyles = makeStyles((c) => ({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     color: c.text,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   clearAddonBtn: {
     paddingHorizontal: 10,
@@ -3527,7 +3486,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: c.stroke,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
   },
   clearAddonBtnText: {
     fontSize: 10,
@@ -3540,7 +3499,7 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.sm,
     padding: spacing.sm,
     borderRadius: radii.md,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderWidth: 1,
     borderColor: c.stroke,
   },
@@ -3566,7 +3525,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
   },
   addonMiniBadgeOff: {
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: c.stroke,
   },
@@ -3590,7 +3549,7 @@ const useStyles = makeStyles((c) => ({
     fontSize: fontSize.xs,
     fontWeight: fontWeight.semibold,
     color: c.text,
-    backgroundColor: glassTile(c).backgroundColor,
+    backgroundColor: c.well,
     textAlign: 'right',
   },
 }));
