@@ -336,7 +336,7 @@ export function PhotographerHome() {
         visible={shareMenu}
         onClose={() => setShareMenu(false)}
         canAlbum={!isCollab}
-        onAlbum={sell.open}
+        onAlbum={() => open('/gallery')}
         onProfile={shareProfile}
         onReferral={() => setReferralSheet(true)}
         referralHidden={referralDone || isCollab}

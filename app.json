@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-19-share-albums",
+            "date": "2026-11-19",
+            "title": "Share your albums from Home",
+            "items": [
+              {
+                "icon": "images-outline",
+                "title": "Share and publish the albums you already have",
+                "body": "On Home, Share your album now opens your Albums screen, where you can share or publish any album you have already made, instead of starting a new one."
+              }
+            ]
+          },
+          {
             "id": "2026-11-18-share-invite",
             "date": "2026-11-18",
             "title": "One card to share and invite",
@@ -291,28 +303,6 @@
                 "icon": "chatbubbles-outline",
                 "title": "Your messages are sent",
                 "body": "When you are signed in and watching a live event, the messages you type now reach the chat for everyone. Before, they only showed on your own screen."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-17-live-layout",
-            "date": "2026-11-17",
-            "title": "A cleaner live screen",
-            "items": [
-              {
-                "icon": "ellipsis-horizontal-circle-outline",
-                "title": "Everything in one More menu",
-                "body": "Tap the three dots on the video to watch on TV, share the live with a QR code, or invite viewers when the host allows it."
-              },
-              {
-                "icon": "qr-code-outline",
-                "title": "Share with a QR code",
-                "body": "A share card shows the event, a QR code anyone can scan, and quick buttons for WhatsApp, other apps, saving the QR and your TV."
-              },
-              {
-                "icon": "person-circle-outline",
-                "title": "Host, Gift and Like under the video",
-                "body": "The host and the title sit right under the video, with Gift and Like next to them."
               }
             ]
           }
