@@ -18,6 +18,7 @@ import { MoneyInput, useMoneyCurrency } from '@/components/ui/MoneyInput';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
+import { glassTile } from '@/components/ui/GlassCard';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { OptionsNote } from '@/components/ui/OptionsNote';
@@ -49,7 +50,7 @@ import { tp } from '@/i18n/plural';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill } from '@/theme';
+import { spacing, radii, fontSize, fontWeight, makeStyles, useTheme, onFill, shadows } from '@/theme';
 import type { UploadFile } from '@/utils/upload';
 
 type FlowMode = 'ai' | 'manual';
@@ -2566,17 +2567,17 @@ const useStyles = makeStyles((c) => ({
   },
   title: {
     fontSize: fontSize.xl,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   modeSwitchContainer: {
     flexDirection: 'row',
     gap: spacing.xs,
-    backgroundColor: c.surface,
+    backgroundColor: glassTile(c).backgroundColor,
     padding: 4,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   modeSwitchTab: {
     flex: 1,
@@ -2592,7 +2593,7 @@ const useStyles = makeStyles((c) => ({
   },
   modeSwitchText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   modeSwitchTextActive: {
@@ -2607,9 +2608,9 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 7,
     paddingHorizontal: 8,
     borderRadius: radii.full,
-    backgroundColor: c.surface,
+    backgroundColor: glassTile(c).backgroundColor,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     alignItems: 'center',
   },
   stepPillActive: {
@@ -2622,19 +2623,20 @@ const useStyles = makeStyles((c) => ({
   },
   stepPillText: {
     fontSize: 10.5,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.textMuted,
   },
   stepPillTextActive: {
     color: onFill,
   },
   cardBox: {
-    backgroundColor: c.surface,
+    backgroundColor: c.glassTop,
     borderRadius: radii.xl,
     padding: spacing.lg,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     gap: spacing.md,
+    boxShadow: shadows.glass,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -2651,7 +2653,7 @@ const useStyles = makeStyles((c) => ({
   },
   sectionTitle: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   subtitleText: {
@@ -2660,7 +2662,7 @@ const useStyles = makeStyles((c) => ({
     lineHeight: 17,
   },
   uploadDropzone: {
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: c.primary,
     borderRadius: radii.xl,
@@ -2673,14 +2675,14 @@ const useStyles = makeStyles((c) => ({
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
   },
   dropzoneTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
     textAlign: 'center',
   },
@@ -2701,7 +2703,7 @@ const useStyles = makeStyles((c) => ({
   },
   formatBadgeText: {
     fontSize: 10,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: onFill,
   },
   uploadButtonsRow: {
@@ -2718,12 +2720,12 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 8,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.card,
+    borderColor: c.stroke,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   uploadSourceBtnText: {
     fontSize: 11,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.text,
   },
   pickedFilesList: {
@@ -2735,9 +2737,9 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.sm,
     padding: spacing.sm,
     borderRadius: radii.md,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   fileTypeBadge: {
     paddingHorizontal: 7,
@@ -2746,12 +2748,12 @@ const useStyles = makeStyles((c) => ({
   },
   fileTypeBadgeText: {
     fontSize: 10,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: onFill,
   },
   pickedFileName: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.text,
   },
   pickedFileSize: {
@@ -2767,18 +2769,18 @@ const useStyles = makeStyles((c) => ({
   pasteToggleText: {
     flex: 1,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.primary,
   },
   pasteInput: {
     minHeight: 90,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     borderRadius: radii.md,
     padding: spacing.sm,
     fontSize: fontSize.xs,
     color: c.text,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     textAlignVertical: 'top',
   },
   group: {
@@ -2786,7 +2788,7 @@ const useStyles = makeStyles((c) => ({
   },
   label: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.textSoft,
   },
   twoColRow: {
@@ -2801,7 +2803,7 @@ const useStyles = makeStyles((c) => ({
   },
   linkText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.primary,
   },
   choicePill: {
@@ -2814,8 +2816,8 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: spacing.sm,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.card,
+    borderColor: c.stroke,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   choicePillActive: {
     backgroundColor: c.primary,
@@ -2823,7 +2825,7 @@ const useStyles = makeStyles((c) => ({
   },
   choicePillText: {
     fontSize: 11.5,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.text,
   },
   choicePillTextActive: {
@@ -2845,7 +2847,7 @@ const useStyles = makeStyles((c) => ({
   existingBannerTitle: {
     flex: 1,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   existingBannerSub: {
@@ -2865,7 +2867,7 @@ const useStyles = makeStyles((c) => ({
   },
   policyInfoTitle: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   policyInfoSub: {
@@ -2878,8 +2880,8 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.md,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surface,
+    borderColor: c.stroke,
+    backgroundColor: glassTile(c).backgroundColor,
     gap: 3,
   },
   sessionCategoryCardActive: {
@@ -2900,12 +2902,12 @@ const useStyles = makeStyles((c) => ({
   },
   sessionCountBadgeText: {
     fontSize: 11,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: onFill,
   },
   sessionCategoryTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   sessionCategorySub: {
@@ -2915,23 +2917,24 @@ const useStyles = makeStyles((c) => ({
   emptySessionBox: {
     padding: spacing.lg,
     borderRadius: radii.lg,
-    backgroundColor: c.surface,
+    backgroundColor: glassTile(c).backgroundColor,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     alignItems: 'center',
     gap: spacing.sm,
   },
   extractedCard: {
-    backgroundColor: c.surface,
+    backgroundColor: c.glassTop,
+    boxShadow: shadows.glass,
     borderRadius: radii.xl,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     gap: spacing.sm,
   },
   extractedCardDiamond: {
     borderColor: c.primary,
-    borderWidth: 1.5,
+    backgroundColor: c.tint,
   },
   extractedTopRow: {
     flexDirection: 'row',
@@ -2947,7 +2950,7 @@ const useStyles = makeStyles((c) => ({
   },
   extractedTierName: {
     fontSize: fontSize.md,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   highestAmountPill: {
@@ -2958,7 +2961,7 @@ const useStyles = makeStyles((c) => ({
   },
   highestAmountPillText: {
     fontSize: 9,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.primary,
   },
   originalTitleHint: {
@@ -2973,7 +2976,7 @@ const useStyles = makeStyles((c) => ({
   },
   pricePillPurpleText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: onFill,
   },
   moveSessionRow: {
@@ -2991,8 +2994,8 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 4,
     borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.card,
+    borderColor: c.stroke,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   miniSessionChipActive: {
     backgroundColor: c.primary,
@@ -3000,14 +3003,14 @@ const useStyles = makeStyles((c) => ({
   },
   miniSessionChipText: {
     fontSize: 10.5,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.textSoft,
   },
   miniSessionChipTextActive: {
     color: onFill,
   },
   metricsSummaryList: {
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: 3,
@@ -3025,16 +3028,16 @@ const useStyles = makeStyles((c) => ({
   descColumn: {
     flex: 1,
     minWidth: 140,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: 3,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   descColumnHeader: {
     fontSize: 10.5,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.primary,
     marginBottom: 2,
   },
@@ -3068,7 +3071,7 @@ const useStyles = makeStyles((c) => ({
   },
   editDetailsBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.primary,
   },
   deleteOutlineBtn: {
@@ -3084,7 +3087,7 @@ const useStyles = makeStyles((c) => ({
   },
   deleteOutlineBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.error,
   },
   addExtraBtn: {
@@ -3097,11 +3100,11 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: c.primary,
-    backgroundColor: c.surface,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   addExtraBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.primary,
   },
   secondaryNavBtn: {
@@ -3109,22 +3112,22 @@ const useStyles = makeStyles((c) => ({
     paddingVertical: 13,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.surface,
+    borderColor: c.stroke,
+    backgroundColor: glassTile(c).backgroundColor,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryNavBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   sessionReviewBlock: {
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     gap: spacing.xs,
   },
   sessionReviewHeader: {
@@ -3135,7 +3138,7 @@ const useStyles = makeStyles((c) => ({
   },
   sessionReviewTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   compactReviewRow: {
@@ -3148,7 +3151,7 @@ const useStyles = makeStyles((c) => ({
   },
   compactReviewName: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   compactReviewMeta: {
@@ -3157,7 +3160,7 @@ const useStyles = makeStyles((c) => ({
   },
   compactReviewPrice: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.primary,
   },
   successCircle: {
@@ -3179,7 +3182,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: c.border,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   chipActive: {
     backgroundColor: c.primary,
@@ -3187,7 +3190,7 @@ const useStyles = makeStyles((c) => ({
   },
   chipText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.textSoft,
   },
   chipTextActive: {
@@ -3217,12 +3220,12 @@ const useStyles = makeStyles((c) => ({
     flex: 1,
     minHeight: 42,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     borderRadius: radii.md,
     paddingHorizontal: spacing.sm,
     fontSize: fontSize.xs,
     color: c.text,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   addItemBtn: {
     paddingHorizontal: spacing.md,
@@ -3233,7 +3236,7 @@ const useStyles = makeStyles((c) => ({
   },
   addItemBtnText: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: onFill,
   },
   quickAddChip: {
@@ -3253,12 +3256,12 @@ const useStyles = makeStyles((c) => ({
     color: c.primary,
   },
   manualItemsListBox: {
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: 6,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   manualItemRow: {
     flexDirection: 'row',
@@ -3277,9 +3280,9 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 9,
     paddingVertical: 5,
     borderRadius: radii.full,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   removableItemChipText: {
     fontSize: 11,
@@ -3314,16 +3317,16 @@ const useStyles = makeStyles((c) => ({
   },
   stageTriggerCard: {
     flex: 1,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderRadius: radii.lg,
     padding: spacing.md,
     gap: 6,
     borderWidth: 1.5,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   stageTriggerCardRequired: {
     borderColor: c.error,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   stageTriggerCardDone: {
     borderColor: c.primary,
@@ -3354,11 +3357,11 @@ const useStyles = makeStyles((c) => ({
   stageTriggerBadgeNeutral: {
     backgroundColor: c.background,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   stageTriggerBadgeText: {
     fontSize: 9,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     letterSpacing: 0.3,
   },
   stageTriggerBadgeTextSaved: {
@@ -3366,7 +3369,7 @@ const useStyles = makeStyles((c) => ({
   },
   stageTriggerBadgeTextRequired: {
     fontSize: 9,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: onFill,
     letterSpacing: 0.3,
   },
@@ -3375,7 +3378,7 @@ const useStyles = makeStyles((c) => ({
   },
   stageTriggerTitle: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   stageTriggerSub: {
@@ -3386,12 +3389,12 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.md,
   },
   policySectionBox: {
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderRadius: radii.lg,
     padding: spacing.md,
     gap: spacing.sm,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   menuReadBadge: {
     flexDirection: 'row',
@@ -3406,7 +3409,7 @@ const useStyles = makeStyles((c) => ({
   },
   menuReadBadgeText: {
     fontSize: 10,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.primary,
   },
   addonStatusPill: {
@@ -3420,12 +3423,12 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.primary,
   },
   addonStatusPillOff: {
-    backgroundColor: c.card,
-    borderColor: c.borderSoft,
+    backgroundColor: glassTile(c).backgroundColor,
+    borderColor: c.stroke,
   },
   addonStatusPillText: {
     fontSize: 10,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
   },
   addonStatusPillTextOn: {
     color: onFill,
@@ -3434,12 +3437,12 @@ const useStyles = makeStyles((c) => ({
     color: c.textMuted,
   },
   droneFeatureCard: {
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderRadius: radii.md,
     padding: spacing.sm,
     gap: spacing.xs,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   droneFeatureCardActive: {
     backgroundColor: c.tint,
@@ -3448,7 +3451,7 @@ const useStyles = makeStyles((c) => ({
   },
   droneFeatureTitle: {
     fontSize: fontSize.sm,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: c.text,
   },
   droneFeatureSub: {
@@ -3464,7 +3467,7 @@ const useStyles = makeStyles((c) => ({
   },
   uniqueFeatureBadgeText: {
     fontSize: 9,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
     color: onFill,
     letterSpacing: 0.3,
   },
@@ -3482,12 +3485,12 @@ const useStyles = makeStyles((c) => ({
     borderColor: c.primary,
   },
   addonToggleIndicatorOff: {
-    backgroundColor: c.card,
-    borderColor: c.borderSoft,
+    backgroundColor: glassTile(c).backgroundColor,
+    borderColor: c.stroke,
   },
   addonToggleIndicatorText: {
     fontSize: 11,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
   },
   addonToggleIndicatorTextOn: {
     color: onFill,
@@ -3503,32 +3506,32 @@ const useStyles = makeStyles((c) => ({
   },
   addonAmountPrefix: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.text,
   },
   addonAmountInput: {
     flex: 1,
     minHeight: 38,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     borderRadius: radii.md,
     paddingHorizontal: spacing.sm,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.text,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   clearAddonBtn: {
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: c.borderSoft,
-    backgroundColor: c.card,
+    borderColor: c.stroke,
+    backgroundColor: glassTile(c).backgroundColor,
   },
   clearAddonBtnText: {
     fontSize: 10,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.textSoft,
   },
   addonRowCard: {
@@ -3537,9 +3540,9 @@ const useStyles = makeStyles((c) => ({
     gap: spacing.sm,
     padding: spacing.sm,
     borderRadius: radii.md,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   addonRowCardActive: {
     borderColor: c.primary,
@@ -3547,7 +3550,7 @@ const useStyles = makeStyles((c) => ({
   },
   addonRowTitle: {
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.text,
   },
   addonRowDesc: {
@@ -3563,13 +3566,13 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.primary,
   },
   addonMiniBadgeOff: {
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     borderWidth: StyleSheet.hairlineWidth,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
   },
   addonMiniBadgeText: {
     fontSize: 9,
-    fontWeight: fontWeight.extrabold,
+    fontWeight: fontWeight.bold,
   },
   addonMiniBadgeTextOn: {
     color: onFill,
@@ -3581,13 +3584,13 @@ const useStyles = makeStyles((c) => ({
     width: 112,
     minHeight: 36,
     borderWidth: 1,
-    borderColor: c.borderSoft,
+    borderColor: c.stroke,
     borderRadius: radii.md,
     paddingHorizontal: spacing.xs,
     fontSize: fontSize.xs,
-    fontWeight: fontWeight.bold,
+    fontWeight: fontWeight.semibold,
     color: c.text,
-    backgroundColor: c.card,
+    backgroundColor: glassTile(c).backgroundColor,
     textAlign: 'right',
   },
 }));
