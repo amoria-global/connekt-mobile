@@ -135,8 +135,6 @@ export default function NewPackageScreen() {
 
   // ───────── AI Upload & Extraction State ─────────
   const [pickedFiles, setPickedFiles] = useState<PickedBrochureFile[]>([]);
-  const [brochureText, setBrochureText] = useState('');
-  const [showPasteBox, setShowPasteBox] = useState(false);
   const [defaultSession, setDefaultSession] = useState<ServiceType>(
     params.serviceType === 'STUDIO' ? 'STUDIO' : 'OUTDOOR',
   );
@@ -380,17 +378,14 @@ export default function NewPackageScreen() {
   // ───────── Run Document Upload & Extraction ─────────
   const handleRunAiExtract = async () => {
     setServerError(null);
-    if (pickedFiles.length === 0 && !brochureText.trim()) {
-      setServerError(
-        'Please upload a PDF or photo of your package brochure, or paste your package text below.',
-      );
+    if (pickedFiles.length === 0) {
+      setServerError('Please upload a PDF or photo of your package brochure.');
       return;
     }
     setExtracting(true);
     try {
       const res = await extractPackagesWithAi({
         files: pickedFiles,
-        rawText: brochureText.trim() || undefined,
         defaultServiceType: defaultSession,
       });
 
@@ -1524,36 +1519,6 @@ export default function NewPackageScreen() {
                       </View>
                     ))}
                   </View>
-                ) : null}
-
-                {/* Optional Paste Package Text Toggle */}
-                <Pressable
-                  onPress={() => setShowPasteBox((v) => !v)}
-                  style={styles.pasteToggleRow}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="clipboard-outline" size={15} color={colors.primary} />
-                  <Text style={styles.pasteToggleText}>
-                    {showPasteBox
-                      ? 'Hide pasted brochure / menu text'
-                      : 'Or paste package menu text directly'}
-                  </Text>
-                  <Ionicons
-                    name={showPasteBox ? 'chevron-up' : 'chevron-down'}
-                    size={15}
-                    color={colors.textMuted}
-                  />
-                </Pressable>
-
-                {showPasteBox ? (
-                  <TextInput
-                    value={brochureText}
-                    onChangeText={setBrochureText}
-                    placeholder="Paste your package brochure or price menu here (e.g. Studio Portrait 150,000 RWF - 2 hours, 50 edited photos, delivery in 3 days)..."
-                    placeholderTextColor={colors.textMuted}
-                    multiline
-                    style={styles.pasteInput}
-                  />
                 ) : null}
 
                 {/* Default Session Category Suggestion */}
