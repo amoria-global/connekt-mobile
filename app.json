@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-19-packages-layout",
+            "date": "2026-11-19",
+            "title": "Packages now look like Opportunities",
+            "items": [
+              {
+                "icon": "layers-outline",
+                "title": "My packages and New package match Opportunities",
+                "body": "Tabs, step chips, card headers and detail boxes now use the same compact layout as Opportunities, and the long notes that sometimes appeared in a package's delivery line are gone."
+              }
+            ]
+          },
+          {
             "id": "2026-11-19-packages-theme",
             "date": "2026-11-19",
             "title": "A cleaner New package screen",
