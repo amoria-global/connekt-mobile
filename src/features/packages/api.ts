@@ -1510,6 +1510,28 @@ export function draftsMissingPrice<T extends { price?: number | null }>(drafts: 
   return drafts.filter((d) => positivePrice(d.price) === null);
 }
 
+const DELIVERY_NOTE_MAX = 90;
+const AI_COMMENTARY =
+  /\b(not (specified|stated|mentioned|provided)|unspecified|brochure|call to action|is encouraged|are included)\b/i;
+
+/**
+ * The AI sometimes writes its own commentary into the delivery policy ("Delivery timeline is not specified. An online
+ * gallery ... booking is encouraged through the brochure's call to action."). Keep only the sentences that state a
+ * delivery term, cap the length, and fall back to the plain days line.
+ */
+export function cleanDeliveryPolicy(raw: string | undefined | null, deliveryDays: number): string {
+  const fallback = deliveryDays > 0 ? `Delivery within ${deliveryDays} days.` : '';
+  const text = (raw ?? '').replace(/\s+/g, ' ').trim();
+  if (!text) return fallback;
+  const kept = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0 && !AI_COMMENTARY.test(sentence));
+  const cleaned = kept.join(' ').trim();
+  if (!cleaned) return fallback;
+  return cleaned.length > DELIVERY_NOTE_MAX ? `${cleaned.slice(0, DELIVERY_NOTE_MAX - 1).trimEnd()}…` : cleaned;
+}
+
 function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
   const serviceType: ServiceType = str(r.serviceType) === 'STUDIO' ? 'STUDIO' : 'OUTDOOR';
   const ingredients = Array.isArray(r.ingredients)

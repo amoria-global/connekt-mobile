@@ -1803,7 +1803,11 @@ export default function NewPackageScreen() {
                             {item.deliveryDays > 0 || item.deliveryPolicy ? (
                               <Text style={styles.metricLine}>
                                 {item.deliveryDays > 0
-                                  ? `⏱️  Delivery in ${item.deliveryDays} days (${item.deliveryPolicy})`
+                                  ? `⏱️  Delivery in ${item.deliveryDays} days${
+                                    item.deliveryPolicy && !/^delivery\b/i.test(item.deliveryPolicy)
+                                      ? ` (${item.deliveryPolicy})`
+                                      : ''
+                                  }`
                                   : `⏱️  ${item.deliveryPolicy}`}
                               </Text>
                             ) : null}

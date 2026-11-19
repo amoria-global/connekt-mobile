@@ -1,6 +1,7 @@
 import { api } from '@/api/client';
 import {
   applyPackageTierNamingPolicy,
+  cleanDeliveryPolicy,
   deletePackage,
   extractPackagesFromTextLocally,
   listPackages,
@@ -412,5 +413,21 @@ Outdoor Birthday Event - 500,000 RWF
     const listed = await listPackages();
     expect(listed.map((p) => p.id)).toEqual(['pkg-a']);
     getSpy.mockRestore();
+  });
+});
+
+describe('cleanDeliveryPolicy', () => {
+  it('drops the AI commentary and keeps a short delivery line', () => {
+    const noisy =
+      "Delivery timeline is not specified. An online gallery, photo books, framed photos, video highlights, and photos on a flash disk are included; booking is encouraged through the brochure's wedding package call to action.";
+    expect(cleanDeliveryPolicy(noisy, 7)).toBe('Delivery within 7 days.');
+  });
+  it('keeps a real stated term and caps its length', () => {
+    expect(cleanDeliveryPolicy('Delivery in 5 to 7 days via online gallery.', 7)).toBe('Delivery in 5 to 7 days via online gallery.');
+    expect(cleanDeliveryPolicy('x'.repeat(200), 0).length).toBeLessThanOrEqual(90);
+  });
+  it('falls back to empty with no days and no text', () => {
+    expect(cleanDeliveryPolicy('', 0)).toBe('');
+    expect(cleanDeliveryPolicy(undefined, 3)).toBe('Delivery within 3 days.');
   });
 });
