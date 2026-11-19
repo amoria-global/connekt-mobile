@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-20-packages-secure-read",
+            "date": "2026-11-20",
+            "title": "Safer brochure reading",
+            "items": [
+              {
+                "icon": "shield-checkmark-outline",
+                "title": "Brochure reading now runs on our servers",
+                "body": "When you upload a package brochure, it is now read securely on our servers instead of inside the app, so reading your packages keeps working and nothing sensitive is stored on your phone."
+              }
+            ]
+          },
+          {
             "id": "2026-11-19-packages-layout",
             "date": "2026-11-19",
             "title": "Packages now look like Opportunities",
