@@ -2,10 +2,16 @@ import { hasOptionLists } from './api';
 import { DEFAULT_OFFER_DRAFT } from './offerBrief';
 import { analyzePackagesForDraft } from './packagePricingAnalyzer';
 import {
-  LEGACY_STUDIO_INDOOR_TEXT,
   extractPoliciesFromBrochureText,
   normalizePackageAddons,
 } from '@/features/packages/api';
+
+const SAMPLE_INDOOR_POLICY_TEXT = `
+INDOOR PACKAGE
+GOLD
+5 Photos — 35k
+We would like to inform you that any work expected within 2 days will be considered as express work, which may incur additional charges (2.5k per 1 photo).
+`;
 
 jest.mock('@/api/client', () => ({ api: { get: jest.fn() }, assertOk: jest.fn() }));
 
@@ -46,7 +52,7 @@ describe('Policies & Self-Priced Add-ons (Drone Capturing amount toggle)', () =>
   });
 
   it('reads delivery policy and advance scheduling policy from menu brochure text', () => {
-    const parsed = extractPoliciesFromBrochureText(LEGACY_STUDIO_INDOOR_TEXT);
+    const parsed = extractPoliciesFromBrochureText(SAMPLE_INDOOR_POLICY_TEXT);
     expect(parsed.deliveryPolicy).toContain('2,500 RWF per photo');
     expect(parsed.otherPolicies.length).toBeGreaterThan(0);
   });
