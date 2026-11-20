@@ -103,6 +103,14 @@ describe('workspace setup screen', () => {
     expect(mockPreview).toHaveBeenCalledWith('11111111-1111-1111-1111-111111111111', 'secret');
   });
 
+  it('tells a new team member about the emailed-code route, once, where they set up their access', async () => {
+    mockParams.invitationId = 'i1';
+    mockParams.token = 'tok';
+    mockPreview.mockResolvedValueOnce({ found: true, open: true, ownerName: 'Aline', email: 'g@x.co', account: 'none' });
+    const r = await mount(<WorkspaceSetupScreen />);
+    expect(text(r)).toContain('choose Team member on the sign-in screen');
+  });
+
   it('keeps Open workspace off until the password is acceptable and both match, then signs in and goes into the app', async () => {
     mockPreview.mockResolvedValue({ found: true, open: true, ownerName: 'Eric N.', email: 'new@example.com', account: 'none' });
     mockSetup.mockResolvedValue({ token: 't' });
@@ -139,6 +147,18 @@ describe('workspace setup screen', () => {
     expect(inputs(r)).toHaveLength(0);
     await act(async () => { r.root.findAll((n) => n.props?.title === 'Sign in to add this workspace')[0].props.onPress(); });
     expect(mockReplace).toHaveBeenCalledWith({ pathname: '/login', params: { email: 'client@example.com' } });
+  });
+});
+
+describe('login with an emailed code: who it is for', () => {
+  it('says it is for invited team members and points everyone else to the password reset', async () => {
+    const r = await mount(<LoginCodeScreen />);
+    expect(text(r)).toContain('For invited team members');
+    expect(text(r)).toContain('only for invited team members');
+    const forgot = r.root.findAll((n) => typeof n.props?.onPress === 'function' && n.props.accessibilityRole === 'link')
+      .find((n) => [n.props.children].flat().some((c: unknown) => (c as { props?: { children?: unknown } })?.props?.children === 'Forgot your password?'));
+    await act(async () => { forgot?.props.onPress(); });
+    expect(mockReplace).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/forgot-password' }));
   });
 });
 

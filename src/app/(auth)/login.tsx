@@ -14,6 +14,7 @@ import { AppleButton } from "@/features/auth/AppleButton";
 import { AuthGlassLayout } from "@/features/auth/AuthGlassLayout";
 import { ChooseRoleBottomSheet } from "@/features/auth/ChooseRoleBottomSheet";
 import { GoogleButton } from "@/features/auth/GoogleButton";
+import { useCodeSignInOffered } from "@/features/auth/codeSignIn";
 import type { CustomerType } from "@/features/auth/types";
 import { parsePhone } from "@/lib/phoneKit";
 import { challengeParams } from "@/features/auth/twoFactor";
@@ -80,6 +81,7 @@ export default function LoginScreen() {
   const { colors } = useTheme();
   const login = useAuth((s) => s.login);
   const applySession = useAuth((s) => s.applySession);
+  const codeSignInOffered = useCodeSignInOffered();
   const router = useRouter();
   const params = useLocalSearchParams<{
     selectRole?: string;
@@ -374,20 +376,6 @@ export default function LoginScreen() {
           >
             <Text style={styles.forgotText}>{t('forgotYourPassword')}</Text>
           </Pressable>
-          <Pressable
-            style={styles.forgot}
-            onPress={() =>
-              router.push({
-                pathname: "/login-code",
-                params: { email: getValues("email") },
-              } as never)
-            }
-            hitSlop={10}
-            accessibilityRole="link"
-            accessibilityLabel="Email me a code instead"
-          >
-            <Text style={styles.forgotText}>Email me a code instead</Text>
-          </Pressable>
         </View>
 
         {serverError ? (
@@ -399,6 +387,25 @@ export default function LoginScreen() {
           onPress={handleSubmit(onSubmit)}
           loading={isSubmitting}
         />
+
+        {/* Only a team-member login can use an emailed code. Offered where one has signed in before, never next to
+            "Forgot your password?", so it is not mistaken for a way to reset a password. */}
+        {codeSignInOffered ? (
+          <Pressable
+            style={styles.teamLink}
+            onPress={() =>
+              router.push({
+                pathname: "/login-code",
+                params: { email: getValues("email") },
+              } as never)
+            }
+            hitSlop={10}
+            accessibilityRole="link"
+            accessibilityLabel="Team member? Sign in with an email code"
+          >
+            <Text style={styles.forgotText}>Team member? Sign in with an email code</Text>
+          </Pressable>
+        ) : null}
 
         <View style={styles.divider}>
           <View style={styles.line} />
@@ -572,6 +579,7 @@ const useStyles = makeStyles((c) => ({
   // ── Sheet content ─────────────────────────────────────────────────────
   fields: { gap: spacing.sm },
   forgot: { alignSelf: "flex-end", paddingVertical: 2 },
+  teamLink: { alignSelf: "center", paddingVertical: 4 },
   forgotText: {
     color: c.primary,
     fontSize: fontSize.sm,

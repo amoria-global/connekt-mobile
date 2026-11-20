@@ -112,6 +112,7 @@ export default function WorkspaceSetupScreen() {
         error={mismatch ? 'The two passwords do not match.' : undefined} />
       {error ? <Text style={styles.error} accessibilityRole="alert">{error}</Text> : null}
       <Button title="Open workspace" onPress={submit} loading={busy} disabled={!canSubmit} />
+      <Text style={styles.hint}>If you forget your password later, choose Team member on the sign-in screen to get a six-digit code by email.</Text>
       <Pressable onPress={() => router.replace('/login')} hitSlop={12} accessibilityRole="link" style={styles.link}>
         <Text style={styles.linkText}>Next time, sign in with this email and your password</Text>
       </Pressable>
