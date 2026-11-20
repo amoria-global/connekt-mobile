@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Input } from '@/components/ui/Input';
 import { makeStyles, spacing } from '@/theme';
-import { checkCode, fill, parseReferralCode, useReferralStrings, type CheckResult } from './referral';
+import { HowItCountsSheet } from './HowReferralsCount';
+import { checkCode, fill, parseReferralCode, useMilestoneCopy, useReferralStrings, type CheckResult } from './referral';
 
 type State = { kind: 'idle' } | { kind: 'checking' } | CheckResult;
 
@@ -27,7 +28,9 @@ export function ReferralCodeField({
   label?: string;
 }) {
   const s = useReferralStrings();
+  const m = useMilestoneCopy();
   const styles = useStyles();
+  const [how, setHow] = useState(false);
   const [state, setState] = useState<State>({ kind: 'idle' });
   const seq = useRef(0);
 
@@ -92,6 +95,11 @@ export function ReferralCodeField({
           </Pressable>
         ) : null}
       </View>
+      <Text style={styles.helper} testID="referral-field-helper">{m.fieldHelper}</Text>
+      <Pressable onPress={() => setHow(true)} accessibilityRole="link" hitSlop={10} testID="referral-field-how">
+        <Text style={styles.remove}>{m.howTitle}</Text>
+      </Pressable>
+      <HowItCountsSheet visible={how} onClose={() => setHow(false)} />
     </View>
   );
 }
@@ -102,5 +110,6 @@ const useStyles = makeStyles((c) => ({
   status: { flex: 1, fontSize: 12.5, color: c.textMuted },
   ok: { color: c.success },
   bad: { color: c.error },
-  remove: { fontSize: 12.5, fontWeight: '700', color: c.primary },
+  helper: { fontSize: 12.5, lineHeight: 17, color: c.textMuted },
+  remove: { fontSize: 12.5, fontWeight: '700', color: c.link },
 }));

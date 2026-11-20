@@ -1,24 +1,19 @@
 /**
  * The Home "Share & invite" card. The whole card opens the share sheet (the Share button is a label, not a second
  * target), and a row of chips says what is inside: Album, Profile and Referral. The badge at the right comes from the
- * referral stats: "Lower fees" before 5 qualifying referrals, "Your fee: N%" from 5, and at 20 the Referral chip and
- * the badge go away because the referral option is gone for good.
+ * referral stats: "Earn 70%" with no progress, "Unlock 75%" on the way to the first milestone, "Your share: 75%" from
+ * 10 qualified referrals, and at 40 the Referral chip and the badge go away because the referral option is gone for good.
  */
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { IconTile } from '@/components/ui/IconTile';
 import { chipColors, type ChipTone } from '@/components/ui/StatusChip';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
-import { fill, useReferralStrings } from './referral';
+import { badgeModel } from './milestoneModel';
+import { fillCopy } from './referralCopy';
+import { useMilestoneCopy, useReferralStrings, type ReferralStats } from './referral';
 
-export type CardStats = { qualifying: number; feePercent: number | null; complete: boolean } | null;
-
-/** What the badge says: null when there is no badge (unknown stats, or the program is complete). */
-export function badgeFor(stats: CardStats): { kind: 'lower' | 'fee'; fee: number | null } | null {
-  if (!stats || stats.complete) return null;
-  if (stats.feePercent == null || stats.qualifying < 5) return { kind: 'lower', fee: null };
-  return { kind: 'fee', fee: stats.feePercent };
-}
+export type CardStats = Pick<ReferralStats, 'qualifying' | 'sharePercent' | 'nextSharePercent' | 'maxRate'> | null;
 
 function Chip({ icon, label, tone }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; tone: ChipTone }) {
   const styles = useStyles();
@@ -34,11 +29,12 @@ function Chip({ icon, label, tone }: { icon: React.ComponentProps<typeof Ionicon
 
 export function ShareInviteCard({ stats, onPress }: { stats: CardStats; onPress: () => void }) {
   const s = useReferralStrings();
+  const m = useMilestoneCopy();
   const styles = useStyles();
   const { colors, gradients, isDark } = useTheme();
-  const badge = badgeFor(stats);
-  const showReferral = !stats?.complete;
-  const badgeTone: ChipTone = badge?.kind === 'fee' ? 'success' : 'accent';
+  const badge = badgeModel(stats);
+  const showReferral = !stats?.maxRate;
+  const badgeTone: ChipTone = badge?.key === 'badgeShare' ? 'success' : 'accent';
   const bc = chipColors(colors, gradients, isDark, badgeTone);
   return (
     <Pressable
@@ -64,7 +60,7 @@ export function ShareInviteCard({ stats, onPress }: { stats: CardStats; onPress:
         {badge ? (
           <View style={[styles.badge, { backgroundColor: bc.bg, borderColor: bc.fg }]} testID="share-invite-badge">
             <Text style={[styles.badgeText, { color: bc.fg }]} numberOfLines={1}>
-              {badge.kind === 'fee' ? fill(s.ui.badgeFee, { fee: badge.fee ?? 0 }) : s.ui.badgeLower}
+              {fillCopy(m[badge.key], { rate: badge.rate })}
             </Text>
           </View>
         ) : null}
