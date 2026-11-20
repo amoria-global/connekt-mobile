@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-20-packages-tidy",
+            "date": "2026-11-20",
+            "title": "Tidier New package screen",
+            "items": [
+              {
+                "icon": "layers-outline",
+                "title": "Organize step matches the rest of the app",
+                "body": "Indoor and Outdoor are now the same tabs you see on Opportunities, selected options use a soft highlight, and the long notes in a package's delivery line are gone."
+              }
+            ]
+          },
+          {
             "id": "2026-11-20-packages-secure-read",
             "date": "2026-11-20",
             "title": "Safer brochure reading",

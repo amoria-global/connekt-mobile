@@ -3,6 +3,7 @@ import {
   applyPackageTierNamingPolicy,
   cleanDeliveryPolicy,
   deletePackage,
+  extractPackagesWithAi,
   extractPackagesFromTextLocally,
   listPackages,
   POLICY_PACKAGE_TIERS,
@@ -429,5 +430,24 @@ describe('cleanDeliveryPolicy', () => {
   it('falls back to empty with no days and no text', () => {
     expect(cleanDeliveryPolicy('', 0)).toBe('');
     expect(cleanDeliveryPolicy(undefined, 3)).toBe('Delivery within 3 days.');
+  });
+});
+
+describe('extractPackagesWithAi delivery line', () => {
+  it('keeps the AI commentary out of every delivery policy it returns', async () => {
+    const noisy =
+      "Delivery timeline is not specified. An online gallery and photo books are included; booking is encouraged through the brochure's call to action.";
+    jest.spyOn(api, 'get').mockResolvedValue({ action: 1, data: [] } as never);
+    jest.spyOn(api, 'post').mockResolvedValueOnce({
+      action: 1,
+      data: {
+        extractedPackages: [
+          { packageName: 'Diamond', serviceType: 'OUTDOOR', price: 1000, deliveryDays: 7, deliveryPolicy: noisy, ingredients: ['8 hours coverage'] },
+        ],
+      },
+    } as never);
+    const res = await extractPackagesWithAi({ rawText: 'x' });
+    expect(res.extractedPackages[0].deliveryPolicy).toBe('Delivery within 7 days.');
+    expect(res.extractedDeliveryPolicy).not.toMatch(/not specified|brochure/i);
   });
 });

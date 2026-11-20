@@ -1578,82 +1578,16 @@ export default function NewPackageScreen() {
                 {/* Top Stage Modal Buttons: Add Delivery Policy (Required) & Add-ons / Drone */}
                 {renderPoliciesAndAddonsSection('studio')}
 
-                {/* Organize Packages: Indoor vs Outdoor Cards */}
-                <View style={styles.twoColRow}>
-                  <Pressable
-                    onPress={() => setReviewSessionTab('STUDIO')}
-                    style={[
-                      styles.sessionCategoryCard,
-                      reviewSessionTab === 'STUDIO' && styles.sessionCategoryCardActive,
-                    ]}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: reviewSessionTab === 'STUDIO' }}
-                  >
-                    <View style={styles.sessionCategoryTop}>
-                      <Ionicons
-                        name="home-outline"
-                        size={18}
-                        color={reviewSessionTab === 'STUDIO' ? onFill : colors.primary}
-                      />
-                      <View style={styles.sessionCountBadge}>
-                        <Text style={styles.sessionCountBadgeText}>{studioDrafts.length}</Text>
-                      </View>
-                    </View>
-                    <Text
-                      style={[
-                        styles.sessionCategoryTitle,
-                        reviewSessionTab === 'STUDIO' && { color: onFill },
-                      ]}
-                    >
-                      Indoor Packages
-                    </Text>
-                    <Text
-                      style={[
-                        styles.sessionCategorySub,
-                        reviewSessionTab === 'STUDIO' && { color: 'rgba(255,255,255,0.85)' },
-                      ]}
-                    >
-                      Studio, Portrait, Product
-                    </Text>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={() => setReviewSessionTab('OUTDOOR')}
-                    style={[
-                      styles.sessionCategoryCard,
-                      reviewSessionTab === 'OUTDOOR' && styles.sessionCategoryCardActive,
-                    ]}
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: reviewSessionTab === 'OUTDOOR' }}
-                  >
-                    <View style={styles.sessionCategoryTop}>
-                      <Ionicons
-                        name="sunny-outline"
-                        size={18}
-                        color={reviewSessionTab === 'OUTDOOR' ? onFill : colors.primary}
-                      />
-                      <View style={styles.sessionCountBadge}>
-                        <Text style={styles.sessionCountBadgeText}>{outdoorDrafts.length}</Text>
-                      </View>
-                    </View>
-                    <Text
-                      style={[
-                        styles.sessionCategoryTitle,
-                        reviewSessionTab === 'OUTDOOR' && { color: onFill },
-                      ]}
-                    >
-                      Outdoor Packages
-                    </Text>
-                    <Text
-                      style={[
-                        styles.sessionCategorySub,
-                        reviewSessionTab === 'OUTDOOR' && { color: 'rgba(255,255,255,0.85)' },
-                      ]}
-                    >
-                      Wedding, Event, Landscape
-                    </Text>
-                  </Pressable>
-                </View>
+                {/* Organize Packages: Indoor vs Outdoor, same tabs as Opportunities */}
+                <SegmentedTabs<'STUDIO' | 'OUTDOOR'>
+                  label="Package session"
+                  value={reviewSessionTab}
+                  onChange={setReviewSessionTab}
+                  tabs={[
+                    { key: 'STUDIO', label: `Indoor ${studioDrafts.length}` },
+                    { key: 'OUTDOOR', label: `Outdoor ${outdoorDrafts.length}` },
+                  ]}
+                />
 
                 {/* Extracted Package Cards for Active Session */}
                 {activeSessionDrafts.length === 0 ? (
@@ -2748,7 +2682,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.well,
   },
   choicePillActive: {
-    backgroundColor: c.primary,
+    backgroundColor: c.tint,
     borderColor: c.primary,
   },
   choicePillText: {
@@ -2757,7 +2691,7 @@ const useStyles = makeStyles((c) => ({
     color: c.text,
   },
   choicePillTextActive: {
-    color: onFill,
+    color: c.link,
   },
   existingBanner: {
     padding: spacing.md,
@@ -2900,12 +2834,12 @@ const useStyles = makeStyles((c) => ({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.full,
-    backgroundColor: c.primary,
+    backgroundColor: c.tint,
   },
   pricePillPurpleText: {
     fontSize: fontSize.xs,
     fontWeight: fontWeight.bold,
-    color: onFill,
+    color: c.link,
   },
   moveSessionRow: {
     flexDirection: 'row',
@@ -2926,7 +2860,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.well,
   },
   miniSessionChipActive: {
-    backgroundColor: c.primary,
+    backgroundColor: c.tint,
     borderColor: c.primary,
   },
   miniSessionChipText: {
@@ -2935,7 +2869,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textSoft,
   },
   miniSessionChipTextActive: {
-    color: onFill,
+    color: c.link,
   },
   metricsSummaryList: {
     backgroundColor: c.well,
@@ -3113,7 +3047,7 @@ const useStyles = makeStyles((c) => ({
     backgroundColor: c.well,
   },
   chipActive: {
-    backgroundColor: c.primary,
+    backgroundColor: c.tint,
     borderColor: c.primary,
   },
   chipText: {
@@ -3122,7 +3056,7 @@ const useStyles = makeStyles((c) => ({
     color: c.textSoft,
   },
   chipTextActive: {
-    color: onFill,
+    color: c.link,
   },
   policyHintBanner: {
     flexDirection: 'row',
@@ -3347,7 +3281,7 @@ const useStyles = makeStyles((c) => ({
     borderWidth: 1,
   },
   addonStatusPillOn: {
-    backgroundColor: c.primary,
+    backgroundColor: c.tint,
     borderColor: c.primary,
   },
   addonStatusPillOff: {
@@ -3359,7 +3293,7 @@ const useStyles = makeStyles((c) => ({
     fontWeight: fontWeight.bold,
   },
   addonStatusPillTextOn: {
-    color: onFill,
+    color: c.link,
   },
   addonStatusPillTextOff: {
     color: c.textMuted,
@@ -3491,7 +3425,7 @@ const useStyles = makeStyles((c) => ({
     borderRadius: radii.full,
   },
   addonMiniBadgeOn: {
-    backgroundColor: c.primary,
+    backgroundColor: c.tint,
   },
   addonMiniBadgeOff: {
     backgroundColor: c.well,
@@ -3503,7 +3437,7 @@ const useStyles = makeStyles((c) => ({
     fontWeight: fontWeight.bold,
   },
   addonMiniBadgeTextOn: {
-    color: onFill,
+    color: c.link,
   },
   addonMiniBadgeTextOff: {
     color: c.textMuted,
