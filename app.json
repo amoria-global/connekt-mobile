@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-20-packages-card",
+            "date": "2026-11-20",
+            "title": "Package cards now match Opportunities",
+            "items": [
+              {
+                "icon": "layers-outline",
+                "title": "A compact, easier-to-scan package card",
+                "body": "After you upload a brochure, each package shows its price, key details and included items in the same compact layout as Opportunities, with long descriptions shortened and the AI's own remarks removed."
+              }
+            ]
+          },
+          {
             "id": "2026-11-20-code-signin-team",
             "date": "2026-11-20",
             "title": "Clearer sign-in",

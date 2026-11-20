@@ -2,6 +2,7 @@ import { api } from '@/api/client';
 import {
   applyPackageTierNamingPolicy,
   cleanDeliveryPolicy,
+  cleanDescription,
   deletePackage,
   extractPackagesWithAi,
   extractPackagesFromTextLocally,
@@ -430,6 +431,32 @@ describe('cleanDeliveryPolicy', () => {
   it('falls back to empty with no days and no text', () => {
     expect(cleanDeliveryPolicy('', 0)).toBe('');
     expect(cleanDeliveryPolicy(undefined, 3)).toBe('Delivery within 3 days.');
+  });
+});
+
+describe('AI remarks in package text', () => {
+  it('drops a delivery sentence that is advice, not a delivery term', () => {
+    expect(cleanDeliveryPolicy('Book your wedding package in advance.', 7)).toBe('Delivery within 7 days.');
+    expect(cleanDeliveryPolicy('Book your wedding package in advance.', 0)).toBe('');
+  });
+
+  it('keeps a real delivery term and drops advice next to it', () => {
+    expect(cleanDeliveryPolicy('Photos are delivered in an online gallery within 5 working days. Book early.', 7)).toBe(
+      'Photos are delivered in an online gallery within 5 working days.',
+    );
+  });
+
+  it('removes what the AI says the brochure lacks from a description, and keeps the rest', () => {
+    const noisy =
+      'Comprehensive wedding coverage with 600 photos in two photo books and an online gallery. Coverage is provided by two videographers and two photographers. Delivery timing is not specified; advance booking is recommended.';
+    expect(cleanDescription(noisy)).toBe(
+      'Comprehensive wedding coverage with 600 photos in two photo books and an online gallery. Coverage is provided by two videographers and two photographers.',
+    );
+  });
+
+  it('never returns an empty description for a package that had one', () => {
+    expect(cleanDescription('Delivery timing is not specified.')).toBe('Delivery timing is not specified.');
+    expect(cleanDescription('')).toBe('');
   });
 });
 
