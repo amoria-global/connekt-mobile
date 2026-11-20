@@ -1303,6 +1303,25 @@ const AI_COMMENTARY =
  * gallery ... booking is encouraged through the brochure's call to action."). Keep only the sentences that state a
  * delivery term, cap the length, and fall back to the plain days line.
  */
+/** A delivery policy sentence has to say something about delivery: when, how long, or how photos reach the client. */
+const DELIVERY_TERM =
+  /\b(deliver\w*|within|days?|weeks?|hours?|ready|turnaround|sent|send|ship\w*|gallery|download\w*|upload\w*|pick-?up|collect\w*)\b/i;
+
+/** Sentences where the AI says what the brochure lacks, or gives advice of its own, rather than describing the package. */
+const DESCRIPTION_COMMENTARY =
+  /(not (specified|stated|mentioned|provided)|unspecified|(advance )?booking is (recommended|encouraged)|book .{0,40} in advance)/i;
+
+/** The package description with the AI's own remarks removed ("Delivery timing is not specified; ..."). */
+export function cleanDescription(raw: string | undefined | null): string {
+  const text = (raw ?? '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  const kept = text
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .filter((sentence) => sentence.length > 0 && !DESCRIPTION_COMMENTARY.test(sentence));
+  return kept.length > 0 ? kept.join(' ') : text;
+}
+
 export function cleanDeliveryPolicy(raw: string | undefined | null, deliveryDays: number): string {
   const fallback = deliveryDays > 0 ? `Delivery within ${deliveryDays} days.` : '';
   const text = (raw ?? '').replace(/\s+/g, ' ').trim();
@@ -1310,7 +1329,7 @@ export function cleanDeliveryPolicy(raw: string | undefined | null, deliveryDays
   const kept = text
     .split(/(?<=[.!?])\s+/)
     .map((sentence) => sentence.trim())
-    .filter((sentence) => sentence.length > 0 && !AI_COMMENTARY.test(sentence));
+    .filter((sentence) => sentence.length > 0 && !AI_COMMENTARY.test(sentence) && DELIVERY_TERM.test(sentence));
   const cleaned = kept.join(' ').trim();
   if (!cleaned) return fallback;
   return cleaned.length > DELIVERY_NOTE_MAX ? `${cleaned.slice(0, DELIVERY_NOTE_MAX - 1).trimEnd()}…` : cleaned;
@@ -1366,11 +1385,10 @@ function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
     droneCapturingPrice,
     hasDroneCapturing: Boolean(droneCapturingPrice && droneCapturingPrice > 0),
     originalDescription:
-      str(r.originalDescription) ??
+      cleanDescription(str(r.originalDescription)) ||
       (ingredients.length > 0 ? ingredients.join(' • ') : originalTitle),
     enhancedDescription:
-      str(r.enhancedDescription) ??
-      str(r.description) ??
+      cleanDescription(str(r.enhancedDescription) ?? str(r.description)) ||
       `${originalTitle}: ${ingredients.join(', ')}.`,
     ingredients: ingredients.length > 0 ? ingredients : [originalTitle],
   };

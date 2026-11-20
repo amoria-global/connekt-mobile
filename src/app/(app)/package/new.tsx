@@ -15,10 +15,10 @@ import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MoneyInput, useMoneyCurrency } from '@/components/ui/MoneyInput';
-import { Button } from '@/components/ui/Button';
+import { Button, GhostButton, PrimaryButton } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { GlassScrim, GlassSheetHost } from '@/components/ui/GlassModal';
-import { Chip, IconTile, SegmentedTabs } from '@/features/photographer/kit';
+import { ActionButton, Chip, IconTile, SegmentedTabs } from '@/features/photographer/kit';
 import { Screen } from '@/components/ui/Screen';
 import { Segmented } from '@/components/ui/Segmented';
 import { OptionsNote } from '@/components/ui/OptionsNote';
@@ -1616,129 +1616,131 @@ export default function NewPackageScreen() {
                         key={item.tempId}
                         style={[styles.extractedCard, isDiamond && styles.extractedCardDiamond]}
                       >
-                        <View style={styles.extractedTopRow}>
-                          <View style={{ flex: 1, gap: 2 }}>
-                            <View style={styles.tierTitleRow}>
-                              <Ionicons
-                                name={isDiamond ? 'diamond' : 'layers-outline'}
-                                size={16}
-                                color={isDiamond ? colors.accent : colors.primary}
-                              />
-                              <Text style={styles.extractedTierName}>{item.packageName}</Text>
-                            </View>
-                            {item.originalTitle && item.originalTitle !== item.packageName ? (
-                              <Text style={styles.originalTitleHint}>{item.originalTitle}</Text>
-                            ) : null}
-                          </View>
-
-                          <View style={styles.pricePillPurple}>
-                            <Text style={styles.pricePillPurpleText}>
-                              {item.price ? `${Number(item.price).toLocaleString('en-US')} ${item.currencyCode || 'RWF'}` : t('b2_pkgl_priceNeeded')}
+                        <View style={styles.cardHeaderRow}>
+                          <IconTile icon={isDiamond ? 'diamond-outline' : 'layers-outline'} tone={isDiamond ? 'accent' : 'primary'} />
+                          <View style={styles.cardHeaderText}>
+                            <Text style={styles.eyebrow}>
+                              {`${isDiamond ? 'TOP TIER · ' : ''}${item.serviceType === 'STUDIO' ? 'INDOOR' : 'OUTDOOR'}`}
+                            </Text>
+                            <Text style={styles.extractedTierName} numberOfLines={1}>
+                              {item.packageName}
                             </Text>
                           </View>
+                          <Text style={styles.priceText}>
+                            {item.price ? `${Number(item.price).toLocaleString('en-US')} ${item.currencyCode || 'RWF'}` : t('b2_pkgl_priceNeeded')}
+                          </Text>
                         </View>
+                        {item.originalTitle && item.originalTitle !== item.packageName ? (
+                          <Text style={styles.originalTitleHint}>{`Brochure name: ${item.originalTitle}`}</Text>
+                        ) : null}
 
-                        {/* Session Switcher (Move between Indoor and Outdoor) */}
-                        <View style={styles.moveSessionRow}>
-                          <Text style={styles.moveSessionLabel}>Session:</Text>
-                          {(
-                            [
-                              ['STUDIO', 'Indoor (Studio)'],
-                              ['OUTDOOR', 'Outdoor (Events)'],
-                            ] as [ServiceType, string][]
-                          ).map(([sType, sLabel]) => {
-                            const on = item.serviceType === sType;
-                            return (
-                              <Pressable
-                                key={sType}
-                                onPress={() =>
-                                  updateDraftItem(item.tempId, { serviceType: sType }, true)
-                                }
-                                style={[
-                                  styles.miniSessionChip,
-                                  on && styles.miniSessionChipActive,
-                                ]}
-                              >
-                                <Text
-                                  style={[
-                                    styles.miniSessionChipText,
-                                    on && styles.miniSessionChipTextActive,
-                                  ]}
-                                >
-                                  {sLabel}
-                                </Text>
-                              </Pressable>
-                            );
-                          })}
-                        </View>
-
-                        {/* Key Summary Metrics (only shown when present in brochure) */}
+                        {/* Key summary (only what the brochure states): the same icon rows as the Opportunity card */}
                         {(item.durationHours > 0 ||
                           item.includedPhotos > 0 ||
                           item.includedVideos > 0 ||
                           item.deliveryDays > 0 ||
-                          Boolean(item.deliveryPolicy)) ? (
+                          Boolean(item.deliveryPolicy) ||
+                          (item.otherPolicies ?? []).length > 0 ||
+                          (item.addons ?? []).some((a) => a.enabled && a.price > 0)) ? (
                           <View style={styles.metricsSummaryList}>
                             {item.durationHours > 0 ? (
-                              <Text style={styles.metricLine}>
-                                {`📷  ${item.durationHours} ${
-                                  item.durationHours === 1 ? 'hour' : 'hours'
-                                } ${
-                                  item.serviceType === 'STUDIO' ? 'studio session' : 'outdoor coverage'
-                                }`}
-                              </Text>
+                              <View style={styles.line}>
+                                <Ionicons name="time-outline" size={16} color={colors.textMuted} style={styles.lineIcon} />
+                                <Text style={styles.lineLeft}>
+                                  {`${item.durationHours} ${item.durationHours === 1 ? 'hour' : 'hours'} ${
+                                    item.serviceType === 'STUDIO' ? 'studio session' : 'outdoor coverage'
+                                  }`}
+                                </Text>
+                              </View>
                             ) : null}
                             {item.includedPhotos > 0 || item.includedVideos > 0 ? (
-                              <Text style={styles.metricLine}>
-                                {`🖼️  ${
-                                  item.includedPhotos > 0
-                                    ? `${item.includedPhotos} edited photos`
-                                    : ''
-                                }${
-                                  item.includedPhotos > 0 && item.includedVideos > 0 ? ' · ' : ''
-                                }${item.includedVideos > 0 ? `${item.includedVideos} video(s)` : ''}`}
-                              </Text>
+                              <View style={styles.line}>
+                                <Ionicons name="images-outline" size={16} color={colors.textMuted} style={styles.lineIcon} />
+                                <Text style={styles.lineLeft}>
+                                  {[
+                                    item.includedPhotos > 0 ? `${item.includedPhotos} edited photos` : '',
+                                    item.includedVideos > 0 ? `${item.includedVideos} ${item.includedVideos === 1 ? 'video' : 'videos'}` : '',
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' · ')}
+                                </Text>
+                              </View>
                             ) : null}
                             {item.deliveryDays > 0 || item.deliveryPolicy ? (
-                              <Text style={styles.metricLine}>
-                                {item.deliveryDays > 0
-                                  ? `⏱️  Delivery in ${item.deliveryDays} days${
-                                    item.deliveryPolicy && !/^delivery\b/i.test(item.deliveryPolicy)
-                                      ? ` (${item.deliveryPolicy})`
-                                      : ''
-                                  }`
-                                  : `⏱️  ${item.deliveryPolicy}`}
-                              </Text>
+                              <View style={styles.line}>
+                                <Ionicons name="timer-outline" size={16} color={colors.textMuted} style={styles.lineIcon} />
+                                <Text style={styles.lineLeft}>
+                                  {item.deliveryDays > 0
+                                    ? `Delivery in ${item.deliveryDays} days${
+                                        item.deliveryPolicy && !/^delivery\b/i.test(item.deliveryPolicy)
+                                          ? ` (${item.deliveryPolicy})`
+                                          : ''
+                                      }`
+                                    : item.deliveryPolicy}
+                                </Text>
+                              </View>
                             ) : null}
                             {(item.otherPolicies ?? []).map((pol, pIdx) => (
-                              <Text key={`pol-${pIdx}`} style={styles.metricLine}>
-                                {`📋  ${pol}`}
-                              </Text>
+                              <View key={`pol-${pIdx}`} style={styles.line}>
+                                <Ionicons name="document-text-outline" size={16} color={colors.textMuted} style={styles.lineIcon} />
+                                <Text style={styles.lineLeft}>{pol}</Text>
+                              </View>
                             ))}
                             {(item.addons ?? [])
                               .filter((a) => a.enabled && a.price > 0)
                               .map((addon) => (
-                                <Text key={addon.key} style={styles.metricLine}>
-                                  {`${addon.key === 'drone_capturing' ? '🚁' : '✨'}  ${addon.name} (Self-priced): +${addon.price.toLocaleString()} ${addon.currencyCode || item.currencyCode || 'RWF'}`}
-                                </Text>
+                                <View key={addon.key} style={styles.line}>
+                                  <Ionicons
+                                    name={addon.key === 'drone_capturing' ? 'airplane-outline' : 'sparkles-outline'}
+                                    size={16}
+                                    color={colors.textMuted}
+                                    style={styles.lineIcon}
+                                  />
+                                  <Text style={styles.lineLeft}>{`${addon.name} (self-priced)`}</Text>
+                                  <Text style={styles.lineRight}>
+                                    {`+${addon.price.toLocaleString()} ${addon.currencyCode || item.currencyCode || 'RWF'}`}
+                                  </Text>
+                                </View>
                               ))}
                           </View>
                         ) : null}
 
-                        {/* Package Items & Description */}
-                        <View style={styles.descriptionsComparisonBox}>
-                          <View style={styles.descColumn}>
-                            <Text style={styles.descColumnHeader}>Included Items</Text>
-                            {item.ingredients.map((ing, i) => (
-                              <Text key={`${ing}-${i}`} style={styles.descBulletText}>
-                                {`• ${ing}`}
-                              </Text>
+                        {/* Included items as chips, like the Opportunity card; the full list is in the editor */}
+                        {item.ingredients.length > 0 ? (
+                          <View style={styles.itemChips}>
+                            {item.ingredients.slice(0, 4).map((ing, i2) => (
+                              <View key={`${ing}-${i2}`} style={styles.itemChip}>
+                                <Ionicons name="checkmark" size={13} color={colors.success} />
+                                <Text style={styles.itemChipText} numberOfLines={1}>{ing}</Text>
+                              </View>
                             ))}
+                            {item.ingredients.length > 4 ? (
+                              <View style={[styles.itemChip, styles.itemChipMore]}>
+                                <Text style={styles.itemChipMoreText}>{`+${item.ingredients.length - 4} more`}</Text>
+                              </View>
+                            ) : null}
                           </View>
-                          <View style={styles.descColumn}>
-                            <Text style={styles.descColumnHeader}>Description</Text>
-                            <Text style={styles.descBodyText}>{item.enhancedDescription}</Text>
-                          </View>
+                        ) : null}
+
+                        {item.enhancedDescription ? (
+                          <Text style={styles.descShort} numberOfLines={isExpanded ? undefined : 3}>
+                            {item.enhancedDescription}
+                          </Text>
+                        ) : null}
+
+                        {/* Move between Indoor and Outdoor */}
+                        <View style={styles.moveSessionRow}>
+                          <Text style={styles.moveSessionLabel}>Move to</Text>
+                          <Chip
+                            label="Indoor"
+                            selected={item.serviceType === 'STUDIO'}
+                            onPress={() => updateDraftItem(item.tempId, { serviceType: 'STUDIO' }, true)}
+                          />
+                          <Chip
+                            label="Outdoor"
+                            selected={item.serviceType === 'OUTDOOR'}
+                            onPress={() => updateDraftItem(item.tempId, { serviceType: 'OUTDOOR' }, true)}
+                          />
                         </View>
 
                         {/* Expandable Inline Editor */}
@@ -1889,60 +1891,46 @@ export default function NewPackageScreen() {
                           </View>
                         ) : null}
 
-                        {/* Card Footer Buttons: Edit Details & Delete */}
-                        <View style={styles.twoColRow}>
-                          <Pressable
-                            onPress={() =>
-                              setExpandedDraftId(isExpanded ? null : item.tempId)
-                            }
-                            style={styles.editDetailsBtn}
-                            accessibilityRole="button"
-                          >
-                            <Ionicons name="create-outline" size={15} color={colors.primary} />
-                            <Text style={styles.editDetailsBtnText}>
-                              {isExpanded ? 'Done Editing' : 'Edit Details'}
-                            </Text>
-                          </Pressable>
-
-                          <Pressable
+                        {/* Card footer: the Opportunity card's compact action pair */}
+                        <View style={styles.actionRow}>
+                          <ActionButton
+                            compact
+                            variant="secondary"
+                            icon={isExpanded ? 'checkmark' : 'create-outline'}
+                            label={isExpanded ? 'Done editing' : 'Edit details'}
+                            onPress={() => setExpandedDraftId(isExpanded ? null : item.tempId)}
+                            style={styles.actionBtn}
+                          />
+                          <ActionButton
+                            compact
+                            variant="destructive"
+                            icon="trash-outline"
+                            label="Delete"
                             onPress={() => deleteDraftItem(item.tempId)}
-                            style={styles.deleteOutlineBtn}
-                            accessibilityRole="button"
-                          >
-                            <Ionicons name="trash-outline" size={15} color={colors.error} />
-                            <Text style={styles.deleteOutlineBtnText}>Delete</Text>
-                          </Pressable>
+                            style={styles.actionBtn}
+                          />
                         </View>
+
                       </View>
                     );
                   })
                 )}
 
-                <Pressable
+                <GhostButton
+                  title={`Add another ${reviewSessionTab === 'STUDIO' ? 'indoor' : 'outdoor'} package`}
+                  icon={<Ionicons name="add-circle-outline" size={16} color={colors.link} />}
                   onPress={() => addExtraDraftPackage(reviewSessionTab)}
-                  style={styles.addExtraBtn}
-                  accessibilityRole="button"
-                >
-                  <Ionicons name="add-circle-outline" size={16} color={colors.primary} />
-                  <Text style={styles.addExtraBtnText}>
-                    {`+ Add Extra ${reviewSessionTab === 'STUDIO' ? 'Indoor' : 'Outdoor'} Package`}
-                  </Text>
-                </Pressable>
+                />
 
                 {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
-                <View style={styles.twoColRow}>
-                  <Pressable
-                    onPress={() => setAiStep(1)}
-                    style={styles.secondaryNavBtn}
-                  >
-                    <Text style={styles.secondaryNavBtnText}>Back</Text>
-                  </Pressable>
-                  <View style={{ flex: 2 }}>
-                    <Button
-                      title="Review & Publish Packages"
-                      onPress={handleProceedToStep3}
-                    />
+                {/* The Opportunity card's action row: a quiet Back beside the one raised action */}
+                <View style={styles.actionRow}>
+                  <View style={styles.navBack}>
+                    <GhostButton title="Back" onPress={() => setAiStep(1)} />
+                  </View>
+                  <View style={styles.navMain}>
+                    <PrimaryButton title="Review & publish" onPress={handleProceedToStep3} />
                   </View>
                 </View>
               </View>
@@ -2068,19 +2056,12 @@ export default function NewPackageScreen() {
 
                 {serverError ? <Text style={styles.serverError}>{serverError}</Text> : null}
 
-                <View style={styles.twoColRow}>
-                  <Pressable
-                    onPress={() => setAiStep(2)}
-                    style={styles.secondaryNavBtn}
-                  >
-                    <Text style={styles.secondaryNavBtnText}>Back to Edit</Text>
-                  </Pressable>
-                  <View style={{ flex: 2 }}>
-                    <Button
-                      title="Publish Packages"
-                      onPress={handlePublishBatch}
-                      loading={publishingBatch}
-                    />
+                <View style={styles.actionRow}>
+                  <View style={styles.navBack}>
+                    <GhostButton title="Back to edit" onPress={() => setAiStep(2)} />
+                  </View>
+                  <View style={styles.navMain}>
+                    <PrimaryButton title="Publish packages" onPress={handlePublishBatch} loading={publishingBatch} />
                   </View>
                 </View>
               </View>
@@ -2792,7 +2773,7 @@ const useStyles = makeStyles((c) => ({
     padding: spacing.md,
     borderWidth: 1,
     borderColor: c.stroke,
-    gap: spacing.sm,
+    gap: spacing.md,
   },
   extractedCardDiamond: {
     borderColor: c.primary,
@@ -2811,10 +2792,23 @@ const useStyles = makeStyles((c) => ({
     gap: 6,
   },
   extractedTierName: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.display,
+    fontSize: fontSize.lg,
     color: c.text,
   },
+  priceText: { fontFamily: fonts.display, fontSize: fontSize.md, color: c.text },
+  line: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+  lineIcon: { marginTop: 2 },
+  lineLeft: { flex: 1, fontFamily: fonts.regular, fontSize: fontSize.sm, lineHeight: 20, color: c.textSoft },
+  lineRight: { flexShrink: 1, maxWidth: '55%', textAlign: 'right', fontFamily: fonts.semibold, fontSize: fontSize.sm, lineHeight: 20, color: c.text },
+  itemChips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  itemChip: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 28, maxWidth: '100%', paddingHorizontal: spacing.md, borderRadius: radii.full, backgroundColor: c.successBg },
+  itemChipText: { flexShrink: 1, fontFamily: fonts.medium, fontSize: fontSize.xs, color: c.success },
+  itemChipMore: { backgroundColor: c.well, borderWidth: 1, borderColor: c.stroke },
+  itemChipMoreText: { fontFamily: fonts.medium, fontSize: fontSize.xs, color: c.textSoft },
+  descShort: { fontFamily: fonts.regular, fontSize: fontSize.sm, lineHeight: 20, color: c.textSoft },
+  actionRow: { flexDirection: 'row', gap: spacing.md },
+  actionBtn: { flex: 1 },
   highestAmountPill: {
     paddingHorizontal: 7,
     paddingVertical: 2,
@@ -2844,7 +2838,7 @@ const useStyles = makeStyles((c) => ({
   moveSessionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   moveSessionLabel: {
     fontSize: 11,
@@ -2874,8 +2868,10 @@ const useStyles = makeStyles((c) => ({
   metricsSummaryList: {
     backgroundColor: c.well,
     borderRadius: radii.md,
-    padding: spacing.sm,
-    gap: 3,
+    borderWidth: 1,
+    borderColor: c.stroke,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   metricLine: {
     fontSize: fontSize.xs,
@@ -2999,10 +2995,12 @@ const useStyles = makeStyles((c) => ({
     marginBottom: 4,
   },
   sessionReviewTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.bold,
+    fontFamily: fonts.display,
+    fontSize: fontSize.md,
     color: c.text,
   },
+  navBack: { flex: 1 },
+  navMain: { flex: 1.5 },
   compactReviewRow: {
     flexDirection: 'row',
     alignItems: 'center',
