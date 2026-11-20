@@ -81,7 +81,7 @@ export default function LoginCodeScreen() {
 
   if (step === 'email') {
     return (
-      <AuthGlassLayout title="Email me a code" subtitle="We will send a six-digit code to your email. It expires in 5 minutes.">
+      <AuthGlassLayout title="Sign in with an email code" subtitle="For invited team members. We will send a six-digit code to your email. It expires in 5 minutes.">
         <Input
           glass
           label="Email"
@@ -97,6 +97,15 @@ export default function LoginCodeScreen() {
           returnKeyType="send"
         />
         <Button title="Send code" onPress={send} loading={busy} disabled={busy || !email.trim()} />
+        <Text style={styles.note}>This is only for invited team members. If you forgot your password, reset it instead.</Text>
+        <Pressable
+          onPress={() => router.replace({ pathname: '/forgot-password', params: { email: email.trim() } } as never)}
+          hitSlop={12}
+          accessibilityRole="link"
+          style={styles.link}
+        >
+          <Text style={styles.linkText}>Forgot your password?</Text>
+        </Pressable>
         <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="link" style={styles.link}>
           <Text style={styles.linkText}>Use my password instead</Text>
         </Pressable>
@@ -130,6 +139,7 @@ export default function LoginCodeScreen() {
 }
 
 const useStyles = makeStyles((c) => ({
+  note: { color: c.textMuted, fontSize: fontSize.xs, textAlign: 'center' },
   link: { alignItems: 'center', paddingVertical: spacing.sm },
   linkText: { color: c.primary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
   off: { color: c.textMuted },

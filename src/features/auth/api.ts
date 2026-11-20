@@ -4,6 +4,7 @@
  */
 import { api } from '@/api/client';
 import { storage, StorageKeys } from '@/services/storage';
+import { rememberCodeSignIn } from './codeSignIn';
 import type { ApiError } from '@/types';
 import { forgetFirstHandshake, type AppleCredentialPayload } from './apple';
 import { codeErrorFrom, codeSentFrom, localDeadline, needsTotpError, type CodeSent, type NeedsTotpError, type TwoFactorChallenge, type TwoFactorMethod } from './twoFactor';
@@ -521,6 +522,8 @@ async function persistSession(session: AuthSession): Promise<void> {
   await storage.set(StorageKeys.session, JSON.stringify(session));
   // A new session starts in its own workspace, never in the previous account's choice.
   await storage.remove(StorageKeys.activeWorkspace).catch(() => {});
+  // A team-member login can sign in with an emailed code; remember that on this device so the sign-in screen offers it.
+  if (session.user?.customerType === 'Collaborator') await rememberCodeSignIn();
 }
 
 export async function loadSession(): Promise<AuthSession | null> {

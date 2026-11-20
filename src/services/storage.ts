@@ -59,6 +59,11 @@ export const StorageKeys = {
    * every sign-in and sign-out, so one account's selection never carries into another's.
    */
   activeWorkspace: 'workspace.active',
+  /**
+   * Set once a team-member (collaborator) login has signed in on this device. It decides whether the sign-in screen
+   * offers "Sign in with an email code", which only a collaborator login can use. Survives sign-out on purpose.
+   */
+  codeSignIn: 'auth.codeSignIn',
   /** Light or dark, from the Profile header's appearance button. Absent means Midnight Glass (dark). */
   themePreference: 'app.themePreference',
 } as const;
