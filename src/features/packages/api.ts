@@ -1360,9 +1360,7 @@ function mapExtractedDraft(r: Raw, idx: number): ExtractedAiPackageDraft {
     photobookPhotos: num(r.photobookPhotos) ?? null,
     hasLiveStream: r.hasLiveStream === true,
     deliveryDays,
-    deliveryPolicy:
-      str(r.deliveryPolicy) ??
-      (deliveryDays > 0 ? `Delivery within ${deliveryDays} days.` : ''),
+    deliveryPolicy: cleanDeliveryPolicy(str(r.deliveryPolicy), deliveryDays),
     otherPolicies,
     addons: normalizedAddons,
     droneCapturingPrice,
@@ -1413,15 +1411,17 @@ export async function extractPackagesWithAi(input: {
       const extractedPackages = applyPackageTierNamingPolicy(rawExtracted.map(mapExtractedDraft));
       const studioCount = extractedPackages.filter((p) => p.serviceType === 'STUDIO').length;
       const outdoorCount = extractedPackages.filter((p) => p.serviceType === 'OUTDOOR').length;
-      const extractedDeliveryPolicy =
+      const extractedDeliveryPolicy = cleanDeliveryPolicy(
         str(data.extractedDeliveryPolicy) ||
-        docPolicies.deliveryPolicy ||
-        extractedPackages.find(
-          (p) =>
-            p.deliveryPolicy &&
-            p.deliveryPolicy !== 'Standard studio delivery policy applies.',
-        )?.deliveryPolicy ||
-        '';
+          docPolicies.deliveryPolicy ||
+          extractedPackages.find(
+            (p) =>
+              p.deliveryPolicy &&
+              p.deliveryPolicy !== 'Standard studio delivery policy applies.',
+          )?.deliveryPolicy ||
+          '',
+        0,
+      );
       const extractedOtherPolicies = Array.isArray(data.extractedOtherPolicies)
         ? data.extractedOtherPolicies.filter((p): p is string => typeof p === 'string' && p.trim().length > 0)
         : docPolicies.otherPolicies;
