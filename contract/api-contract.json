@@ -488,6 +488,10 @@
     "controller" : "AdminQaAccountsPageController#page"
   }, {
     "method" : "GET",
+    "path" : "/admin/referrals",
+    "controller" : "AdminReferralsPageController#page"
+  }, {
+    "method" : "GET",
     "path" : "/admin/refunds",
     "controller" : "AdminRefundController#index",
     "params" : [ {
@@ -802,6 +806,14 @@
       "required" : false,
       "file" : true
     } ]
+  }, {
+    "method" : "GET",
+    "path" : "/admin/settings/whatsapp",
+    "controller" : "AdminWhatsAppPageController#settings"
+  }, {
+    "method" : "GET",
+    "path" : "/admin/settings/whatsapp/index",
+    "controller" : "AdminWhatsAppPageController#settings"
   }, {
     "method" : "GET",
     "path" : "/admin/settings/withdrawal-methods",
@@ -1805,6 +1817,19 @@
     "controller" : "AdminEventApiController#provisionLiveInput",
     "pathVariables" : [ "eventId" ]
   }, {
+    "method" : "POST",
+    "path" : "/api/admin/events/{eventId}/unpublish",
+    "controller" : "AdminEventApiController#unpublish",
+    "body" : {
+      "type" : "Map"
+    },
+    "pathVariables" : [ "eventId" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/events/{eventId}/unpublish-impact",
+    "controller" : "AdminEventApiController#unpublishImpact",
+    "pathVariables" : [ "eventId" ]
+  }, {
     "method" : "GET",
     "path" : "/api/admin/facial-recognition/stats",
     "controller" : "AdminFaceRecognitionApiController#getStats"
@@ -2078,8 +2103,21 @@
     }
   }, {
     "method" : "GET",
+    "path" : "/api/admin/referrals",
+    "controller" : "AdminReferralController#list",
+    "params" : [ {
+      "name" : "status",
+      "required" : false
+    } ]
+  }, {
+    "method" : "GET",
     "path" : "/api/admin/referrals/flagged",
     "controller" : "AdminReferralController#flagged"
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/referrals/photographer/{customerId}",
+    "controller" : "AdminReferralController#photographer",
+    "pathVariables" : [ "customerId" ]
   }, {
     "method" : "POST",
     "path" : "/api/admin/referrals/{id}/approve",
@@ -2461,6 +2499,50 @@
     "body" : {
       "type" : "Map"
     }
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/whatsapp/send-template",
+    "controller" : "AdminWhatsAppApiController#sendTemplate",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/whatsapp/settings",
+    "controller" : "AdminWhatsAppApiController#getSettings"
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/whatsapp/settings",
+    "controller" : "AdminWhatsAppApiController#saveSettings",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/whatsapp/settings/phone-status",
+    "controller" : "AdminWhatsAppApiController#phoneStatus"
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/whatsapp/settings/regenerate-token",
+    "controller" : "AdminWhatsAppApiController#regenerateVerifyToken"
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/whatsapp/settings/register-phone",
+    "controller" : "AdminWhatsAppApiController#registerPhone",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "POST",
+    "path" : "/api/admin/whatsapp/settings/test",
+    "controller" : "AdminWhatsAppApiController#testSend",
+    "body" : {
+      "type" : "Map"
+    }
+  }, {
+    "method" : "GET",
+    "path" : "/api/admin/whatsapp/templates",
+    "controller" : "AdminWhatsAppApiController#listTemplates"
   }, {
     "method" : "GET",
     "path" : "/api/admin/whatsapp/unread-count",
@@ -6835,6 +6917,10 @@
     "path" : "/api/remote/photographer/referral/me",
     "controller" : "ReferralController#mine"
   }, {
+    "method" : "POST",
+    "path" : "/api/remote/photographer/referral/milestone/ack",
+    "controller" : "ReferralController#ackMilestone"
+  }, {
     "method" : "GET",
     "path" : "/api/remote/photographer/referral/validate",
     "controller" : "ReferralController#validateMine",
@@ -8613,6 +8699,64 @@
       "required" : false
     } ]
   }, {
+    "method" : "GET",
+    "path" : "/api/webhooks/meta/whatsapp",
+    "controller" : "MetaWhatsAppWebhookController#verifyWebhook",
+    "params" : [ {
+      "name" : "hub.mode",
+      "required" : false
+    }, {
+      "name" : "hub.verify_token",
+      "required" : false
+    }, {
+      "name" : "hub.challenge",
+      "required" : false
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/webhooks/meta/whatsapp",
+    "controller" : "MetaWhatsAppWebhookController#receiveWebhook",
+    "body" : {
+      "type" : "String"
+    },
+    "params" : [ {
+      "name" : "signature256",
+      "required" : false
+    }, {
+      "name" : "authorization",
+      "required" : false
+    } ],
+    "consumes" : [ "application/json" ]
+  }, {
+    "method" : "GET",
+    "path" : "/api/webhooks/whatsapp",
+    "controller" : "MetaWhatsAppWebhookController#verifyWebhook",
+    "params" : [ {
+      "name" : "hub.mode",
+      "required" : false
+    }, {
+      "name" : "hub.verify_token",
+      "required" : false
+    }, {
+      "name" : "hub.challenge",
+      "required" : false
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/api/webhooks/whatsapp",
+    "controller" : "MetaWhatsAppWebhookController#receiveWebhook",
+    "body" : {
+      "type" : "String"
+    },
+    "params" : [ {
+      "name" : "signature256",
+      "required" : false
+    }, {
+      "name" : "authorization",
+      "required" : false
+    } ],
+    "consumes" : [ "application/json" ]
+  }, {
     "method" : "POST",
     "path" : "/internal/qa/accounts",
     "controller" : "InternalQaController#create",
@@ -8627,6 +8771,18 @@
     "method" : "DELETE",
     "path" : "/internal/qa/accounts/{id}",
     "controller" : "InternalQaController#delete",
+    "pathVariables" : [ "id" ],
+    "params" : [ {
+      "name" : "key",
+      "required" : false
+    } ]
+  }, {
+    "method" : "POST",
+    "path" : "/internal/qa/accounts/{id}/classify-payments",
+    "controller" : "InternalQaController#classifyPayments",
+    "body" : {
+      "type" : "Map"
+    },
     "pathVariables" : [ "id" ],
     "params" : [ {
       "name" : "key",
