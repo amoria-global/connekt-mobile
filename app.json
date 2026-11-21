@@ -237,6 +237,28 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-20-grow-your-store",
+            "date": "2026-11-20",
+            "title": "Grow your store",
+            "items": [
+              {
+                "icon": "sparkles-outline",
+                "title": "Earn up to 90% on every photo you sell",
+                "body": "Invite photographers and unlock a bigger share of every photo sale at 10, 20, 30 and 40 referrals. Your rate rises from 70% up to 90%."
+              },
+              {
+                "icon": "trophy-outline",
+                "title": "A Milestones screen for your referrals",
+                "body": "See your rate, how many referrals you need for the next one, and exactly what each friend still has to do before they count."
+              },
+              {
+                "icon": "help-circle-outline",
+                "title": "Clear rules for when a referral counts",
+                "body": "A referral counts after your friend is verified, publishes a photo and makes their first sale. The steps are explained in the app, in your language."
+              }
+            ]
+          },
+          {
             "id": "2026-11-20-packages-card",
             "date": "2026-11-20",
             "title": "Package cards now match Opportunities",
@@ -281,100 +303,6 @@
                 "icon": "shield-checkmark-outline",
                 "title": "Brochure reading now runs on our servers",
                 "body": "When you upload a package brochure, it is now read securely on our servers instead of inside the app, so reading your packages keeps working and nothing sensitive is stored on your phone."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-19-packages-layout",
-            "date": "2026-11-19",
-            "title": "Packages now look like Opportunities",
-            "items": [
-              {
-                "icon": "layers-outline",
-                "title": "My packages and New package match Opportunities",
-                "body": "Tabs, step chips, card headers and detail boxes now use the same compact layout as Opportunities, and the long notes that sometimes appeared in a package's delivery line are gone."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-19-packages-theme",
-            "date": "2026-11-19",
-            "title": "A cleaner New package screen",
-            "items": [
-              {
-                "icon": "pricetags-outline",
-                "title": "New package now matches the rest of the app",
-                "body": "The New package screen uses the same frosted glass cards, lighter type and softer highlights as your other screens, and reading a brochure photo into packages works again."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-19-share-albums",
-            "date": "2026-11-19",
-            "title": "Share your albums from Home",
-            "items": [
-              {
-                "icon": "images-outline",
-                "title": "Share and publish the albums you already have",
-                "body": "On Home, Share your album now opens your Albums screen, where you can share or publish any album you have already made, instead of starting a new one."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-18-share-invite",
-            "date": "2026-11-18",
-            "title": "One card to share and invite",
-            "items": [
-              {
-                "icon": "share-social-outline",
-                "title": "Share and invite in one place",
-                "body": "The Share card on Home now says what is inside: your album, your profile and your referral code. Tap anywhere on the card to open it."
-              },
-              {
-                "icon": "gift-outline",
-                "title": "See your fee at a glance",
-                "body": "The card shows your current platform fee once you reach 5 referrals, and the sheet shows your progress toward the next level."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-18-referral-program",
-            "date": "2026-11-18",
-            "title": "Refer photographers and lower your fee",
-            "items": [
-              {
-                "icon": "gift-outline",
-                "title": "Share your referral code",
-                "body": "The Share button on Home now opens a menu with your album, your profile and your personal referral code and link. Photographers you refer who start earning lower your platform fee, down to 10 percent."
-              },
-              {
-                "icon": "person-add-outline",
-                "title": "Add a code if someone referred you",
-                "body": "You can enter a referral code at sign-up, or later in Preferences, and see who referred you. It can be set once and the policy explains how it works."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-17-fainter-watermark",
-            "date": "2026-11-17",
-            "title": "A fainter watermark on live video",
-            "items": [
-              {
-                "icon": "eye-outline",
-                "title": "The picture comes first",
-                "body": "The Connekyt watermark on live video is now fainter, so it gets out of the way of what you are watching."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-17-live-chat-fix",
-            "date": "2026-11-17",
-            "title": "Chat on live events works when you are signed in",
-            "items": [
-              {
-                "icon": "chatbubbles-outline",
-                "title": "Your messages are sent",
-                "body": "When you are signed in and watching a live event, the messages you type now reach the chat for everyone. Before, they only showed on your own screen."
               }
             ]
           }

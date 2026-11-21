@@ -1,5 +1,5 @@
 import { REFERRAL_I18N } from './referralI18n';
-import { fill, parseReferralCode, problemKey, progressParts, referralLink, referralStrings } from './referral';
+import { fill, parseReferralCode, problemKey, referralLink, referralStrings } from './referral';
 
 jest.mock('@/api/client', () => ({ api: {}, requireOk: (x: unknown) => x }));
 jest.mock('@/contexts/LanguageContext', () => ({ useLanguage: () => ({ language: 'en' }) }));
@@ -16,16 +16,10 @@ describe('parseReferralCode', () => {
   });
 });
 
-describe('progress and links', () => {
-  const base = { cap: 20 };
-  it('counts toward the first discount, then shows the fee, then completes', () => {
-    expect(progressParts({ ...base, qualifying: 3, feePercent: null, complete: false })).toMatchObject({ kind: 'unlock', n: 3, pct: 15 });
-    expect(progressParts({ ...base, qualifying: 7, feePercent: 23, complete: false })).toMatchObject({ kind: 'fee', fee: 23, pct: 35 });
-    expect(progressParts({ ...base, qualifying: 20, feePercent: 10, complete: true })).toMatchObject({ kind: 'complete', fee: 10, pct: 100 });
-  });
+describe('links and problems', () => {
   it('builds the join link and fills templates', () => {
     expect(referralLink('ABCD2345')).toBe('https://connekyt.com/join?ref=ABCD2345');
-    expect(fill('{n} of 5 to unlock 25%', { n: 3 })).toBe('3 of 5 to unlock 25%');
+    expect(fill('{n} of 10', { n: 3 })).toBe('3 of 10');
   });
   it('maps server problems to field messages', () => {
     expect(problemKey('LIMIT_REACHED')).toBe('limit');
@@ -44,8 +38,6 @@ describe('strings', () => {
   it('keeps the placeholders the screens fill', () => {
     for (const l of Object.keys(REFERRAL_I18N)) {
       const u = REFERRAL_I18N[l].ui;
-      expect(u.progressToUnlock).toContain('{n}');
-      expect(u.yourFee).toContain('{fee}');
       expect(u.referredBy).toContain('{name}');
       expect(u.shareMessage).toContain('{code}');
       expect(REFERRAL_I18N[l].field.applied).toContain('{name}');

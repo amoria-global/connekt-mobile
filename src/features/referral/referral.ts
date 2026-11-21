@@ -3,27 +3,48 @@
  * calls the endpoints and turns the answers into what the screens show. A response never carries more than the
  * referrer's display name.
  */
+import { useEffect, useState } from 'react';
 import { api, requireOk } from '@/api/client';
 import { REFERRAL_I18N, type ReferralStrings } from './referralI18n';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { milestoneCopy, type MilestoneCopy } from './referralCopy';
 
 export type ReferralProblem =
   | 'INVALID' | 'NOT_ELIGIBLE' | 'LIMIT_REACHED' | 'SELF' | 'MUTUAL'
   | 'ALREADY_REFERRED' | 'QA_MISMATCH' | 'NOT_A_PHOTOGRAPHER';
 
 export type ReferralStatus = 'pending' | 'under_review' | 'qualified' | 'revoked';
-export interface ReferralRow { name: string; status: ReferralStatus; date: string }
+export type ReferralHint = 'waiting_verified_published' | 'waiting_first_sale' | 'under_review' | 'qualified' | 'revoked';
+export interface ReferralRow {
+  name: string;
+  status: ReferralStatus;
+  date: string;
+  signedUp: boolean;
+  verifiedPublished: boolean;
+  firstSale: boolean;
+  hint: ReferralHint;
+}
+/** What the referred photographer sees about the referral they came through. */
+export interface MyReferral { referrerName: string | null; status: ReferralStatus; verifiedPublished: boolean; firstSale: boolean }
+export interface UnlockedMilestone { milestone: number; sharePercent: number }
 export interface ReferralStats {
   code: string | null;
   link: string | null;
   qualifying: number;
   cap: number;
-  feePercent: number | null;
-  nextFeePercent: number | null;
+  sharePercent: number;
+  nextMilestone: number | null;
+  nextSharePercent: number | null;
+  maxRate: boolean;
   complete: boolean;
+  pending: number;
+  underReview: number;
+  minQualifyingUsd: number;
   referrals: ReferralRow[];
   hasReferrer: boolean;
   referrerName: string | null;
+  myReferral: MyReferral | null;
+  unlocked: UnlockedMilestone | null;
 }
 export interface Validation { valid: boolean; referrerName?: string; code?: string; problem?: ReferralProblem }
 
@@ -52,15 +73,6 @@ export function referralLink(code: string): string {
   return `https://connekyt.com/join?ref=${code}`;
 }
 
-/** The progress line: how far to the first discount, the current fee, or the finished program. */
-export function progressParts(s: Pick<ReferralStats, 'qualifying' | 'feePercent' | 'complete' | 'cap'>):
-  { kind: 'unlock' | 'fee' | 'complete'; n: number; fee: number | null; pct: number } {
-  const pct = Math.min(100, Math.round((s.qualifying / s.cap) * 100));
-  if (s.complete) return { kind: 'complete', n: s.cap, fee: 10, pct: 100 };
-  if (s.feePercent == null) return { kind: 'unlock', n: s.qualifying, fee: null, pct };
-  return { kind: 'fee', n: s.qualifying, fee: s.feePercent, pct };
-}
-
 export function fill(template: string, vars: Record<string, string | number>): string {
   return template.replace(/\{(\w+)\}/g, (_, k: string) => String(vars[k] ?? ''));
 }
@@ -68,6 +80,12 @@ export function fill(template: string, vars: Record<string, string | number>): s
 /** Strings for the current app language, English where a language has none. */
 export function referralStrings(language: string): ReferralStrings {
   return REFERRAL_I18N[language] ?? REFERRAL_I18N.en;
+}
+
+/** Program wording from the shared source, in the app language. */
+export function useMilestoneCopy(): MilestoneCopy {
+  const { language } = useLanguage();
+  return milestoneCopy(language);
 }
 
 export function useReferralStrings(): ReferralStrings {
@@ -108,8 +126,10 @@ export async function checkCode(code: string, signedIn: boolean): Promise<CheckR
 
 export async function fetchMyReferral(): Promise<ReferralStats> {
   const res = requireOk(await api.get<{ action?: number; data?: ReferralStats }>('/photographer/referral/me'));
-  if (!res.data) throw new Error('referral-load-failed');
-  return res.data;
+  const d = res.data;
+  // A reply without the numbers the screens draw is a failed load, never a card full of NaN.
+  if (!d || typeof d.qualifying !== 'number' || typeof d.sharePercent !== 'number') throw new Error('referral-load-failed');
+  return { ...d, referrals: Array.isArray(d.referrals) ? d.referrals : [], myReferral: d.myReferral ?? null, unlocked: d.unlocked ?? null, minQualifyingUsd: d.minQualifyingUsd ?? 5 };
 }
 
 export async function attachCode(code: string): Promise<{ ok: boolean; referrerName?: string; key?: keyof ReferralStrings['field'] }> {
@@ -121,4 +141,41 @@ export async function attachCode(code: string): Promise<{ ok: boolean; referrerN
   } catch (e) {
     return { ok: false, key: (e as { status?: number })?.status === 429 ? 'tooMany' : 'error' };
   }
+}
+
+/** Tells the server the congratulations sheet was shown, so it is not offered again. */
+export async function acknowledgeMilestone(): Promise<void> {
+  try {
+    await api.post('/photographer/referral/milestone/ack', {});
+  } catch {
+    // Offered again on the next open; harmless.
+  }
+}
+
+/** Loads the referral stats once and on demand. */
+export function useReferralStats(enabled = true): {
+  stats: ReferralStats | null;
+  status: 'loading' | 'error' | 'ready';
+  reload: () => void;
+} {
+  const [stats, setStats] = useState<ReferralStats | null>(null);
+  const [status, setStatus] = useState<'loading' | 'error' | 'ready'>('loading');
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    let alive = true;
+    fetchMyReferral()
+      .then((r) => {
+        if (!alive) return;
+        setStats(r);
+        setStatus('ready');
+      })
+      .catch(() => {
+        if (alive) setStatus((cur) => (cur === 'ready' ? cur : 'error'));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [enabled, tick]);
+  return { stats, status, reload: () => setTick((t) => t + 1) };
 }

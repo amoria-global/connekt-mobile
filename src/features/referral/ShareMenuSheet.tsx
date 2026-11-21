@@ -1,13 +1,13 @@
 /**
  * The Home "Share" menu as a bottom sheet: Share your album (the existing album flow), Share profile (today's action,
- * unchanged) and Share referral link or code (hidden for good once the photographer has 20 qualifying referrals).
+ * unchanged) and Share referral link or code (hidden for good once the photographer has 40 qualified referrals).
  */
 import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Sheet } from '@/components/ui/Sheet';
 import { IconTile } from '@/components/ui/IconTile';
 import { makeStyles, radii, spacing, useTheme } from '@/theme';
-import { useReferralStrings } from './referral';
+import { useMilestoneCopy, useReferralStrings } from './referral';
 
 type Item = { key: 'album' | 'profile' | 'referral'; icon: React.ComponentProps<typeof Ionicons>['name']; label: string; sub: string; tone: 'primary' | 'accent' | 'success' };
 
@@ -20,7 +20,7 @@ export function ShareMenuSheet({
   referralHidden,
   canAlbum,
   profileUrl,
-  qualifying,
+  chip,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -31,16 +31,17 @@ export function ShareMenuSheet({
   canAlbum: boolean;
   /** The public profile link, shown under Share profile (the Home card no longer carries it). */
   profileUrl: string;
-  /** Qualifying referrals for the progress chip: n/5 before 5, then n/20. Null while unknown. */
-  qualifying: number | null;
+  /** Progress chip toward the next milestone, e.g. "11/20". Null while unknown. */
+  chip: string | null;
 }) {
   const s = useReferralStrings();
+  const m = useMilestoneCopy();
   const styles = useStyles();
   const { colors } = useTheme();
   const items: Item[] = [
     ...(canAlbum ? [{ key: 'album' as const, icon: 'images-outline' as const, label: s.ui.menuAlbum, sub: s.ui.subAlbum, tone: 'primary' as const }] : []),
     { key: 'profile', icon: 'person-circle-outline', label: s.ui.menuProfile, sub: profileUrl.replace(/^https?:\/\//, ''), tone: 'primary' },
-    ...(referralHidden ? [] : [{ key: 'referral' as const, icon: 'gift-outline' as const, label: s.ui.menuReferral, sub: s.ui.subReferral, tone: 'accent' as const }]),
+    ...(referralHidden ? [] : [{ key: 'referral' as const, icon: 'gift-outline' as const, label: s.ui.menuReferral, sub: m.growSub, tone: 'accent' as const }]),
   ];
   const run = (k: Item['key']) => {
     onClose();
@@ -65,9 +66,9 @@ export function ShareMenuSheet({
               <Text style={styles.label} numberOfLines={1} ellipsizeMode="tail">{i.label}</Text>
               <Text style={styles.sub} numberOfLines={1} ellipsizeMode="tail">{i.sub}</Text>
             </View>
-            {i.key === 'referral' && qualifying != null ? (
+            {i.key === 'referral' && chip != null ? (
               <View style={styles.progress} testID="share-menu-progress">
-                <Text style={styles.progressText}>{qualifying < 5 ? `${qualifying}/5` : `${qualifying}/20`}</Text>
+                <Text style={styles.progressText}>{chip}</Text>
               </View>
             ) : null}
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

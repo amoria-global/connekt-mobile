@@ -71,9 +71,13 @@ import { useAsync } from '@/hooks/useAsync';
 import { useCurrency } from '@/store/currency';
 import { useSharedT } from '@/i18n/sharedStrings';
 import { ShareMenuSheet } from '@/features/referral/ShareMenuSheet';
-import { ShareInviteCard, type CardStats } from '@/features/referral/ShareInviteCard';
+import { ShareInviteCard } from '@/features/referral/ShareInviteCard';
 import { ReferralSheet } from '@/features/referral/ReferralSheet';
-import { fetchMyReferral } from '@/features/referral/referral';
+import { GrowYourStoreCard } from '@/features/referral/GrowYourStoreCard';
+import { ReferredChecklistCard } from '@/features/referral/ReferredChecklistCard';
+import { MilestoneCongratsSheet, useMilestoneCongrats } from '@/features/referral/MilestoneCongratsSheet';
+import { chipText } from '@/features/referral/milestoneModel';
+import { useReferralStats } from '@/features/referral/referral';
 import { formatDate } from '@/utils/format';
 import { fonts, makeStyles, radii, spacing, tracking, useTheme } from '@/theme';
 import {
@@ -316,17 +320,12 @@ export function PhotographerHome() {
 
   const open = (path: string) => router.push(path as never);
   const sell = useSellChooser();
-  // The Share button opens a menu: album, profile, referral. The referral item is hidden for good at 20 referrals.
+  // The Share button opens a menu: album, profile, referral. The referral item is hidden for good at 40 referrals.
   const [shareMenu, setShareMenu] = useState(false);
   const [referralSheet, setReferralSheet] = useState(false);
-  const [referralStats, setReferralStats] = useState<CardStats>(null);
-  const referralDone = referralStats?.complete === true;
-  useEffect(() => {
-    if (isShared) return;
-    let alive = true;
-    fetchMyReferral().then((r) => { if (alive) setReferralStats({ qualifying: r.qualifying, feePercent: r.feePercent, complete: r.complete }); }).catch(() => {});
-    return () => { alive = false; };
-  }, [isShared]);
+  const { stats: referralStats, status: referralStatus, reload: reloadReferral } = useReferralStats(!isShared);
+  const referralDone = referralStats?.maxRate === true;
+  const congrats = useMilestoneCongrats(referralStats);
   const privacyLabel = hidden ? 'Show amounts' : 'Hide amounts';
 
   return (
@@ -341,12 +340,17 @@ export function PhotographerHome() {
         onReferral={() => setReferralSheet(true)}
         referralHidden={referralDone || isCollab}
         profileUrl={profileUrl.data ?? env.webBaseUrl}
-        qualifying={referralStats ? referralStats.qualifying : null}
+        chip={chipText(referralStats)}
       />
       <ReferralSheet
         visible={referralSheet}
         onClose={() => setReferralSheet(false)}
-        onAddCode={() => { setReferralSheet(false); open('/preferences?referral=1'); }}
+      />
+      <MilestoneCongratsSheet
+        unlocked={congrats.unlocked}
+        onDismiss={congrats.dismiss}
+        onInviteMore={() => { congrats.dismiss(); setReferralSheet(true); }}
+        onViewMilestones={() => { congrats.dismiss(); open('/referral-milestones'); }}
       />
       <ScrollView
         contentContainerStyle={{ paddingTop: topBarHeight + spacing.sm, paddingBottom: clearance }}
@@ -479,6 +483,17 @@ export function PhotographerHome() {
               accessibilityLabel="Package Management"
             />
           )}
+          {isCollab || isShared ? null : (
+            <GrowYourStoreCard
+              stats={referralStats}
+              status={referralStatus}
+              onInvite={() => setReferralSheet(true)}
+              onMilestones={() => open('/referral-milestones')}
+              onViewEarnings={() => open('/transactions')}
+              onRetry={reloadReferral}
+            />
+          )}
+          {isCollab ? null : <ReferredChecklistCard referral={referralStats?.myReferral ?? null} />}
           {isCollab ? null : (
           <ShareInviteCard stats={referralStats} onPress={() => setShareMenu(true)} />
           )}
