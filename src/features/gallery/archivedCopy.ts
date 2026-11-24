@@ -1,5 +1,5 @@
 /**
- * What an archived album tells its owner, in plain language. An album is archived when it is locked after its year of
+ * What an archived album tells its owner, in plain language. An album is archived when it is locked after its 6 months of
  * access ran out; restoring it takes a payment of the archive fee.
  */
 
@@ -36,5 +36,5 @@ export function ownerArchivedMessage(lockedAt?: string | null): string {
 /** The confirmation shown before the owner is taken to pay. */
 export function restoreConfirmMessage(title: string, price?: string | null): string {
   const cost = price ? `You will pay ${price}` : 'You will pay the archive fee';
-  return `${cost} to restore "${title}". You will have access to it again for 1 year.`;
+  return `${cost} to restore "${title}". You will have access to it again for 6 months.`;
 }

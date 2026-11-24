@@ -11,7 +11,7 @@ describe('sell photos rules', () => {
   });
 
   it('says how long photos stay listed', () => {
-    expect(LISTING_NOTE).toContain('60 days');
+    expect(LISTING_NOTE).toContain('6 months');
   });
 
   describe('publishOutcome', () => {

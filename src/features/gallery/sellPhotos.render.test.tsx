@@ -73,7 +73,7 @@ describe('the result screen after saving a PAID album', () => {
     const t = flat(r.root);
     expect(t).toContain('Your photos are being prepared for Find my photos');
     expect(t).toContain('Ready: 4 faces indexed');
-    expect(t).toContain('60 days');
+    expect(t).toContain('6 months');
     expect(t).not.toContain('Retry publishing');
     await pressText(r, 'View album');
     await pressText(r, 'Share album');
