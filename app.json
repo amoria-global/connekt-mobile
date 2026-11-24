@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-24-slim-grow-card",
+            "date": "2026-11-24",
+            "title": "A tidier Home screen",
+            "items": [
+              {
+                "icon": "sparkles-outline",
+                "title": "A slimmer Grow your store card",
+                "body": "The Grow your store card on Home now takes less room. Your invite link and the explainer live on the Milestones screen, one tap away."
+              }
+            ]
+          },
+          {
             "id": "2026-11-24-album-expiry",
             "date": "2026-11-24",
             "title": "Albums stay open for 6 months",
@@ -296,18 +308,6 @@
                 "icon": "log-in-outline",
                 "title": "Email code sign-in is now for team members",
                 "body": "The email code option no longer sits under Forgot your password, so it is not mistaken for a password reset. Invited team members still see it on their own sign-in screen."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-20-packages-tidy",
-            "date": "2026-11-20",
-            "title": "Tidier New package screen",
-            "items": [
-              {
-                "icon": "layers-outline",
-                "title": "Organize step matches the rest of the app",
-                "body": "Indoor and Outdoor are now the same tabs you see on Opportunities, selected options use a soft highlight, and the long notes in a package's delivery line are gone."
               }
             ]
           }
