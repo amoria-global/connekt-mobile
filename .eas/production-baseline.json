@@ -1,6 +1,6 @@
 {
   "_comment": "What the installed production app is built from. An OTA update may only ship JavaScript that this native build can already run. Update this file when a new store build ships.",
-  "buildCommit": "efc2c9d7fc445bf1e43c144682f7844d072d946d",
+  "buildCommit": "fa234934133a16b945094e3f6b8550df2b302bd5",
   "appVersion": "2.4.0",
   "runtimeVersion": "2.4.0",
   "androidBuildNumber": 43,
@@ -10,7 +10,7 @@
     "ios"
   ],
   "androidFingerprint": "890c01e2eeaba2f868ec5e7c5ef957031f23422a",
-  "fingerprintNote": "Build 43 (2026-11-14, version 2.4.0, Android versionCode 43, commit efc2c9d, profile production, SDK 57), approved on Google Play 2026-11-15. It adds expo-location (approximate location only). The fingerprint above was recorded for build 35 and is informational only; the dependency and config checks decide OTA safety.",
+  "fingerprintNote": "Build 43 (2026-11-14, version 2.4.0, Android versionCode 43, commit fa23493, profile production, SDK 57), approved on Google Play 2026-11-15. It adds expo-location (approximate location only). The fingerprint above was recorded for build 35 and is informational only; the dependency and config checks decide OTA safety.",
   "allowedJsOnlyDeps": [
     "qrcode",
     "@types/qrcode",
@@ -18,7 +18,7 @@
     "@expo-google-fonts/space-grotesk"
   ],
   "ios": {
-    "buildCommit": "51f806e5c057e2ce07973f693f7fbddff6af18b4",
+    "buildCommit": "4b57bcfb4710789082abbbd29a39c4ccff07f658",
     "appVersion": "2.4.0",
     "runtimeVersion": "2.4.0",
     "iosBuildNumber": 50,
