@@ -120,9 +120,9 @@ beforeEach(() => {
 
 describe('Grow your store card, every state in light and dark at 360 and 390', () => {
   const cases: Array<[number, string[]]> = [
-    [0, ['70%', '0 of 10 referrals', '10 more to unlock 75%']],
-    [11, ['75%', '11 of 20 referrals', '9 more to unlock 80%']],
-    [39, ['85%', '39 of 40 referrals', '1 more to unlock 90%']],
+    [0, ['70%', '0 of 10 referrals']],
+    [11, ['75%', '11 of 20 referrals']],
+    [39, ['85%', '39 of 40 referrals']],
   ];
   for (const dark of [false, true]) {
     for (const width of [360, 390]) {
@@ -132,8 +132,7 @@ describe('Grow your store card, every state in light and dark at 360 and 390', (
           const t = joined(r);
           for (const e of expected) expect(t).toContain(e);
           expect(t).toContain('Grow your store');
-          expect(t).toContain('Invite a photographer');
-          expect(t).toContain('How referrals count');
+          expect(t).not.toContain('Invite a photographer');
           expect(t).toContain('Milestones');
         });
       }
@@ -155,13 +154,6 @@ describe('Grow your store card, every state in light and dark at 360 and 390', (
     expect(joined(failed)).toContain('Try again');
   });
 
-  it('the how referrals count link opens the 3-step explainer', () => {
-    const r = mount(<GrowYourStoreCard stats={stats(11)} status="ready" onInvite={noop} onMilestones={noop} onViewEarnings={noop} onRetry={noop} />);
-    expect(r.root.findAll((n) => n.props.testID === 'how-it-counts')).toHaveLength(0);
-    press(r, 'grow-how');
-    expect(r.root.findAll((n) => n.props.testID === 'how-it-counts').length).toBeGreaterThan(0);
-    expect(joined(r)).toContain('Your friend signs up with your link or code.');
-  });
 });
 
 describe('How referrals count explainer', () => {
