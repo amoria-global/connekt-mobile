@@ -10,9 +10,9 @@ import type { PublishFailure } from './api';
 /** The route "Sell photos" opens. The form reads `sell=1` and presets itself. */
 export const SELL_PHOTOS_HREF = '/album/new?sell=1';
 
-/** Why a standalone album stays listed for 60 days, in the words the success screen shows. */
-export const LISTED_FOR_DAYS = 60;
-export const LISTING_NOTE = `Photos stay listed for ${LISTED_FOR_DAYS} days, then the album is archived. Buyers keep what they bought.`;
+/** Why a standalone album stays listed for 6 months, in the words the success screen shows. */
+export const LISTED_FOR_MONTHS = 6;
+export const LISTING_NOTE = `Photos stay listed for ${LISTED_FOR_MONTHS} months, then the album is archived. Buyers keep what they bought.`;
 
 export const SELL_FORM_NOTE = 'These photos will be searchable on Find my photos after upload.';
 export const SELL_SUBTITLE = 'Upload photos for buyers to find';

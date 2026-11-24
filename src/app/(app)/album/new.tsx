@@ -75,7 +75,7 @@ const ALB_MAP: Record<string, { fr: string; es: string }> = {
   'PAID Album Details': { fr: 'Détails de l’album PAYANT', es: 'Detalles del álbum DE PAGO' },
   'Personal Album': { fr: 'Album personnel', es: 'Álbum personal' },
   'Select Event': { fr: 'Sélectionner un événement', es: 'Seleccionar evento' },
-  '• Album expires in 60 days with warning': { fr: '• L’album expire dans 60 jours avec avertissement', es: '• El álbum caduca en 60 días con aviso' },
+  '• Album expires in 6 months with warning': { fr: '• L’album expire dans 6 mois avec avertissement', es: '• El álbum caduca en 6 meses con aviso' },
   '• Full-resolution downloads enabled': { fr: '• Téléchargements haute résolution activés', es: '• Descargas en alta resolución habilitadas' },
   '• Indexed for facial-recognition search': { fr: '• Indexé pour la recherche par reconnaissance faciale', es: '• Indexado para búsqueda por reconocimiento facial' },
   '• NOT indexed on public face search': { fr: '• NON indexé dans la recherche faciale publique', es: '• NO indexado en la búsqueda facial pública' },
@@ -660,7 +660,7 @@ export default function NewAlbumScreen() {
                   <Text style={styles.detailNoteTitle}>{trAlb('PAID Album Details')}</Text>
                   <Text style={styles.detailNoteText}>{trAlb('• Indexed for facial-recognition search')}</Text>
                   <Text style={styles.detailNoteText}>{trAlb('• Platform takes 30% commission per sale')}</Text>
-                  <Text style={styles.detailNoteText}>{trAlb('• Album expires in 60 days with warning')}</Text>
+                  <Text style={styles.detailNoteText}>{trAlb('• Album expires in 6 months with warning')}</Text>
                 </View>
 
                 <MoneyInput

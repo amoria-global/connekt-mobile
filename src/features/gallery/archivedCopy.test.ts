@@ -27,7 +27,7 @@ describe('archived album copy', () => {
   });
 
   it('asks for confirmation with the price and the length of access', () => {
-    expect(restoreConfirmMessage('Wedding', 'RWF 5,000')).toBe('You will pay RWF 5,000 to restore "Wedding". You will have access to it again for 1 year.');
+    expect(restoreConfirmMessage('Wedding', 'RWF 5,000')).toBe('You will pay RWF 5,000 to restore "Wedding". You will have access to it again for 6 months.');
     expect(restoreConfirmMessage('Wedding')).toContain('the archive fee');
   });
 });
