@@ -237,6 +237,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-25-photobooks-sources",
+            "date": "2026-11-25",
+            "title": "Photobooks from any album you can use",
+            "items": [
+              {
+                "icon": "book-outline",
+                "title": "Make a photobook from event, free, purchased or content albums",
+                "body": "Pick photos from any album you can use, choose a cover and send the book to the photographer. Paid photos you have not bought are never shown, and a book uses one photographer's photos."
+              },
+              {
+                "icon": "chatbubble-ellipses-outline",
+                "title": "Review a book and ask for changes",
+                "body": "When your photographer sends a book back you can accept it or send it back with a note saying what to change. A clearer list and timeline show what happens next."
+              }
+            ]
+          },
+          {
             "id": "2026-11-25-new-welcome-images",
             "date": "2026-11-25",
             "title": "A fresh welcome",
