@@ -31,11 +31,14 @@ import {
 } from '@/features/photobooks/api';
 import { pbCopy, photoCountLabel, type CopyKey } from '@/features/photobooks/copy';
 import { Mosaic } from '@/features/photobooks/PhotobookRow';
+import { DragTile } from '@/features/photobooks/DragTile';
+import { dropIndex, moveId } from '@/features/photobooks/reorder';
 import { SOURCE_TONE, nextAction, sourcesOf, statusInfo, timelineOf, type Shelf } from '@/features/photobooks/model';
 import { albumDateText } from '@/features/gallery/albumFacts';
 import { useAsync } from '@/hooks/useAsync';
 import { isApiError } from '@/store/auth';
 import { useLanguage } from '@/store/language';
+import { useAuth } from '@/store/auth';
 import { formatPrice } from '@/utils/format';
 import { fonts, makeStyles, radii, spacing, useTheme } from '@/theme';
 
@@ -45,6 +48,8 @@ export default function PhotobookDetailScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const { language } = useLanguage();
+  // A bought original needs the session to load; thumbnails (grids, lists) are public and never do.
+  const token = useAuth((st) => st.session?.token);
   const t = useCallback((k: CopyKey, p?: Record<string, string | number>) => pbCopy(language, k, p), [language]);
   const { id, received: receivedParam } = useLocalSearchParams<{ id: string; received?: string }>();
   const received = receivedParam === '1';
@@ -141,7 +146,7 @@ export default function PhotobookDetailScreen() {
   const sources = sourcesOf(b);
   const isEvent = !!b.eventId;
   const extrasN = b.extraPhotosCount ?? 0;
-  const previews = photos.map((p) => p.url).filter((u): u is string => !!u).slice(0, 3);
+  const previews = photos.map((p) => p.thumb ?? p.url).filter((u): u is string => !!u).slice(0, 3);
   const who = b.toName ?? b.senderName ?? '';
   const layoutName = b.layout === 'gallery-wall' ? t('layout_wall') : t('layout_grid');
   const cell = Math.floor((width - spacing.lg * 2 - 6) / 3);
@@ -314,7 +319,7 @@ export default function PhotobookDetailScreen() {
           <Text style={styles.sectionTitle}>
             {t('photos')} · {photos.length}
           </Text>
-          {canEdit ? <Text style={styles.meta}>{moving ? t('move_hint') : t('hold_reorder')}</Text> : null}
+          {canEdit ? <Text style={styles.meta}>{moving ? t('move_hint') : t('drag_hint')}</Text> : null}
         </View>
         {canEdit ? (
           <GhostButton title={t('add_photos')} onPress={() => router.push(`/photobook/new?addTo=${id}` as Href)} />
@@ -329,22 +334,31 @@ export default function PhotobookDetailScreen() {
         ) : (
           <View style={styles.grid}>
             {photos.map((p, i) => (
-              <Pressable
+              <DragTile
                 key={p.id}
+                enabled={canEdit}
+                onDrop={(dx, dy) => {
+                  const to = dropIndex(i, dx, dy, cell, 3, 3, photos.length);
+                  setMoving(null);
+                  if (to !== i) setOrder(moveId(photos.map((q) => q.id), i, to));
+                }}
+              >
+              <Pressable
                 onPress={() => (moving ? move(p.id) : setViewer(i))}
                 onLongPress={canEdit ? () => setMoving(p.id) : undefined}
                 delayLongPress={250}
-                accessibilityRole="imagebutton"
+                accessibilityRole="button"
                 accessibilityLabel={p.caption ?? `${t('photos')} ${i + 1}`}
                 style={[{ width: cell, height: cell }, moving === p.id && styles.picked]}
               >
-                {p.url ? <Image source={{ uri: p.url }} style={styles.thumb} contentFit="cover" recyclingKey={p.id} accessibilityIgnoresInvertColors /> : <View style={[styles.thumb, styles.noImg]}><Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} /></View>}
+                {p.thumb ?? p.url ? <Image source={{ uri: (p.thumb ?? p.url) as string }} alt="" style={styles.thumb} contentFit="cover" recyclingKey={p.id} accessibilityIgnoresInvertColors /> : <View style={[styles.thumb, styles.noImg]}><Ionicons name="lock-closed-outline" size={20} color={colors.textMuted} /></View>}
                 {!p.original ? (
                   <View style={styles.wm} pointerEvents="none">
                     <Text style={styles.wmText}>{t('watermarked')}</Text>
                   </View>
                 ) : null}
               </Pressable>
+              </DragTile>
             ))}
           </View>
         )}
@@ -353,7 +367,7 @@ export default function PhotobookDetailScreen() {
 
       {viewer !== null && photos[viewer] ? (
         <Pressable style={styles.lightbox} onPress={() => setViewer(null)} accessibilityRole="button" accessibilityLabel={t('done')}>
-          {photos[viewer].url ? <Image source={{ uri: photos[viewer].url }} style={styles.full} contentFit="contain" accessibilityIgnoresInvertColors /> : <Ionicons name="lock-closed-outline" size={40} color={colors.textMuted} />}
+          {photos[viewer].url ? <Image source={photos[viewer].original && token ? { uri: photos[viewer].url as string, headers: { Authorization: `Bearer ${token}` } } : { uri: (photos[viewer].original ? photos[viewer].url : photos[viewer].thumb ?? photos[viewer].url) as string }} alt="" style={styles.full} contentFit="contain" accessibilityIgnoresInvertColors /> : <Ionicons name="lock-closed-outline" size={40} color={colors.textMuted} />}
           {!photos[viewer].original ? <Text style={styles.lightboxNote}>{t('watermarked')}</Text> : null}
           <View style={styles.lbNav}>
             <Pressable hitSlop={14} onPress={() => setViewer(Math.max(0, viewer - 1))} accessibilityRole="button" accessibilityLabel={t('back')}>

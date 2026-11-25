@@ -133,6 +133,7 @@ const en = {
   help_title: 'How photobooks work',
   pay_on_web: 'Open connekyt.com in your browser to pay for the extra photos.',
   move_hint: 'Tap where it should go',
+  drag_hint: 'Hold a photo, then drag it. Or hold and tap where it should go.',
   move_cancel: 'Cancel move',
   save_done: 'Saved',
   photographer_only_own: 'Only your own photos can be added.',
