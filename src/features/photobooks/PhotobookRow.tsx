@@ -37,6 +37,14 @@ export function Mosaic({ previews, size = 'row' }: { previews?: string[]; size?:
     );
   }
   const [a, b, c] = previews;
+  if (!b) {
+    // One photo fills the tile; the two small slots would only show grey.
+    return (
+      <View style={[styles.mosaic, hero && styles.mosaicHero]}>
+        <Image source={{ uri: a }} style={StyleSheet.absoluteFill} contentFit="cover" transition={120} recyclingKey={a} accessibilityIgnoresInvertColors />
+      </View>
+    );
+  }
   const img = (u: string | undefined, style: object) =>
     u ? <Image source={{ uri: u }} style={style} contentFit="cover" transition={120} recyclingKey={u} accessibilityIgnoresInvertColors /> : <View style={[style, styles.fill]} />;
   return (
