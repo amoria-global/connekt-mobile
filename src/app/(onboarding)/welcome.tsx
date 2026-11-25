@@ -63,7 +63,7 @@ export default function WelcomeScreen() {
     () => [
       {
         key: 'photographer',
-        subject: require('../../../assets/images/photographer.png'),
+        subject: require('../../../assets/images/onboarding-talent.jpg'),
         gradient: onboardingScrims.blue,
         title: t('onboardingTitle1'),
         body: t('onboardingBody1'),
