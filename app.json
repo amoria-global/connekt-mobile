@@ -237,6 +237,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-25-photobooks-drag",
+            "date": "2026-11-25",
+            "title": "Drag your photobook photos into order",
+            "items": [
+              {
+                "icon": "swap-vertical-outline",
+                "title": "Drag photos to reorder a photobook",
+                "body": "When a client sends you a photobook to edit, hold a photo and drag it where it should go. Holding and then tapping the new spot still works too."
+              },
+              {
+                "icon": "images-outline",
+                "title": "Photos you bought open in full",
+                "body": "The full-size photos you bought now open from inside your photobook, while photos you have not bought stay as watermarked previews."
+              }
+            ]
+          },
+          {
             "id": "2026-11-25-welcome-images-fit",
             "date": "2026-11-25",
             "title": "Welcome photos fit properly",
