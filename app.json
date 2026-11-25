@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-25-new-welcome-images",
+            "date": "2026-11-25",
+            "title": "A fresh welcome",
+            "items": [
+              {
+                "icon": "image-outline",
+                "title": "New pictures on the welcome screens",
+                "body": "The first two welcome screens, Your Talent and Your Vision, now show brand new photos of a photographer and an event planner."
+              }
+            ]
+          },
+          {
             "id": "2026-11-24-slim-grow-card",
             "date": "2026-11-24",
             "title": "A tidier Home screen",
@@ -296,18 +308,6 @@
                 "icon": "layers-outline",
                 "title": "A compact, easier-to-scan package card",
                 "body": "After you upload a brochure, each package shows its price, key details and included items in the same compact layout as Opportunities, with long descriptions shortened and the AI's own remarks removed."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-20-code-signin-team",
-            "date": "2026-11-20",
-            "title": "Clearer sign-in",
-            "items": [
-              {
-                "icon": "log-in-outline",
-                "title": "Email code sign-in is now for team members",
-                "body": "The email code option no longer sits under Forgot your password, so it is not mistaken for a password reset. Invited team members still see it on their own sign-in screen."
               }
             ]
           }
