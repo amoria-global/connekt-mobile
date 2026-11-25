@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-25-welcome-images-fit",
+            "date": "2026-11-25",
+            "title": "Welcome photos fit properly",
+            "items": [
+              {
+                "icon": "image-outline",
+                "title": "The welcome photos are framed the way they used to be",
+                "body": "The first two welcome screens now show the whole person at the same size as before, instead of a tight, zoomed in crop."
+              }
+            ]
+          },
+          {
             "id": "2026-11-25-photobooks-sources",
             "date": "2026-11-25",
             "title": "Photobooks from any album you can use",
@@ -291,40 +303,6 @@
                 "icon": "lock-open-outline",
                 "title": "Restoring an archived album gives 6 months back",
                 "body": "When you pay to restore an archived album, it now opens again for 6 months, and the restore screen tells you so before you pay."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-20-grow-your-store",
-            "date": "2026-11-20",
-            "title": "Grow your store",
-            "items": [
-              {
-                "icon": "sparkles-outline",
-                "title": "Earn up to 90% on every photo you sell",
-                "body": "Invite photographers and unlock a bigger share of every photo sale at 10, 20, 30 and 40 referrals. Your rate rises from 70% up to 90%."
-              },
-              {
-                "icon": "trophy-outline",
-                "title": "A Milestones screen for your referrals",
-                "body": "See your rate, how many referrals you need for the next one, and exactly what each friend still has to do before they count."
-              },
-              {
-                "icon": "help-circle-outline",
-                "title": "Clear rules for when a referral counts",
-                "body": "A referral counts after your friend is verified, publishes a photo and makes their first sale. The steps are explained in the app, in your language."
-              }
-            ]
-          },
-          {
-            "id": "2026-11-20-packages-card",
-            "date": "2026-11-20",
-            "title": "Package cards now match Opportunities",
-            "items": [
-              {
-                "icon": "layers-outline",
-                "title": "A compact, easier-to-scan package card",
-                "body": "After you upload a brochure, each package shows its price, key details and included items in the same compact layout as Opportunities, with long descriptions shortened and the AI's own remarks removed."
               }
             ]
           }
