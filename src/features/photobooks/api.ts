@@ -42,6 +42,8 @@ export type Photobook = {
 
 export type PhotobookPhoto = {
   id: ID;
+  /** The public thumbnail: safe for grids and lists, needs no session. */
+  thumb?: string;
   /** The original for owners and buyers, a thumbnail otherwise, or undefined when nothing safe exists. */
   url?: string;
   caption?: string;
@@ -69,6 +71,7 @@ function mapPhoto(m: Raw): PhotobookPhoto {
   return {
     id: String(m.id ?? ''),
     url: str(m.fileUrl) ?? str(m.url),
+    thumb: str(m.thumbUrl),
     caption: str(m.caption),
     sourceType: str(m.sourceType),
     original: m.original === true,
@@ -79,7 +82,7 @@ function mapPhoto(m: Raw): PhotobookPhoto {
 function mapPhotobook(r: Raw): Photobook {
   const items = Array.isArray(r.mediaItems) ? (r.mediaItems as Raw[]) : [];
   const previews = items
-    .map((m) => str(m.fileUrl) ?? str(m.url))
+    .map((m) => str(m.thumbUrl) ?? str(m.fileUrl) ?? str(m.url))
     .filter((u): u is string => !!u)
     .slice(0, 3);
   return {

@@ -39,6 +39,13 @@ jest.mock('react-native-safe-area-context', () => {
   return { useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }), SafeAreaView: View, SafeAreaProvider: View };
 });
 jest.mock('expo-image', () => ({ Image: () => null }));
+const mockDragEnabled: boolean[] = [];
+jest.mock('./DragTile', () => ({
+  DragTile: ({ enabled, children }: { enabled: boolean; children: React.ReactNode }) => {
+    mockDragEnabled.push(enabled);
+    return children;
+  },
+}));
 jest.mock('@/features/payments/HandoffCheckoutSheet', () => ({ HandoffCheckoutSheet: () => null }));
 jest.mock('@/store/auth', () => ({
   useAuth: Object.assign((sel: (s: { user: null }) => unknown) => sel({ user: null }), { getState: () => ({ user: null }) }),
@@ -71,6 +78,7 @@ const button = (r: TestRenderer.ReactTestRenderer, label: string) =>
   r.root.findAll((n) => n.props?.accessibilityLabel === label && typeof n.props.onPress === 'function')[0];
 
 beforeEach(() => {
+  mockDragEnabled.length = 0;
   mockGetOk.mockReset();
   mockPost.mockReset();
 });
@@ -122,6 +130,16 @@ describe('photobook detail as rendered', () => {
     expect(text).toContain('From Aline U.');
     expect(button(r, 'Send back for review')).toBeTruthy();
     expect(text).toContain('Close');
+  });
+
+  it('only the photographer editing a received book can drag photos', async () => {
+    await mount(book('SENT_TO_PHOTOGRAPHER', { senderName: 'Aline U.' }), true);
+    expect(mockDragEnabled.length).toBeGreaterThan(0);
+    expect(mockDragEnabled.every(Boolean)).toBe(true);
+    mockDragEnabled.length = 0;
+    await mount(book('RESUBMITTED'));
+    expect(mockDragEnabled.length).toBeGreaterThan(0);
+    expect(mockDragEnabled.some(Boolean)).toBe(false);
   });
 
   it('an empty book says so instead of showing an empty grid', async () => {
