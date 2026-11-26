@@ -84,7 +84,7 @@ export function webPathToAppHref(path: string): string | null {
   if (p === '/user/find-my-photos' || free) {
     return INVITE_CODE.test(inviteCode) ? `/(public)/find-photos?code=${encodeURIComponent(inviteCode)}` : '/(public)/find-photos';
   }
-  if (p.startsWith('/user/browse-photos/')) return '/(public)/browse-photos';
+  if (p === '/explore' || p.startsWith('/explore/') || p === '/user/browse-photos' || p.startsWith('/user/browse-photos/')) return '/(public)/explore';
   const offer = p.match(/^\/(?:user\/photographer\/)?(?:opportunities|offers|jobs)(?:\/([^/]+))?$/);
   if (offer) {
     if (!offer[1]) return '/(app)/bookings?tab=opportunities';

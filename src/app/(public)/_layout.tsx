@@ -106,6 +106,13 @@ export default function PublicLayout() {
             headerLeft: () => renderBackToLogin(),
           }}
         />
+        <Stack.Screen
+          name="explore"
+          options={{
+            title: t('explore_nav'),
+            headerLeft: () => renderBackToLogin(),
+          }}
+        />
         <Stack.Screen name="gallery" options={{ title: t('navGallery') }} />
         <Stack.Screen name="help-center/index" options={{ title: t('navHelpCenter') }} />
         <Stack.Screen name="help-center/[category]" options={{ title: t('navHelpCenter') }} />
