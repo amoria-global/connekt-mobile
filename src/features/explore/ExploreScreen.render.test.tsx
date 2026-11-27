@@ -9,6 +9,7 @@ import { Text } from 'react-native';
  */
 import '@/test/autoUnmount';
 import Screen from './ExploreScreen';
+import { useSaves } from './saves';
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -16,10 +17,12 @@ let mockDigital = false;
 jest.mock('@/features/payments/policy', () => ({ get digitalPurchasesEnabled() { return mockDigital; }, giftsEnabled: true }));
 const mockFeed = jest.fn();
 const mockFacets = jest.fn();
+const mockItem = jest.fn();
 jest.mock('./api', () => ({
   ...jest.requireActual('./api'),
   fetchFeed: (...a: unknown[]) => mockFeed(...a),
   fetchFacets: (...a: unknown[]) => mockFacets(...a),
+  fetchItem: (...a: unknown[]) => mockItem(...a),
   fetchSavedIds: async () => [],
   putSave: async () => undefined,
   deleteSave: async () => undefined,
@@ -104,5 +107,32 @@ describe('Explore screen as rendered', () => {
     mockFeed.mockResolvedValue({ items: [item('p1')], nextCursor: null });
     const r = await mount(false);
     expect(flat(r.root)).toMatch(/I already bought this/);
+  });
+
+  async function openSaved(r: TestRenderer.ReactTestRenderer) {
+    const chip = r.root.findAll(n => n.props.accessibilityRole === 'tab' && /^Saved/.test(flat(n))).find(n => typeof n.props.onPress === 'function');
+    expect(chip).toBeTruthy();
+    await act(async () => { chip!.props.onPress(); });
+    await act(async () => { await new Promise((res) => setTimeout(res, 0)); });
+  }
+
+  it('the Saved view lists the hearted items', async () => {
+    mockFeed.mockResolvedValue({ items: [item('p1'), item('p2')], nextCursor: null });
+    mockItem.mockImplementation(async (id: string) => item(id));
+    const r = await mount(false);
+    await act(async () => { useSaves.setState({ ids: ['p2'], ready: true }); });
+    await openSaved(r);
+    expect(mockItem).toHaveBeenCalledWith('p2');
+    expect(r.root.findAll(n => typeof n.props.accessibilityLabel === 'string' && /Item p2/.test(n.props.accessibilityLabel)).length).toBeGreaterThan(0);
+    expect(r.root.findAll(n => typeof n.props.accessibilityLabel === 'string' && /Item p1/.test(n.props.accessibilityLabel)).length).toBe(0);
+  });
+
+  it('the Saved view says what to do when nothing is saved', async () => {
+    mockFeed.mockResolvedValue({ items: [item('p1')], nextCursor: null });
+    useSaves.setState({ ids: [], ready: true });
+    const r = await mount(false);
+    await openSaved(r);
+    expect(flat(r.root)).toMatch(/Tap the heart/);
+    expect(flat(r.root)).toMatch(/See all/);
   });
 });

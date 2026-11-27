@@ -7,7 +7,7 @@
  * layout.capabilities, and everything price- or purchase-shaped in this folder reads it.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions, type ViewToken } from 'react-native';
+import { FlatList, Platform, Pressable, RefreshControl, ScrollView, Text, View, useWindowDimensions, type ViewToken } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -20,9 +20,9 @@ import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { useAuth } from '@/store/auth';
 import { useLanguage } from '@/store/language';
-import { fonts, fontSize, makeStyles, radii, spacing, useReducedMotion, useTheme } from '@/theme';
+import { fonts, fontSize, makeStyles, onMedia, radii, spacing, useReducedMotion, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
-import { fetchFacets, fetchFeed, type ExploreItem, type Facets, type FeedQuery } from './api';
+import { fetchFacets, fetchFeed, fetchItem, type ExploreItem, type Facets, type FeedQuery } from './api';
 import { capabilities, chunk, clock, distribute } from './layout';
 import { useSaves } from './saves';
 import { ItemSheet } from './ItemSheet';
@@ -55,9 +55,13 @@ export default function ExploreScreen() {
   const [sort, setSort] = useState<Sort>('newest');
   const [open, setOpen] = useState<ExploreItem | null>(null);
   const [owned, setOwned] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const seq = useRef(0);
+  // On web the page is pre-rendered at another width, so draw the grid only after the first client render: no hydration mismatch.
+  const [ready, setReady] = useState(Platform.OS !== 'web');
+  useEffect(() => { setReady(true); }, []);
 
   const colWidth = (width - spacing.lg * 2 - GAP) / 2;
 
@@ -78,7 +82,23 @@ export default function ExploreScreen() {
     }
   }, [type, category, sort, cursor]);
 
-  useEffect(() => { void load(true); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [type, category, sort]);
+  // The Saved view: the items this person hearted, looked up one by one (an item that stopped being public drops out).
+  const loadSaved = useCallback(async () => {
+    const mine = ++seq.current;
+    setLoading(true); setError(null); setCursor(null);
+    try {
+      const found = await Promise.all(saves.ids.map(id => fetchItem(id)));
+      if (mine !== seq.current) return;
+      setItems(found.filter((x): x is ExploreItem => !!x));
+    } catch {
+      if (mine !== seq.current) return;
+      setError('offline');
+    } finally {
+      if (mine === seq.current) { setLoading(false); setRefreshing(false); }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saves.ids.join(',')]);
+  useEffect(() => { void (savedOnly ? loadSaved() : load(true)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [type, category, sort, savedOnly]);
   useEffect(() => { fetchFacets().then(setFacets).catch(() => setFacets(null)); }, []);
   useEffect(() => { void saves.load(signedIn); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [signedIn]);
 
@@ -92,7 +112,8 @@ export default function ExploreScreen() {
   }).current;
 
   const chips = [
-    { key: 'all', label: t('explore_all'), on: type === '' && !category, press: () => { setType(''); setCategory(''); } },
+    { key: 'all', label: t('explore_all'), on: type === '' && !category && !savedOnly, press: () => { setType(''); setCategory(''); setSavedOnly(false); } },
+    { key: 'saved', label: `${t('explore_savedTitle')}${saves.ids.length ? ` ${saves.ids.length}` : ''}`, on: savedOnly, press: () => setSavedOnly(!savedOnly) },
     { key: 'photos', label: t('explore_photos'), on: type === 'PHOTO', press: () => setType(type === 'PHOTO' ? '' : 'PHOTO') },
     { key: 'clips', label: t('explore_clips'), on: type === 'VIDEO', press: () => setType(type === 'VIDEO' ? '' : 'VIDEO') },
     ...(facets?.categories ?? []).map(c => ({ key: c.name, label: c.label, on: category === c.name, press: () => setCategory(category === c.name ? '' : c.name) })),
@@ -167,11 +188,15 @@ export default function ExploreScreen() {
   } else if (!loading && items.length === 0) {
     body = (
       <View style={styles.state}>
-        <EmptyState icon="images-outline" title={t('explore_emptyTitle')} message={t('explore_emptyBody')}
-          action={type || category ? { label: t('explore_clearFilters'), onPress: () => { setType(''); setCategory(''); } } : undefined} />
+        {savedOnly
+          ? <EmptyState icon="heart-outline" title={t('explore_savedTitle')} message={t('explore_savedEmpty')} action={{ label: t('explore_seeAll'), onPress: () => setSavedOnly(false) }} />
+          : <EmptyState icon="images-outline" title={t('explore_emptyTitle')} message={t('explore_emptyBody')}
+              action={type || category ? { label: t('explore_clearFilters'), onPress: () => { setType(''); setCategory(''); } } : undefined} />}
       </View>
     );
   }
+
+  if (!ready) return <GlassScene />;
 
   return (
     <GlassScene>
@@ -183,11 +208,11 @@ export default function ExploreScreen() {
         ListEmptyComponent={body}
         ListFooterComponent={more ? <View style={styles.footer}><Skeleton height={60} radius={radii.lg} /></View> : error && items.length > 0 ? (
           <View style={styles.footer}><GhostButton title={t('explore_retry')} onPress={() => void load(false)} /></View>) : null}
-        onEndReached={() => { if (cursor && !loading && !more && !error) void load(false); }}
+        onEndReached={() => { if (!savedOnly && cursor && !loading && !more && !error) void load(false); }}
         onEndReachedThreshold={0.8}
         onViewableItemsChanged={onViewable}
         viewabilityConfig={{ itemVisiblePercentThreshold: 40 }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(true); }} tintColor={colors.link} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void (savedOnly ? loadSaved() : load(true)); }} tintColor={colors.link} />}
         contentContainerStyle={{ paddingBottom: insets.bottom + 96, paddingHorizontal: spacing.lg }}
         showsVerticalScrollIndicator={false}
         windowSize={7}
@@ -252,9 +277,9 @@ const useStyles = makeStyles((c) => ({
   ownedText: { color: c.link, fontFamily: fonts.semibold, fontSize: fontSize.xs },
   card: { borderRadius: radii.lg, overflow: 'hidden', backgroundColor: c.surfaceMuted, borderWidth: 1, borderColor: c.borderSoft },
   fill: { ...({ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 } as const) },
-  badge: { position: 'absolute', left: 8, top: 8, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: c.scrim },
-  badgeText: { color: c.textOnPrimary, fontFamily: fonts.semibold, fontSize: fontSize.xs },
-  heart: { position: 'absolute', right: 8, top: 8, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.scrim },
+  badge: { position: 'absolute', left: 8, top: 8, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: onMedia.smoke },
+  badgeText: { color: onMedia.text, fontFamily: fonts.semibold, fontSize: fontSize.xs },
+  heart: { position: 'absolute', right: 8, top: 8, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: onMedia.smoke },
   heartOn: { backgroundColor: c.accent },
-  price: { position: 'absolute', left: 8, bottom: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: c.scrim },
+  price: { position: 'absolute', left: 8, bottom: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.full, backgroundColor: onMedia.smoke },
 }));
