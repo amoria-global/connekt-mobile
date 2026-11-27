@@ -1232,7 +1232,7 @@ export function FindMyPhotos() {
                 styles.webPickCard,
                 pressed && styles.webPickCardPressed,
               ]}
-              onPress={() => router.push('/browse-photos')}
+              onPress={() => router.push('/explore')}
             >
               <View style={styles.infoBadge}>
                 <Text style={styles.infoBadgeText}>i</Text>

@@ -13,6 +13,7 @@
  */
 
 import { chatShareEn } from './chatShare';
+import { exploreRw } from './explore';
 import { BASE_RW_EXTRA } from './base_rw_extra';
 import { batch1Rw, batch2Rw, batch3Rw } from './batch1_3_rw';
 import { batch4Rw, batch5Rw } from './batch4_5_rw';
@@ -26,6 +27,7 @@ export const CORE_RW: Record<string, string> = {
   ...batch2Rw,
   ...batch3Rw,
   ...chatShareEn,
+  ...exploreRw,
   ...batch4Rw,
   ...batch5Rw,
   // Auth & Login
