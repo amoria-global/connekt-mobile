@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-27-explore-saved",
+            "date": "2026-11-27",
+            "title": "Your saved photos and clips",
+            "items": [
+              {
+                "icon": "heart-outline",
+                "title": "A Saved tab in Explore",
+                "body": "Tap the heart on any photo or clip, then open Saved in Explore to find everything you kept in one place."
+              }
+            ]
+          },
+          {
             "id": "2026-11-26-explore",
             "date": "2026-11-26",
             "title": "Explore: photos and short clips",
