@@ -12,7 +12,7 @@ import { GhostButton, PrimaryButton } from '@/components/ui/Button';
 import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { PhotoCheckoutSheet } from '@/features/photos/PhotoCheckoutSheet';
 import { useLanguage } from '@/store/language';
-import { fonts, fontSize, makeStyles, radii, spacing, useTheme } from '@/theme';
+import { fonts, fontSize, makeStyles, onMedia, radii, spacing, useTheme } from '@/theme';
 import { formatPrice } from '@/utils/format';
 import { fetchQuote, type ExploreItem, type Quote } from './api';
 import { capabilities, clock } from './layout';
@@ -86,9 +86,9 @@ function Clip({ url, onEnd, replayKey }: { url: string; onEnd: () => void; repla
 const useStyles = makeStyles((c) => ({
   stage: { width: '100%', borderRadius: radii.lg, overflow: 'hidden', backgroundColor: c.surfaceMuted },
   fill: { flex: 1, width: '100%' },
-  end: { ...({ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 } as const), alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg, backgroundColor: c.scrim },
-  endTitle: { color: c.textOnPrimary, fontFamily: fonts.bold, fontSize: fontSize.lg, textAlign: 'center' },
-  endBody: { color: c.textOnPrimary, fontFamily: fonts.regular, fontSize: fontSize.sm, textAlign: 'center' },
+  end: { ...({ position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 } as const), alignItems: 'center', justifyContent: 'center', gap: spacing.sm, padding: spacing.lg, backgroundColor: onMedia.ground },
+  endTitle: { color: onMedia.text, fontFamily: fonts.bold, fontSize: fontSize.lg, textAlign: 'center' },
+  endBody: { color: onMedia.text, fontFamily: fonts.regular, fontSize: fontSize.sm, textAlign: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
   price: { color: c.text, fontFamily: fonts.bold, fontSize: fontSize.xl },
   icon: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
