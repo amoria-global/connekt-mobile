@@ -500,6 +500,25 @@ export const HELP_CATEGORIES: HelpCategory[] = [
         ],
       },
       {
+        id: 'explore',
+        title: 'Explore photos and clips',
+        summary: 'Browse photos and short video clips from creators, watch previews and save your favourites.',
+        blocks: [
+          steps([
+            'Tap Explore on the sign-in screen, or Explore photos and clips from the photos sheet on Home.',
+            'Scroll the grid. Use the chips to show only photos, only clips, or one category, and change the order with the sort options.',
+            'Tap a photo or a clip to open it. A clip plays a short 15 second preview with the creator name across it.',
+            'Tap the heart to save something. Saves stay on your phone, and follow your account when you are signed in.',
+          ]),
+          list([
+            'Everything you see while browsing is a preview with a watermark.',
+            'Already have a receipt? Tap I already bought this, enter the unlock code and your photos and clips open in the app. You can save photos to your phone and play your clips.',
+            'No code to hand? Enter your email in the same place and we send a fresh link to it.',
+            'Links in your email last 7 days and work up to 5 times. Ask for a new one any time.',
+          ], 'Good to know'),
+        ],
+      },
+      {
         id: 'albums',
         title: 'Create and manage albums (photographers)',
         summary: 'Upload, organise, publish and share.',
