@@ -14,6 +14,8 @@ jest.mock('@/features/payments/policy', () => ({ get digitalPurchasesEnabled() {
 jest.mock('react-native-safe-area-context', () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }) }));
 jest.mock('expo-video', () => ({ useVideoPlayer: () => ({ addListener: () => ({ remove: () => {} }), play: () => {}, muted: true }), VideoView: () => null }));
 jest.mock('expo-file-system/legacy', () => ({ cacheDirectory: 'file:///cache/', downloadAsync: async () => ({ status: 200, uri: 'file:///cache/x.mp4' }) }));
+jest.mock('@/components/ui/GlassCard', () => ({ GlassScene: ({ children }: { children?: React.ReactNode }) => children ?? null }));
+jest.mock('@/components/ui/GlassCard', () => ({ ...jest.requireActual('@/components/ui/GlassCard'), GlassScene: ({ children }: { children?: React.ReactNode }) => children ?? null }));
 jest.mock('@/features/photos/PhotoCheckoutSheet', () => ({ PhotoCheckoutSheet: () => null }));
 jest.mock('@/utils/gallerySaver', () => ({ savePhotoToGallery: async () => ({ success: true }) }));
 
@@ -48,12 +50,12 @@ describe('Explore sheets as rendered', () => {
     expect(text).not.toMatch(/\$|USD|price|Buy|cart|licen/i);
   });
 
-  it('a web build shows the price, Buy now and the licence line', async () => {
+  it('a web build shows the price, the Buy bar and the licence chip', async () => {
     mockDigital = true;
     const text = flat((await render(<ItemSheet item={photo} saved={false} onSave={() => {}} onClose={() => {}} />)).root);
     expect(text).toMatch(/\$5|5\.00|USD/);
-    expect(text).toMatch(/Buy now/);
-    expect(text).toMatch(/Standard license/);
+    expect(text).toMatch(/Buy · /);
+    expect(text).toMatch(/Personal & social/);
   });
 
   it('the "already bought" sheet mounts with the code field and the email recovery', async () => {

@@ -80,7 +80,41 @@ describe('Explore screen as rendered', () => {
     const r = await mount(true);
     const text = flat(r.root);
     expect(text).toMatch(/\$5|5\.00|USD/);
-    expect(text).toMatch(/low to high/i);
+    const sortBtn = r.root.findAll(n => typeof n.props?.onPress === 'function' && /^Sort:/.test(n.props.accessibilityLabel ?? ''))[0];
+    await act(async () => { sortBtn.props.onPress(); });
+    expect(flat(r.root)).toMatch(/low to high/i);
+  });
+
+  it('draws the reference header: title, search, filters button, chips, creators and Latest with a caption on each tile', async () => {
+    mockFeed.mockResolvedValue({ items: [item('p1', { creatorId: 'u1' }), item('p2', { creatorId: 'u2', creatorName: 'Sky Edition' })], nextCursor: null });
+    const r = await mount(false);
+    const text = flat(r.root);
+    expect(text).toMatch(/Explore/);
+    expect(text).toMatch(/Featured creators/);
+    expect(text).toMatch(/Latest/);
+    expect(text).toMatch(/Item p1 \| Aline Uwase/);
+    expect(r.root.findAll(n => n.props?.accessibilityLabel === 'Filters').length).toBeGreaterThan(0);
+    expect(r.root.findAll(n => n.props?.placeholder === 'Search photos, clips, creators').length).toBeGreaterThan(0);
+  });
+
+  it('filters sheet: the count follows the choices, and a store build has no price range or cart button', async () => {
+    mockFeed.mockResolvedValue({ items: [item('p1'), item('c1', { mediaType: 'VIDEO', previewVideoUrl: 'https://e.test/c.m3u8' }), item('p2', { aspectRatio: 0.7 })], nextCursor: null });
+    const r = await mount(false);
+    expect(r.root.findAll(n => /^Cart/.test(n.props?.accessibilityLabel ?? '')).length).toBe(0);
+    await act(async () => { r.root.findAll(n => n.props?.accessibilityLabel === 'Filters')[0].props.onPress(); });
+    expect(flat(r.root)).toMatch(/Show 3 results/);
+    expect(flat(r.root)).not.toMatch(/Price range/);
+    const portrait = r.root.findAll(n => typeof n.props?.onPress === 'function' && n.props.accessibilityRole === 'tab' && n.findAllByType(Text).some(t => t.props.children === 'Portrait'))[0];
+    await act(async () => { portrait.props.onPress(); });
+    expect(flat(r.root)).toMatch(/Show 1 results/);
+  });
+
+  it('a web build has the cart button and a price range in the filters', async () => {
+    mockFeed.mockResolvedValue({ items: [item('p1', { priceAmount: 5 }), item('p2', { priceAmount: 12 })], nextCursor: null });
+    const r = await mount(true);
+    expect(r.root.findAll(n => /^Cart/.test(n.props?.accessibilityLabel ?? '')).length).toBeGreaterThan(0);
+    await act(async () => { r.root.findAll(n => n.props?.accessibilityLabel === 'Filters')[0].props.onPress(); });
+    expect(flat(r.root)).toMatch(/Price range/);
   });
 
   it('shows the empty state when nothing matches', async () => {

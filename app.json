@@ -238,6 +238,23 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-28-explore-design",
+            "date": "2026-11-28",
+            "title": "A calmer Explore",
+            "items": [
+              {
+                "icon": "images-outline",
+                "title": "Browse like the new design",
+                "body": "Explore has a search bar, filters, featured creators and photos and clips with their title and creator under each one."
+              },
+              {
+                "icon": "expand-outline",
+                "title": "A full page for every photo and clip",
+                "body": "Open an item to see it edge to edge, its size, more like it, and a clear Buy bar where buying is available."
+              }
+            ]
+          },
+          {
             "id": "2026-11-28-login-fit",
             "date": "2026-11-28",
             "title": "Sign-in fits on one screen",
