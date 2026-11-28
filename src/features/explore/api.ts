@@ -15,6 +15,7 @@ export type ExploreItem = {
   mediaType: MediaType;
   title: string;
   categoryLabel: string | null;
+  creatorId?: string;
   creatorName: string;
   creatorLogo: string | null;
   thumbnailUrl: string | null;
@@ -23,6 +24,9 @@ export type ExploreItem = {
   previewVideoUrl: string | null;
   durationSeconds: number | null;
   aspectRatio: number;
+  /** The original file's size in pixels (0 when unknown). */
+  width?: number;
+  height?: number;
   priceAmount: number | null;
   priceCurrency: string;
   tags: string[];
@@ -72,12 +76,15 @@ export function mapItem(r: Raw): ExploreItem {
     mediaType: r.mediaType === 'VIDEO' ? 'VIDEO' : 'PHOTO',
     title: String(r.title ?? ''),
     categoryLabel: str(r.categoryLabel),
+    creatorId: String(r.creator?.id ?? r.creator?.name ?? ''),
     creatorName: String(r.creator?.name ?? ''),
     creatorLogo: str(r.creator?.logo),
     thumbnailUrl: str(r.thumbnailUrl),
     previewUrl: str(r.previewUrl),
     previewVideoUrl: str(r.previewVideoUrl),
     durationSeconds: typeof r.durationSeconds === 'number' ? r.durationSeconds : null,
+    width: w,
+    height: h,
     // Keep a sane range so one very tall or wide picture cannot break the columns.
     aspectRatio: Math.min(2.2, Math.max(0.5, ratio)),
     priceAmount: typeof r.price?.amount === 'number' ? r.price.amount : null,
