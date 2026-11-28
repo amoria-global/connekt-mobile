@@ -1,10 +1,10 @@
 import React from 'react';
 import TestRenderer, { act, type ReactTestInstance } from 'react-test-renderer';
-import { ScrollView, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
 /**
- * The sign-in screen's guest cards: Find My Photos, Explore Events and Explore Photos & Clips, in a horizontal snapping
- * row (the third peeks in), with the Explore card taking its cover from a live item. Rendered over fakes.
+ * The sign-in screen's guest cards: Find My Photos, Explore Events and Explore Photos & Clips, as wrapping blocks
+ * (two a row, the rest below, nothing to scroll sideways), with the Explore card taking its cover from a live item. Rendered over fakes.
  */
 import '@/test/autoUnmount';
 
@@ -47,12 +47,12 @@ async function mount() {
 beforeEach(() => { mockPush.mockReset(); mockFeed.mockReset(); });
 
 describe('guest cards on the sign-in screen', () => {
-  it('shows three cards in a horizontal snapping row, Explore Photos & Clips last, with a live cover', async () => {
+  it('shows three cards as wrapping blocks, two a row, Explore Photos & Clips last, with a live cover', async () => {
     mockFeed.mockResolvedValue({ items: [{ id: 'i1', previewUrl: 'https://e.test/i1-v.jpg' }], nextCursor: null });
     const r = await mount();
-    const row = r.root.findByType(ScrollView);
-    expect(row.props.horizontal).toBe(true);
-    expect(row.props.snapToInterval).toBeGreaterThan(0);
+    const row = r.root.findByProps({ accessibilityLabel: 'explore_cardsList' });
+    expect(row.props.horizontal).toBeUndefined();
+    expect(StyleSheet.flatten(row.props.style)).toMatchObject({ flexDirection: 'row', flexWrap: 'wrap' });
     const titles = text(row).filter((x) => /^(findMyPhotos|exploreEvents|explore_cardTitle)$/.test(x));
     expect(titles).toEqual(['findMyPhotos', 'exploreEvents', 'explore_cardTitle']);
     expect(text(row)).toContain('explore_cardSub');
