@@ -252,13 +252,8 @@ export default function LoginScreen() {
   // instead of below the fold under the sign-in form.
   const cardW = guestRowW > 0 ? Math.round((guestRowW - spacing.sm) / 2.25) : 140;
   const guestPaths = (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      snapToInterval={cardW + spacing.sm}
-      snapToAlignment="start"
-      decelerationRate="fast"
-      contentContainerStyle={styles.guestRow}
+    <View
+      style={styles.guestRow}
       onLayout={(e) => setGuestRowW(e.nativeEvent.layout.width)}
       accessibilityLabel={t('explore_cardsList')}
     >
@@ -309,7 +304,7 @@ export default function LoginScreen() {
           subtitle={t('explore_cardSub')}
         />
       </Pressable>
-    </ScrollView>
+    </View>
   );
 
   return (
@@ -574,7 +569,8 @@ const useStyles = makeStyles((c) => ({
   pressed: { opacity: 0.75 },
 
   // ── Guest paths, on the photo ─────────────────────────────────────────
-  guestRow: { flexDirection: "row", gap: spacing.sm, paddingRight: spacing.lg },
+  // Blocks: two cards a row, the rest wrap below. Cards keep their size, the block grows upward.
+  guestRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   guestCard: {
     height: 136,
     borderRadius: radii.lg,
