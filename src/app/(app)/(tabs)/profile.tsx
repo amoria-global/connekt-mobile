@@ -15,6 +15,7 @@
  *   6. Tab switcher (Personal Details, Settings, Account & Legal)
  *   7. Clean tab content (No loud/tacky gradients, pure minimalist typography)
  */
+import { digitalPurchasesEnabled } from '@/features/payments/policy';
 import { MatchingProfileCard } from '@/features/hybrid/MatchingProfile';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -113,6 +114,7 @@ export default function ProfileScreen() {
     isChecking: isCheckingUpdate,
     isDownloading: isDownloadingUpdate,
     currentVersion,
+    updateId,
     checkForUpdates,
     previewUpdateScreen,
   } = useAppUpdates();
@@ -580,7 +582,7 @@ export default function ProfileScreen() {
                         ? 'Checking for updates…'
                         : isDownloadingUpdate
                           ? 'Downloading update…'
-                          : `v${currentVersion} · Up to date`
+                          : `v${currentVersion} · ${updateId ? updateId.slice(0, 8) : 'embedded'} · ${digitalPurchasesEnabled ? 'buying on' : 'buying off'} · Up to date`
                   }
                   onPress={handleCheckUpdate}
                   onLongPress={() => previewUpdateScreen(true)}
