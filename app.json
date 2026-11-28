@@ -238,6 +238,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-28-login-fit",
+            "date": "2026-11-28",
+            "title": "Sign-in fits on one screen",
+            "items": [
+              {
+                "icon": "phone-portrait-outline",
+                "title": "No more scrolling to sign in",
+                "body": "The sign-in form and the three options above it now fit on one screen, so the lines at the bottom are no longer hidden."
+              }
+            ]
+          },
+          {
             "id": "2026-11-28-login-cards",
             "date": "2026-11-28",
             "title": "Easier to find on the sign-in screen",
