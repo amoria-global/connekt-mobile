@@ -233,6 +233,7 @@
       "reactCompiler": false
     },
     "extra": {
+      "digitalPurchases": true,
       "router": {},
       "releaseNotes": {
         "releases": [
