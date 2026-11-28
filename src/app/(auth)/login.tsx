@@ -44,6 +44,7 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type StyleProp,
   type ViewStyle,
 } from "react-native";
@@ -100,6 +101,7 @@ export default function LoginScreen() {
   const [roleSheetVisible, setRoleSheetVisible] = useState(false);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
+  const { height: windowH } = useWindowDimensions();
   const [guestRowW, setGuestRowW] = useState(0);
   // Cover for the Explore card: a live, approved item's watermarked preview. The gradient shows until it arrives.
   const [exploreCover, setExploreCover] = useState<string | null>(null);
@@ -251,6 +253,8 @@ export default function LoginScreen() {
   // Guest paths sit on the photo itself, so they are visible on arrival
   // instead of below the fold under the sign-in form.
   const cardW = guestRowW > 0 ? Math.round((guestRowW - spacing.sm) / 2.25) : 140;
+  // Two rows of cards plus the form must fit one screen, so shorter phones get shorter cards.
+  const cardH = windowH < 740 ? 92 : 108;
   const guestPaths = (
     <View
       style={styles.guestRow}
@@ -259,7 +263,7 @@ export default function LoginScreen() {
     >
       <Pressable
         onPress={() => router.push("/find-photos")}
-        style={({ pressed }) => [styles.guestCard, { width: cardW }, pressed && styles.guestCardPressed]}
+        style={({ pressed }) => [styles.guestCard, { width: cardW, height: cardH }, pressed && styles.guestCardPressed]}
         accessibilityRole="button"
         accessibilityLabel={`${t('findMyPhotos')}. ${t('selfiePhotoLookup')}`}
       >
@@ -274,7 +278,7 @@ export default function LoginScreen() {
       </Pressable>
       <Pressable
         onPress={() => setExploreChoiceOpen(true)}
-        style={({ pressed }) => [styles.guestCard, { width: cardW }, pressed && styles.guestCardPressed]}
+        style={({ pressed }) => [styles.guestCard, { width: cardW, height: cardH }, pressed && styles.guestCardPressed]}
         accessibilityRole="button"
         accessibilityLabel={`${t('exploreEvents')}. ${t('liveStreamsEvents')}`}
       >
@@ -288,7 +292,7 @@ export default function LoginScreen() {
       </Pressable>
       <Pressable
         onPress={() => router.push("/explore")}
-        style={({ pressed }) => [styles.guestCard, { width: cardW }, pressed && styles.guestCardPressed]}
+        style={({ pressed }) => [styles.guestCard, { width: cardW, height: cardH }, pressed && styles.guestCardPressed]}
         accessibilityRole="button"
         accessibilityLabel={`${t('explore_cardTitle')}. ${t('explore_cardSub')}`}
       >
@@ -311,8 +315,7 @@ export default function LoginScreen() {
     <>
       <AuthGlassLayout
         title={t('welcomeBack')}
-        subtitle={t('signInToAccount')}
-        bandRatio={0.4}
+        bandRatio={0.3}
         compact
         bandFooter={guestPaths}
         scrollRef={scrollRef}
