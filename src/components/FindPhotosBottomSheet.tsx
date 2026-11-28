@@ -66,15 +66,15 @@ export function FindPhotosBottomSheet({ visible, onClose, getPhotosRoute }: Prop
                 style={({ pressed }) => [styles.sheetOption, pressed && styles.sheetOptionPressed]}
                 onPress={() => {
                   onClose();
-                  router.push('/browse-photos');
+                  router.push('/explore');
                 }}
               >
                 <View style={[styles.sheetIconWrap, { backgroundColor: colors.tintAccent }]}>
                   <Ionicons name="apps" size={28} color={colors.accent} />
                 </View>
                 <View style={styles.sheetTextWrap}>
-                  <Text style={styles.sheetTitle}>{tr('Browse Photos')}</Text>
-                  <Text style={styles.sheetSub}>{tr('Stock photos by category, paid per photo')}</Text>
+                  <Text style={styles.sheetTitle}>{tr('Explore')}</Text>
+                  <Text style={styles.sheetSub}>{tr('Photos and short clips from creators')}</Text>
                 </View>
               </Pressable>
             </>

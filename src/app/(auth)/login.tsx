@@ -30,6 +30,7 @@ import {
   useTheme,
 } from "@/theme";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
@@ -253,6 +254,20 @@ export default function LoginScreen() {
           iconStyle={styles.guestIconAccent}
           title={t('findMyPhotos')}
           subtitle={t('aiScan')}
+        />
+      </Pressable>
+      <Pressable
+        onPress={() => router.push("/explore")}
+        style={({ pressed }) => [styles.guestCard, pressed && styles.guestCardPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('explore_title')}. ${t('explore_photos')}, ${t('explore_clips')}`}
+      >
+        <LinearGradient colors={[colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover} />
+        <GuestCardLabel
+          icon="images-outline"
+          iconStyle={styles.guestIconAccent}
+          title={t('explore_title')}
+          subtitle={`${t('explore_photos')} · ${t('explore_clips')}`}
         />
       </Pressable>
       <Pressable

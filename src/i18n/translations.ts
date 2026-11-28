@@ -2,6 +2,7 @@ import { batch1En, batch1Fr, batch1Es } from './batch1';
 import { batch2En, batch2Fr, batch2Es } from './batch2';
 import { batch3En, batch3Fr, batch3Es } from './batch3';
 import { chatShareEn, chatShareFr } from './chatShare';
+import { exploreEn, exploreFr, exploreEs } from './explore';
 import { batch4En, batch4Fr, batch4Es } from './batch4';
 import { batch5En, batch5Fr, batch5Es } from './batch5';
 import { buildKinyarwandaDict, CORE_RW } from './kinyarwanda';
@@ -703,6 +704,7 @@ const baseTranslations = {
     ...batch2En,
     ...batch3En,
     ...chatShareEn,
+    ...exploreEn,
     ...batch4En,
     ...batch5En,
   },
@@ -1377,6 +1379,7 @@ const baseTranslations = {
     ...batch2Fr,
     ...batch3Fr,
     ...chatShareFr,
+    ...exploreFr,
     ...batch4Fr,
     ...batch5Fr,
   },
@@ -2051,6 +2054,7 @@ const baseTranslations = {
     ...batch2Es,
     ...batch3Es,
     ...chatShareEn,
+    ...exploreEs,
     ...batch4Es,
     ...batch5Es,
   },

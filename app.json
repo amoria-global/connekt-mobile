@@ -237,6 +237,35 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-27-explore-saved",
+            "date": "2026-11-27",
+            "title": "Your saved photos and clips",
+            "items": [
+              {
+                "icon": "heart-outline",
+                "title": "A Saved tab in Explore",
+                "body": "Tap the heart on any photo or clip, then open Saved in Explore to find everything you kept in one place."
+              }
+            ]
+          },
+          {
+            "id": "2026-11-26-explore",
+            "date": "2026-11-26",
+            "title": "Explore: photos and short clips",
+            "items": [
+              {
+                "icon": "images-outline",
+                "title": "A new way to browse",
+                "body": "Explore shows photos and short video clips from Connekyt creators in a scrolling grid. Filter by category, watch a short preview of a clip and save what you like."
+              },
+              {
+                "icon": "lock-open-outline",
+                "title": "Open what you already bought",
+                "body": "Tap I already bought this, enter the code from your receipt, and your photos and clips open inside the app, ready to save to your phone."
+              }
+            ]
+          },
+          {
             "id": "2026-11-25-photobooks-drag",
             "date": "2026-11-25",
             "title": "Drag your photobook photos into order",

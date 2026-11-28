@@ -9,7 +9,6 @@ import * as path from 'path';
  */
 const ROOT = path.join(__dirname, '..');
 const EXEMPT: Record<string, { count: number; why: string }> = {
-  'app/(public)/browse-photos.tsx': { count: 1, why: 'full-screen photo lightbox' },
   'app/(public)/events/live-stream.tsx': { count: 1, why: 'full-screen immersive player' },
   'features/gallery/PhotoViewer.tsx': { count: 1, why: 'full-screen photo viewer' },
   'features/photos/FindMyPhotos.tsx': { count: 1, why: 'full-screen photo lightbox' },
