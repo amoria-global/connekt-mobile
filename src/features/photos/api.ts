@@ -338,6 +338,24 @@ export async function identifyAlbumBuyer(
   };
 }
 
+/**
+ * The buyerId a purchase is sent with. The backend's buyerId is an album buyer record made by identify-buyer (linked to
+ * the signed-in account), never the customer id: the customer id is refused with "Buyer not found". Nobody signed in,
+ * or an identify that fails, gives undefined, and the purchase goes ahead as a guest by email, as on the web.
+ */
+export async function resolveBuyerId(
+  signedIn: boolean,
+  albumId: string | undefined,
+  details: { name: string; email: string; phone: string },
+): Promise<string | undefined> {
+  if (!signedIn || !albumId) return undefined;
+  try {
+    return (await identifyAlbumBuyer(albumId, details)).buyerId || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 // ─── ⚠ UNUSED payment surface — read docs/PAYMENTS.md before wiring any of
 //     this up ────────────────────────────────────────────────────────────────
 //
