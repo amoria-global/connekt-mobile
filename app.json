@@ -238,6 +238,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-28-login-cards",
+            "date": "2026-11-28",
+            "title": "Easier to find on the sign-in screen",
+            "items": [
+              {
+                "icon": "grid-outline",
+                "title": "All three options in view",
+                "body": "Find My Photos, Explore Events and Explore Photos & Clips now sit together as simple blocks, so you no longer need to scroll sideways to see the last one."
+              }
+            ]
+          },
+          {
             "id": "2026-11-28-buy-signed-in",
             "date": "2026-11-28",
             "title": "Buying works when you are signed in",
