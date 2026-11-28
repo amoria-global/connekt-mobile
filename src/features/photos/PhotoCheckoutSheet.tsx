@@ -45,6 +45,7 @@ import {
   getPublicPaymentStatus,
   initiateMultiAlbumPurchase,
   recordAlbumPurchase,
+  resolveBuyerId,
   type MultiAlbumPurchaseItem,
 } from '@/features/photos/api';
 import { generateAndSharePhotoInvoice } from './invoicePdf';
@@ -260,7 +261,14 @@ export function PhotoCheckoutSheet({
 
     try {
       const formattedPhone = isCard ? undefined : formatPhoneE164(phone, country);
-      const buyerId = user?.customerId ? String(user.customerId) : undefined;
+      // The backend's buyerId is an ALBUM BUYER record (made by identify-buyer, linked to the signed-in account), never the
+      // customer id: sending the customer id was refused with "Buyer not found". A signed-in buyer is identified first; if
+      // that fails, or nobody is signed in, the purchase goes ahead as a guest (the buyer's email), as it does on the web.
+      const buyerId = await resolveBuyerId(!!user?.customerId, items[0]?.albumId, {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        phone: formattedPhone ?? '',
+      });
       const { refid, paymentUrl } = await initiateMultiAlbumPurchase({
         items,
         buyerId,

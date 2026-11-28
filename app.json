@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-28-buy-signed-in",
+            "date": "2026-11-28",
+            "title": "Buying works when you are signed in",
+            "items": [
+              {
+                "icon": "card-outline",
+                "title": "Pay for photos and clips while signed in",
+                "body": "A purchase made from a signed-in account was being refused before the payment prompt. It now goes through and your photos and clips unlock as normal."
+              }
+            ]
+          },
+          {
             "id": "2026-11-28-buy-photos",
             "date": "2026-11-28",
             "title": "Buy photos and clips in the app",
