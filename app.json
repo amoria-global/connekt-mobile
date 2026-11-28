@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-28-buy-photos",
+            "date": "2026-11-28",
+            "title": "Buy photos and clips in the app",
+            "items": [
+              {
+                "icon": "cart-outline",
+                "title": "Pay with mobile money",
+                "body": "Prices and the Buy button are now shown on Explore, so you can buy a photo or a clip and open the original right in the app."
+              }
+            ]
+          },
+          {
             "id": "2026-11-28-explore-entry",
             "date": "2026-11-28",
             "title": "Explore is on the sign-in screen",
