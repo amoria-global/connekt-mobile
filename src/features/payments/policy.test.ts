@@ -227,3 +227,11 @@ describe('giftsEnabled', () => {
     }
   });
 });
+
+describe('the app.json switch', () => {
+  it('is on in app.json (owner decision 2026-11-28) and off in jest, where no manifest is loaded', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    expect(require('../../../app.json').expo.extra.digitalPurchases).toBe(true);
+    expect(digitalPurchasesEnabled).toBe(false);
+  });
+});

@@ -41,13 +41,21 @@
  * Web is the only platform left true: connekyt.com is not a store binary and
  * neither policy reaches it.
  */
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 // Native builds are OFF, release builds included. A `NODE_ENV !== 'test'` clause
 // used to sit here; it made this true in every shipped build and only false under
 // jest, which is how the store-billing gate described above was silently open.
+//
+// Owner decision 2026-11-28: on in the app. Two switches, either one turns it on: the build-time env var, and
+// `expo.extra.digitalPurchases` in app.json, which travels inside every published update's manifest and is read at
+// runtime. The second exists because the env var is inlined by the bundler and a published update came out with it
+// compiled to false (the phone showed "buying off" while a local export had it on), so it cannot be the only switch.
+const extraSwitch =
+  (Constants.expoConfig?.extra as { digitalPurchases?: boolean } | undefined)?.digitalPurchases === true;
 export const digitalPurchasesEnabled =
-  Platform.OS === 'web' || process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES === 'true';
+  Platform.OS === 'web' || process.env.EXPO_PUBLIC_ENABLE_DIGITAL_PURCHASES === 'true' || extraSwitch;
 
 /**
  * Live-stream gifts are on in every build, native included. This is the owner's
