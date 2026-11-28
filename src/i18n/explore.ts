@@ -1,6 +1,9 @@
 // Explore (photos and clips). Generated from the landing's `explore` messages so the web and the app share one text,
 // plus the few app-only strings. Edit the landing messages and re-run the generator rather than editing here.
 export const exploreEn = {
+  explore_cardTitle: "Explore Photos & Clips",
+  explore_cardSub: "CREATORS",
+  explore_cardsList: "Guest paths",
   explore_title: "Explore",
   explore_subtitle: "Photos and short video clips from Connekyt creators. Watch a preview, pick what you love, and get the original in your inbox.",
   explore_searchPlaceholder: "Search photos, clips, creators or tags",
@@ -77,6 +80,9 @@ export const exploreEn = {
 };
 
 export const exploreFr = {
+  explore_cardTitle: "Explorer photos et clips",
+  explore_cardSub: "CRÉATEURS",
+  explore_cardsList: "Accès invité",
   explore_title: "Explorer",
   explore_subtitle: "Des photos et de courts clips vidéo de créateurs Connekyt. Regardez un aperçu, choisissez ce que vous aimez et recevez l'original par e-mail.",
   explore_searchPlaceholder: "Rechercher photos, clips, créateurs ou mots-clés",
@@ -153,6 +159,9 @@ export const exploreFr = {
 };
 
 export const exploreEs = {
+  explore_cardTitle: "Explorar fotos y clips",
+  explore_cardSub: "CREADORES",
+  explore_cardsList: "Accesos de invitado",
   explore_title: "Explorar",
   explore_subtitle: "Fotos y clips de video cortos de creadores de Connekyt. Mira una vista previa, elige lo que te guste y recibe el original en tu correo.",
   explore_searchPlaceholder: "Buscar fotos, clips, creadores o etiquetas",
@@ -229,6 +238,9 @@ export const exploreEs = {
 };
 
 export const exploreSw = {
+  explore_cardTitle: "Gundua Picha na Klipu",
+  explore_cardSub: "WABUNIFU",
+  explore_cardsList: "Njia za wageni",
   explore_title: "Gundua",
   explore_subtitle: "Picha na video fupi kutoka kwa wabunifu wa Connekyt. Tazama muhtasari, chagua unachopenda, na upokee picha halisi kwenye barua pepe yako.",
   explore_searchPlaceholder: "Tafuta picha, video, wabunifu au lebo",
@@ -305,6 +317,9 @@ export const exploreSw = {
 };
 
 export const exploreRw = {
+  explore_cardTitle: "Shakisha Amafoto na Amashusho",
+  explore_cardSub: "ABAHANZI",
+  explore_cardsList: "Inzira z’abashyitsi",
   explore_title: "Shakisha",
   explore_subtitle: "Amafoto na amashusho magufi y'abahanzi ba Connekyt. Reba ibigaragaza, hitamo ibyo ukunda, maze wakire iyambere kuri imeri yawe.",
   explore_searchPlaceholder: "Shakisha amafoto, amashusho, abahanzi cyangwa ibimenyetso",

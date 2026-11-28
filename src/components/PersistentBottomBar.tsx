@@ -356,6 +356,14 @@ export function MoreSheet({
       href: '/streams' as Href,
     });
 
+    // Explore photos and clips: open to every signed-in role, the same screen guests reach from the login card.
+    list.push({
+      id: 'explore',
+      label: t('explore_title'),
+      icon: 'compass-outline',
+      href: '/explore' as Href,
+    });
+
     // Calendar: events the coordinator runs and the payments they owe, by day.
     if (isCoordinator) {
       list.push({

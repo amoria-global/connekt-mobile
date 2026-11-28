@@ -1,5 +1,6 @@
 import { onFill, onMedia } from '@/theme';
 import { FindPhotosBottomSheet } from "@/components/FindPhotosBottomSheet";
+import { fetchFeed } from '@/features/explore/api';
 import { ExploreChoiceSheet } from '@/features/hybrid/ExploreChoiceSheet';
 import { MODE_META } from '@/features/hybrid/hybridUi';
 import { pendingPostEvent } from '@/features/hybrid/postEventIntent';
@@ -99,6 +100,16 @@ export default function LoginScreen() {
   const [roleSheetVisible, setRoleSheetVisible] = useState(false);
   const [findPhotosModalVisible, setFindPhotosModalVisible] = useState(false);
   const [exploreChoiceOpen, setExploreChoiceOpen] = useState(false);
+  const [guestRowW, setGuestRowW] = useState(0);
+  // Cover for the Explore card: a live, approved item's watermarked preview. The gradient shows until it arrives.
+  const [exploreCover, setExploreCover] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetchFeed({ size: 6, type: 'PHOTO' })
+      .then((r) => { if (live) setExploreCover(r.items.find((i) => i.previewUrl)?.previewUrl ?? null); })
+      .catch(() => {});
+    return () => { live = false; };
+  }, []);
   // A guest chose "Post my event": they are already on the sign-in screen, so
   // say so here and put them in the email field. The home screen opens the
   // wizard once they are signed in (see postEventIntent).
@@ -239,11 +250,21 @@ export default function LoginScreen() {
 
   // Guest paths sit on the photo itself, so they are visible on arrival
   // instead of below the fold under the sign-in form.
+  const cardW = guestRowW > 0 ? Math.round((guestRowW - spacing.sm) / 2.25) : 140;
   const guestPaths = (
-    <View style={styles.guestRow}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      snapToInterval={cardW + spacing.sm}
+      snapToAlignment="start"
+      decelerationRate="fast"
+      contentContainerStyle={styles.guestRow}
+      onLayout={(e) => setGuestRowW(e.nativeEvent.layout.width)}
+      accessibilityLabel={t('explore_cardsList')}
+    >
       <Pressable
         onPress={() => router.push("/find-photos")}
-        style={({ pressed }) => [styles.guestCard, pressed && styles.guestCardPressed]}
+        style={({ pressed }) => [styles.guestCard, { width: cardW }, pressed && styles.guestCardPressed]}
         accessibilityRole="button"
         accessibilityLabel={`${t('findMyPhotos')}. ${t('selfiePhotoLookup')}`}
       >
@@ -257,22 +278,8 @@ export default function LoginScreen() {
         />
       </Pressable>
       <Pressable
-        onPress={() => router.push("/explore")}
-        style={({ pressed }) => [styles.guestCard, pressed && styles.guestCardPressed]}
-        accessibilityRole="button"
-        accessibilityLabel={`${t('explore_title')}. ${t('explore_photos')}, ${t('explore_clips')}`}
-      >
-        <LinearGradient colors={[colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover} />
-        <GuestCardLabel
-          icon="images-outline"
-          iconStyle={styles.guestIconAccent}
-          title={t('explore_title')}
-          subtitle={`${t('explore_photos')} · ${t('explore_clips')}`}
-        />
-      </Pressable>
-      <Pressable
         onPress={() => setExploreChoiceOpen(true)}
-        style={({ pressed }) => [styles.guestCard, pressed && styles.guestCardPressed]}
+        style={({ pressed }) => [styles.guestCard, { width: cardW }, pressed && styles.guestCardPressed]}
         accessibilityRole="button"
         accessibilityLabel={`${t('exploreEvents')}. ${t('liveStreamsEvents')}`}
       >
@@ -284,7 +291,25 @@ export default function LoginScreen() {
           subtitle={t('liveAndEvents')}
         />
       </Pressable>
-    </View>
+      <Pressable
+        onPress={() => router.push("/explore")}
+        style={({ pressed }) => [styles.guestCard, { width: cardW }, pressed && styles.guestCardPressed]}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('explore_cardTitle')}. ${t('explore_cardSub')}`}
+      >
+        {exploreCover ? (
+          <Image source={{ uri: exploreCover }} style={styles.cover} resizeMode="cover" />
+        ) : (
+          <LinearGradient colors={[colors.primary, colors.accent]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cover} />
+        )}
+        <GuestCardLabel
+          icon="images-outline"
+          iconStyle={styles.guestIconAccent}
+          title={t('explore_cardTitle')}
+          subtitle={t('explore_cardSub')}
+        />
+      </Pressable>
+    </ScrollView>
   );
 
   return (
@@ -537,7 +562,7 @@ function GuestCardLabel({
         <Ionicons name={icon} size={14} color={onFill} />
       </View>
       <View style={styles.flex}>
-        <Text style={styles.guestTitle} numberOfLines={1}>{title}</Text>
+        <Text style={styles.guestTitle} numberOfLines={2}>{title}</Text>
         <Text style={styles.guestSub} numberOfLines={1}>{subtitle}</Text>
       </View>
     </GlassOnMedia>
@@ -549,9 +574,8 @@ const useStyles = makeStyles((c) => ({
   pressed: { opacity: 0.75 },
 
   // ── Guest paths, on the photo ─────────────────────────────────────────
-  guestRow: { flexDirection: "row", gap: spacing.sm },
+  guestRow: { flexDirection: "row", gap: spacing.sm, paddingRight: spacing.lg },
   guestCard: {
-    flex: 1,
     height: 136,
     borderRadius: radii.lg,
     overflow: "hidden",

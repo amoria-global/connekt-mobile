@@ -18,11 +18,11 @@
     "@expo-google-fonts/space-grotesk"
   ],
   "ios": {
-    "buildCommit": "4b57bcfb4710789082abbbd29a39c4ccff07f658",
-    "appVersion": "2.4.0",
-    "runtimeVersion": "2.4.0",
-    "iosBuildNumber": 50,
+    "buildCommit": "8b6ef9d2d685692f044e7b07976cb058aa590cf9",
+    "appVersion": "2.4.1",
+    "runtimeVersion": "2.4.1",
+    "iosBuildNumber": 51,
     "easBuildProfile": "production",
-    "note": "iOS 2.4.0 (50), EAS build 9aa40830-6c02-4a1e-bb6f-3099141951ee, 2026-11-14, SDK 57, approved on the App Store 2026-11-15. It adds expo-location (the location permission text). iOS ships on its own version and commit, so it has its own block; the top level is the Android build. OTA to iOS publishes from a branch whose app.json version is 2.4.0 (see docs/RELEASING.md)."
+    "note": "iOS 2.4.1 (51), EAS build b05a0c5d-75bc-489e-aff2-163e929d53d1, 2026-11-26, SDK 57, submitted to App Store Connect 2026-11-26 (submission 4f00f324). Identical natives to 2.4.0 (50); only the version differs, and the appVersion runtime policy means OTA for it must be published on runtime 2.4.1, not 2.4.0. iOS ships on its own version and commit, so it has its own block; the top level is the Android build (see docs/RELEASING.md)."
   }
 }

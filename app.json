@@ -237,6 +237,18 @@
       "releaseNotes": {
         "releases": [
           {
+            "id": "2026-11-28-explore-entry",
+            "date": "2026-11-28",
+            "title": "Explore is on the sign-in screen",
+            "items": [
+              {
+                "icon": "compass-outline",
+                "title": "Open Explore in one tap",
+                "body": "Explore Photos and Clips now has its own card on the sign-in screen, and an Explore shortcut on Home and in the More menu once you are signed in."
+              }
+            ]
+          },
+          {
             "id": "2026-11-27-explore-saved",
             "date": "2026-11-27",
             "title": "Your saved photos and clips",

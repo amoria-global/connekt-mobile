@@ -121,6 +121,7 @@ type Href =
   | '/packages'
   | '/gallery'
   | '/find-my-photos'
+  | '/explore'
   | '/donations'
   | '/clients'
   | '/payments'
@@ -129,6 +130,7 @@ type Href =
 type Action = { label: string; icon: keyof typeof Ionicons.glyphMap; href: Href };
 
 const COMMON_TAIL: Action[] = [
+  { label: 'Explore', icon: 'compass', href: '/explore' },
   { label: 'Gallery', icon: 'images', href: '/gallery' },
   { label: 'Donate', icon: 'heart', href: '/donations' },
 ];
